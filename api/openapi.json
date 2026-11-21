@@ -826,7 +826,7 @@
           "steps"
         ],
         "summary": "Record a step",
-        "description": "Records one step of a running run (`409` when the run is finished).\n\nIdempotent on (`run_id`, `index`): a repeat returns the stored step and changes nothing.",
+        "description": "Records one step of a running run (`409` when the run is finished).\n\nIdempotent on (`run_id`, `index`): a repeat returns the stored step and changes nothing,\neven after the run finished.",
         "operationId": "recordStep",
         "requestBody": {
           "content": {

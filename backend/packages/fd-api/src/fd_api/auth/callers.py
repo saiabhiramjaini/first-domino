@@ -4,14 +4,15 @@ from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict
 
-from fd_api import examples
+from fd_api.auth.api_keys import API_KEY_PREFIX, verify_api_key
+from fd_api.auth.users import sign_in, verify_web_token
+from fd_api.database import DbSession
+from fd_api.settings import ApiSettings
 from fd_shared.errors import UnauthenticatedError
-
-API_KEY_PREFIX = "fd_live_"
 
 _bearer = HTTPBearer(auto_error=False, description="A web session token or a project API key.")
 
@@ -24,13 +25,21 @@ class CallerKind(StrEnum):
 
 
 class Caller(BaseModel):
-    """The authenticated caller. Every handler scopes its work to `project_id`."""
+    """The authenticated caller. Every handler scopes its work to `project_id`.
+
+    `actor_id` is the person's user id or the API key's id, for `*_by_id` columns.
+    """
 
     model_config = ConfigDict(frozen=True)
 
     kind: CallerKind
     project_id: UUID
     actor_id: UUID
+
+
+def get_settings(request: Request) -> ApiSettings:
+    """The settings the app was built with."""
+    return request.app.state.settings
 
 
 async def _bearer_token(
@@ -41,30 +50,42 @@ async def _bearer_token(
     return credentials.credentials
 
 
-def _example_caller(token: str) -> Caller:
-    # EXAMPLE AUTH (contract v1): accepts any token. Replaced by web token and API key checks.
-    if token.startswith(API_KEY_PREFIX):
-        return Caller(
-            kind=CallerKind.API_KEY,
-            project_id=examples.PROJECT_ID,
-            actor_id=examples.API_KEY_ID,
-        )
-    return Caller(kind=CallerKind.PERSON, project_id=examples.PROJECT_ID, actor_id=examples.USER_ID)
+async def _person(token: str, session: DbSession, settings: ApiSettings) -> Caller:
+    claims = verify_web_token(token, settings)
+    person = await sign_in(session, claims)
+    return Caller(kind=CallerKind.PERSON, project_id=person.project_id, actor_id=person.user_id)
 
 
-async def any_caller(token: Annotated[str, Depends(_bearer_token)]) -> Caller:
+async def _api_key(token: str, session: DbSession) -> Caller:
+    api_key = await verify_api_key(session, token)
+    return Caller(kind=CallerKind.API_KEY, project_id=api_key.project_id, actor_id=api_key.id)
+
+
+async def any_caller(
+    token: Annotated[str, Depends(_bearer_token)],
+    session: DbSession,
+    settings: Annotated[ApiSettings, Depends(get_settings)],
+) -> Caller:
     """Accepts a person or an API key (`P/K` in the contract)."""
-    return _example_caller(token)
+    if token.startswith(API_KEY_PREFIX):
+        return await _api_key(token, session)
+    return await _person(token, session, settings)
 
 
-async def person_caller(token: Annotated[str, Depends(_bearer_token)]) -> Caller:
+async def person_caller(
+    token: Annotated[str, Depends(_bearer_token)],
+    session: DbSession,
+    settings: Annotated[ApiSettings, Depends(get_settings)],
+) -> Caller:
     """Accepts a person only (`P` in the contract)."""
-    return _example_caller(token)
+    return await _person(token, session, settings)
 
 
-async def api_key_caller(token: Annotated[str, Depends(_bearer_token)]) -> Caller:
+async def api_key_caller(
+    token: Annotated[str, Depends(_bearer_token)], session: DbSession
+) -> Caller:
     """Accepts a project API key only (`K` in the contract)."""
-    return _example_caller(token)
+    return await _api_key(token, session)
 
 
 AnyCaller = Annotated[Caller, Depends(any_caller)]

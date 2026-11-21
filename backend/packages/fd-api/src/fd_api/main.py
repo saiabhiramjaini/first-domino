@@ -54,6 +54,7 @@ def create_app(settings: ApiSettings | None = None, database: Database | None = 
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type"],
     )
+    app.state.settings = settings
     install_error_handlers(app)
     for router in ROUTERS:
         app.include_router(router)

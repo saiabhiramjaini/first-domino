@@ -1,11 +1,13 @@
 """Runs routes: start and finish a run, get one, and list or count them."""
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from fd_api import examples
-from fd_api.auth.callers import AnyCaller, ApiKeyCaller, PersonCaller
+from fd_api.auth.callers import AnyCaller, ApiKeyCaller, Caller, PersonCaller
+from fd_api.database import DbSession
 from fd_api.errors import error_responses
 from fd_api.models.runs import (
     CountRunsRequest,
@@ -16,12 +18,45 @@ from fd_api.models.runs import (
     GetRunResponse,
     ListRunsRequest,
     ListRunsResponse,
+    Run,
     StartRunRequest,
     StartRunResponse,
 )
-from fd_shared.enums import ApiErrorCode, RunStatus
+from fd_api.pagination import decode_cursor, paginate
+from fd_database import tables
+from fd_database.pages import TimeKey
+from fd_database.repositories import ReplayJobsRepository, RunsRepository
+from fd_database.tables.base import utc_now
+from fd_shared.enums import ApiErrorCode, ReplayJobStatus, RunSource, RunStatus
+from fd_shared.errors import ConflictError, NotFoundError
+from fd_shared.logging import get_logger
+
+log = get_logger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["runs"])
+
+
+async def _start_replay(
+    session: AsyncSession, caller: Caller, body: StartRunRequest, replay_job_id: UUID
+) -> tables.Run:
+    job = await ReplayJobsRepository(session).get(
+        project_id=caller.project_id, replay_job_id=replay_job_id
+    )
+    if job is None:
+        raise NotFoundError
+    if job.status is not ReplayJobStatus.LEASED:
+        raise ConflictError
+    return await RunsRepository(session).create(
+        project_id=caller.project_id,
+        agent_name=body.agent_name,
+        task_input=body.task_input,
+        created_by_id=caller.actor_id,
+        started_at=utc_now(),
+        source=RunSource.REPLAY,
+        parent_run_id=job.run_id,
+        replay_job_id=job.id,
+        replay_from_step=job.from_step,
+    )
 
 
 @router.post(
@@ -36,24 +71,26 @@ router = APIRouter(prefix="/v1", tags=["runs"])
         ApiErrorCode.VALIDATION_FAILED,
     ),
 )
-async def start_run(body: StartRunRequest, caller: ApiKeyCaller) -> StartRunResponse:
+async def start_run(
+    body: StartRunRequest, caller: ApiKeyCaller, session: DbSession
+) -> StartRunResponse:
     """Starts recording a run.
 
     With `replay_job_id`, the run is a replay linked to the job's original run. The job must
     be leased (`404` when the project has no such job, `409` when it is not leased).
     """
-    run = examples.RUN.model_copy(
-        update={
-            "agent_name": body.agent_name,
-            "task_input": body.task_input,
-            "status": RunStatus.RUNNING,
-            "step_count": 0,
-            "final_output": None,
-            "latest_diagnosis_id": None,
-            "finished_at": None,
-        }
-    )
-    return StartRunResponse(run=run)
+    if body.replay_job_id is not None:
+        run = await _start_replay(session, caller, body, body.replay_job_id)
+    else:
+        run = await RunsRepository(session).create(
+            project_id=caller.project_id,
+            agent_name=body.agent_name,
+            task_input=body.task_input,
+            created_by_id=caller.actor_id,
+            started_at=utc_now(),
+        )
+    log.info("runs.started", run_id=str(run.id), source=run.source)
+    return StartRunResponse(run=Run.from_row(run))
 
 
 @router.post(
@@ -68,19 +105,27 @@ async def start_run(body: StartRunRequest, caller: ApiKeyCaller) -> StartRunResp
         ApiErrorCode.VALIDATION_FAILED,
     ),
 )
-async def finish_run(body: FinishRunRequest, caller: ApiKeyCaller) -> FinishRunResponse:
+async def finish_run(
+    body: FinishRunRequest, caller: ApiKeyCaller, session: DbSession
+) -> FinishRunResponse:
     """Finishes a running run (`409` when already finished).
 
     A recorded run that finishes `failed` is diagnosed automatically.
     """
-    run = examples.RUN.model_copy(
-        update={
-            "id": body.run_id,
-            "status": RunStatus(body.status),
-            "final_output": body.final_output,
-        }
+    runs = RunsRepository(session)
+    run = await runs.get(project_id=caller.project_id, run_id=body.run_id, for_update=True)
+    if run is None:
+        raise NotFoundError
+    if run.status is not RunStatus.RUNNING:
+        raise ConflictError
+    run = await runs.finish(
+        run=run,
+        status=RunStatus(body.status),
+        final_output=body.final_output,
+        finished_at=utc_now(),
     )
-    return FinishRunResponse(run=run)
+    log.info("runs.finished", run_id=str(run.id), status=run.status)
+    return FinishRunResponse(run=Run.from_row(run))
 
 
 @router.get(
@@ -91,9 +136,14 @@ async def finish_run(body: FinishRunRequest, caller: ApiKeyCaller) -> FinishRunR
         ApiErrorCode.UNAUTHENTICATED, ApiErrorCode.NOT_FOUND, ApiErrorCode.VALIDATION_FAILED
     ),
 )
-async def get_run(request: Annotated[GetRunRequest, Query()], caller: AnyCaller) -> GetRunResponse:
+async def get_run(
+    request: Annotated[GetRunRequest, Query()], caller: AnyCaller, session: DbSession
+) -> GetRunResponse:
     """Returns one run of the caller's project."""
-    return GetRunResponse(run=examples.RUN)
+    run = await RunsRepository(session).get(project_id=caller.project_id, run_id=request.run_id)
+    if run is None:
+        raise NotFoundError
+    return GetRunResponse(run=Run.from_row(run))
 
 
 @router.post(
@@ -104,9 +154,22 @@ async def get_run(request: Annotated[GetRunRequest, Query()], caller: AnyCaller)
         ApiErrorCode.BAD_REQUEST, ApiErrorCode.UNAUTHENTICATED, ApiErrorCode.VALIDATION_FAILED
     ),
 )
-async def list_runs(body: ListRunsRequest, caller: PersonCaller) -> ListRunsResponse:
+async def list_runs(
+    body: ListRunsRequest, caller: PersonCaller, session: DbSession
+) -> ListRunsResponse:
     """Lists runs, newest first. Recorded runs only unless `sources` says otherwise."""
-    return ListRunsResponse(items=[examples.RUN], next_cursor=None)
+    rows = await RunsRepository(session).list_filtered(
+        project_id=caller.project_id,
+        statuses=body.statuses,
+        sources=body.sources,
+        agent_name=body.agent_name,
+        limit=body.limit + 1,
+        after=decode_cursor(body.cursor, TimeKey),
+    )
+    page, next_cursor = paginate(
+        rows, body.limit, lambda row: TimeKey(at=row.started_at, id=row.id)
+    )
+    return ListRunsResponse(items=[Run.from_row(row) for row in page], next_cursor=next_cursor)
 
 
 @router.post(
@@ -117,6 +180,14 @@ async def list_runs(body: ListRunsRequest, caller: PersonCaller) -> ListRunsResp
         ApiErrorCode.BAD_REQUEST, ApiErrorCode.UNAUTHENTICATED, ApiErrorCode.VALIDATION_FAILED
     ),
 )
-async def count_runs(body: CountRunsRequest, caller: PersonCaller) -> CountRunsResponse:
+async def count_runs(
+    body: CountRunsRequest, caller: PersonCaller, session: DbSession
+) -> CountRunsResponse:
     """Counts the runs that match the same filters as `listRuns`."""
-    return CountRunsResponse(count=1)
+    count = await RunsRepository(session).count_filtered(
+        project_id=caller.project_id,
+        statuses=body.statuses,
+        sources=body.sources,
+        agent_name=body.agent_name,
+    )
+    return CountRunsResponse(count=count)

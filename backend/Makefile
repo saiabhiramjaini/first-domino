@@ -38,10 +38,13 @@ worker: ## Run the demo customer's replay worker
 	uv run python -m fd_demo_agent.worker
 
 openapi: ## Write ../api/openapi.json from the API
-	uv run python -m fd_scripts.export_openapi
+	uv run python -m fd_api.export_openapi
 
 sdk-models: ## Generate SDK wire models from ../api/openapi.json
 	uv run datamodel-codegen --input ../api/openapi.json --input-file-type openapi \
 		--output $(SDK_GENERATED) --output-model-type pydantic_v2.BaseModel \
 		--use-annotated --use-standard-collections --use-union-operator \
-		--target-python-version 3.12
+		--target-python-version 3.12 --disable-timestamp --formatters builtin \
+		--custom-file-header '"""Wire models generated from api/openapi.json by make sdk-models. Do not edit."""'
+	# The root pre-commit hook formats every staged file, generated ones included.
+	uv run ruff format $(SDK_GENERATED)

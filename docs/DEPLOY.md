@@ -3,7 +3,7 @@
 | Part | Where | Address |
 | --- | --- | --- |
 | Web app | Vercel (deploys itself from GitHub) | `https://first-domino.abhiramtech.in` |
-| API + demo worker | One EC2 server, Docker Compose, Caddy for HTTPS | `https://api.first-domino.abhiramtech.in` |
+| API + demo worker | One EC2 server, Docker Compose, Caddy for HTTPS | `https://api-first-domino.abhiramtech.in` |
 | Database | Neon Postgres | private |
 | Server image | Docker Hub `saiabhiramjaini/api-first-domino` | public |
 
@@ -27,7 +27,7 @@ Non-secret settings are committed; only secrets live in Vercel and GitHub.
 2. **Docker Hub.** Create an access token (Account settings → Personal access tokens, Read & Write).
 3. **EC2.** Ubuntu 24.04, `t3.small`, 20 GB disk, an Elastic IP. Security group: 22 from your IP, 80 and 443 from anywhere. Copy `server/deploy/bootstrap-ec2.sh` to it and run it once.
 4. **DNS** for `abhiramtech.in`:
-   - `api.first-domino` → `A` → the Elastic IP
+   - `api-first-domino` → `A` (DNS only, proxy off) → the Elastic IP
    - `first-domino` → `CNAME` → the value Vercel shows when you add the domain
 5. **GitHub** (repository settings, or the `gh` commands below). Secrets are typed in by you, never pasted into chat.
    - Variables: `DOCKERHUB_USERNAME`, `EC2_HOST` (Elastic IP), `EC2_USER` (`ubuntu`)

@@ -228,6 +228,7 @@ async def test_a_recorded_run_sends_every_step_and_its_verdict() -> None:
 
     (run,) = api.runs.values()
     assert run.agent_name == "call-assistant"
+    assert run.tool_names == [name.value for name in ToolName]
     assert run.task_input.metadata == {"task_id": "t01"}
     assert "+91 40 2311 4455" in run.task_input.prompt
     assert [s.index for s in api.steps] == list(range(1, 11))

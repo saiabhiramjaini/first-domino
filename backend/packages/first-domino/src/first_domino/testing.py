@@ -109,6 +109,7 @@ class FakeApi:
             replay_job_id=body.replay_job_id,
             replay_from_step=None,
             task_input=body.task_input,
+            tool_names=body.tool_names or [],
             status=RunStatus.running,
             step_count=0,
             final_output=None,

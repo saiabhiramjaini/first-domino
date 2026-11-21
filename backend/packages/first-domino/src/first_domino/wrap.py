@@ -37,6 +37,14 @@ class _StepTracker:
         self._pending: _PendingStep | None = None
         run.add_flush_hook(self.flush)
 
+    def note_tools(self, tools: Sequence[Mapping[str, Any]]) -> None:
+        """Pass the function tool names of a request to the run, before it starts."""
+        try:
+            names = [t["function"]["name"] for t in tools if t.get("type") == "function"]
+            self._run.add_tool_names(names)
+        except Exception:
+            log.debug("first_domino.wrap_tools_failed", exc_info=True)
+
     async def observe(self, request: Mapping[str, Any], response: Any, latency_ms: int) -> None:
         messages = [message_from_openai(m) for m in request.get("messages", [])]
         await self._record_pending(messages)
@@ -77,6 +85,7 @@ class _Completions:
         self._tracker = tracker
 
     async def create(self, **kwargs: Any) -> Any:
+        self._tracker.note_tools(kwargs.get("tools") or [])
         started = perf_counter()
         response = await self._inner.create(**kwargs)
         latency_ms = round((perf_counter() - started) * 1000)
@@ -112,8 +121,9 @@ def wrap[ClientT](client: ClientT, run: RecordedRun) -> ClientT:
     """Record every `chat.completions.create` call through an async OpenAI client.
 
     Each completion becomes a step once its tool results show up in the next request,
-    and the last one is recorded when the run finishes. Returns `client` unchanged when
-    recording is off or the client is not async.
+    and the last one is recorded when the run finishes. The function names in `tools=`
+    become the run's `tool_names`. Returns `client` unchanged when recording is off or
+    the client is not async.
 
     Example:
         >>> async with fd.record("call-assistant", task) as run:
@@ -121,6 +131,6 @@ def wrap[ClientT](client: ClientT, run: RecordedRun) -> ClientT:
         ...     await client.chat.completions.create(model=model, messages=messages)
     """
     create = getattr(getattr(getattr(client, "chat", None), "completions", None), "create", None)
-    if run.run_id is None or not inspect.iscoroutinefunction(create):
+    if not run.recording or not inspect.iscoroutinefunction(create):
         return client
     return cast(ClientT, _Client(client, _StepTracker(run)))

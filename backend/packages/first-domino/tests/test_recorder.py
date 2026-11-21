@@ -146,13 +146,16 @@ async def test_wrap_records_each_completion_with_its_tool_results(
 
     async with fd.record("call-assistant", TASK, client=client) as run:
         wrapped = fd.wrap(openai, run)
-        await wrapped.chat.completions.create(model="small", messages=first)
+        tools = [{"type": "function", "function": {"name": "end_call", "parameters": {}}}]
+        await wrapped.chat.completions.create(model="small", messages=first, tools=tools)
         tool = {"role": "tool", "tool_call_id": "c1", "content": '{"ok": true}'}
         second = [*first, {"role": "assistant", "content": None, "tool_calls": [call]}, tool]
         await wrapped.chat.completions.create(model="small", messages=second)
         await run.finish(fd.RunOutcome.passed)
 
     assert wrapped.api_key == "secret"
+    assert run.run_id is not None
+    assert api.runs[run.run_id].tool_names == ["end_call"]
     assert [step.index for step in api.steps] == [1, 2]
     first_step, last_step = api.steps
     assert first_step.output.tool_calls == [fd.ToolCall(id="c1", name="end_call", arguments="{}")]
@@ -180,3 +183,17 @@ def test_openai_messages_round_trip() -> None:
     ]
     messages = [fd.message_from_openai(p) for p in params]
     assert fd.messages_to_openai(messages) == params
+
+
+async def test_record_sends_tool_names_and_starts_at_the_first_step(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    async with fd.record("call-assistant", TASK, tool_names=["a", "b"], client=client) as run:
+        assert run.run_id is None
+        run.add_tool_names(["b", "c"])
+        await run.step(model="m", output=REPLY, messages=[USER, REPLY])
+        run.add_tool_names(["too-late"])
+        await run.finish(fd.RunOutcome.passed)
+
+    assert run.run_id is not None
+    assert api.runs[run.run_id].tool_names == ["a", "b", "c"]

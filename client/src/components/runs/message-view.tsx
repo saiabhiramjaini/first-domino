@@ -14,7 +14,14 @@ export function MessageView({ message }: MessageViewProps) {
   const toolCalls = message.tool_calls ?? [];
   return (
     <div className="flex flex-col gap-3 text-sm">
-      {message.content && <p className="text-pretty whitespace-pre-wrap">{message.content}</p>}
+      {message.content && (
+        <div className="flex flex-col overflow-hidden rounded-md border bg-card">
+          <span className="border-b px-3 py-1.5 text-xs text-muted-foreground">
+            {toolCalls.length > 0 ? "Text" : "Reply"}
+          </span>
+          <p className="p-3 text-pretty whitespace-pre-wrap">{message.content}</p>
+        </div>
+      )}
       {toolCalls.map((call) => (
         <div key={call.id} className="flex flex-col overflow-hidden rounded-md border bg-card">
           <span className="border-b px-3 py-1.5 font-mono text-xs">

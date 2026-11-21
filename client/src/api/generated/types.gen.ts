@@ -285,6 +285,30 @@ export type Cause = {
 export type CauseCategory = 'wrong_date' | 'wrong_entity' | 'wrong_filter' | 'bad_tool_args' | 'hallucination' | 'tool_issue' | 'other';
 
 /**
+ * CauseExport
+ *
+ * A cause's failed runs as regression tests for the customer's eval suite.
+ */
+export type CauseExport = {
+    /**
+     * Cause Id
+     */
+    cause_id: string;
+    /**
+     * Exported At
+     *
+     * Time of the export, in UTC RFC 3339 format.
+     */
+    exported_at: string;
+    /**
+     * Cases
+     *
+     * Newest first, at most one per run.
+     */
+    cases: Array<RegressionCase>;
+};
+
+/**
  * Check
  *
  * One test inside a diagnosis: replay from a save point several times and count passes.
@@ -441,7 +465,7 @@ export type CountRunsRequest = {
     /**
      * Sources
      *
-     * Only runs from one of these sources. Recorded runs only unless set.
+     * Only runs from one of these sources. Unless set: recorded runs only, or replay runs only when `check_id` is set.
      */
     sources?: Array<RunSource> | null;
     /**
@@ -450,6 +474,12 @@ export type CountRunsRequest = {
      * Only runs of this agent.
      */
     agent_name?: string | null;
+    /**
+     * Check Id
+     *
+     * Only the replay runs made for this check, oldest first.
+     */
+    check_id?: string | null;
 };
 
 /**
@@ -669,6 +699,27 @@ export type Explanation = {
      */
     suggested_fix: string;
     category: CauseCategory;
+};
+
+/**
+ * ExportCauseRequest
+ *
+ * Exports a cause's diagnosed runs as regression test cases.
+ */
+export type ExportCauseRequest = {
+    /**
+     * Cause Id
+     */
+    cause_id: string;
+};
+
+/**
+ * ExportCauseResponse
+ *
+ * The export.
+ */
+export type ExportCauseResponse = {
+    export: CauseExport;
 };
 
 /**
@@ -1023,7 +1074,7 @@ export type ListRunsRequest = {
     /**
      * Sources
      *
-     * Only runs from one of these sources. Recorded runs only unless set.
+     * Only runs from one of these sources. Unless set: recorded runs only, or replay runs only when `check_id` is set.
      */
     sources?: Array<RunSource> | null;
     /**
@@ -1032,6 +1083,12 @@ export type ListRunsRequest = {
      * Only runs of this agent.
      */
     agent_name?: string | null;
+    /**
+     * Check Id
+     *
+     * Only the replay runs made for this check, oldest first.
+     */
+    check_id?: string | null;
     /**
      * Limit
      *
@@ -1248,6 +1305,62 @@ export type RecordStepResponse = {
 };
 
 /**
+ * RegressionCase
+ *
+ * One failed run of a cause, as a test the fixed agent must pass.
+ *
+ * Replay the agent from `messages`: the original run failed after `original_output`, and
+ * passed in replays that used `fixed_output` instead.
+ */
+export type RegressionCase = {
+    /**
+     * Run Id
+     *
+     * The failed recorded run.
+     */
+    run_id: string;
+    /**
+     * Diagnosis Id
+     *
+     * The diagnosis that proved the cause on this run.
+     */
+    diagnosis_id: string;
+    /**
+     * Agent Name
+     *
+     * The agent the case is for.
+     */
+    agent_name: string;
+    task_input: TaskInput;
+    /**
+     * First Domino Step
+     *
+     * The step where the run became doomed.
+     */
+    first_domino_step: number;
+    /**
+     * Messages
+     *
+     * The conversation just before the first domino step: the test's input.
+     */
+    messages: Array<Message>;
+    /**
+     * What the agent did at that step and failed.
+     */
+    original_output: Message;
+    /**
+     * The corrected step that replays passed with, when one was found.
+     */
+    fixed_output: Message | null;
+    /**
+     * Verified
+     *
+     * Whether replays proved the fix flips the run to passing.
+     */
+    verified: boolean;
+};
+
+/**
  * ReplayJob
  *
  * A request to replay a run from a save point on the customer's worker.
@@ -1377,6 +1490,12 @@ export type Run = {
      * For a replay, the last step kept from the parent run (0 means none).
      */
     replay_from_step: number | null;
+    /**
+     * Check Id
+     *
+     * For a replay run for a diagnosis, the check it was replayed for.
+     */
+    check_id?: string | null;
     task_input: TaskInput;
     /**
      * Tool Names
@@ -2525,6 +2644,47 @@ export type CountCausesResponses = {
 };
 
 export type CountCausesResponse2 = CountCausesResponses[keyof CountCausesResponses];
+
+export type ExportCauseData = {
+    body: ExportCauseRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/causes.export';
+};
+
+export type ExportCauseErrors = {
+    /**
+     * Bad request
+     */
+    400: ApiError;
+    /**
+     * Not authenticated
+     */
+    401: ApiError;
+    /**
+     * Not found
+     */
+    404: ApiError;
+    /**
+     * Validation failed
+     */
+    422: ApiValidationError;
+    /**
+     * Internal error
+     */
+    500: ApiInternalError;
+};
+
+export type ExportCauseError = ExportCauseErrors[keyof ExportCauseErrors];
+
+export type ExportCauseResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExportCauseResponse;
+};
+
+export type ExportCauseResponse2 = ExportCauseResponses[keyof ExportCauseResponses];
 
 export type GetLatestBenchmarkData = {
     body?: never;

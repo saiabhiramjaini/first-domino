@@ -187,8 +187,9 @@ The worker loop:
 4. Run the customer's success check on the result. `finishRun`, then `submitReplayResult` with the outcome.
 5. On a crash inside one job, `submitReplayResult` with `errored` and an `error_code`, then keep looping.
 
-- A lease lasts `FD_API_LEASE_SECONDS` (default 120). An expired job goes back to `queued` and its `attempt` goes up. After 3 attempts it is `failed`.
-- `submitReplayResult` is idempotent by `replay_job_id`. A late result for a job leased again is ignored.
+- A lease lasts `FD_API_LEASE_SECONDS` (default 120). A job whose lease ends goes back to `queued`; each lease raises `attempt`. A job whose lease ends after `FD_API_MAX_JOB_ATTEMPTS` (default 3) leases is `expired`.
+- A submitted result ends the job: `succeeded` for a `passed` or `failed` outcome (the replay ran), `failed` for `errored`.
+- `submitReplayResult` is idempotent by `replay_job_id`: the first result for a leased job counts, and any later one (a repeat, or a late result from an earlier lease) changes nothing.
 
 ## Engine ports
 

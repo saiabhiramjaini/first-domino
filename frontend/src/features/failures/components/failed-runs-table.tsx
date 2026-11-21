@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadMoreButton } from "@/components/feedback/load-more-button";
 import { QueryError } from "@/components/feedback/query-error";
 import { shortId } from "@/components/runs/short-id";
+import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -48,6 +49,11 @@ export function FailedRunsTable() {
       <EmptyState
         title="No failed runs yet"
         description="Record your agent's calls with the SDK. When your success check marks a call failed, it shows up here and is diagnosed automatically."
+        action={
+          <Link href="/settings#connect" className={buttonVariants({ variant: "outline" })}>
+            Connect your agent
+          </Link>
+        }
       />
     );
   }

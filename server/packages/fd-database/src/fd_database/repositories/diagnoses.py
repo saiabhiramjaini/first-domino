@@ -296,9 +296,12 @@ class DiagnosesRepository:
         verdict_kinds: Sequence[VerdictKind] | None,
         limit: int,
         after: TimeKey | None,
+        latest_only: bool = False,
     ) -> list[Diagnosis]:
         """A page of matching diagnoses, newest first."""
-        conditions = _filters(project_id, run_ids, cause_ids, statuses, verdict_kinds)
+        conditions = _filters(
+            project_id, run_ids, cause_ids, statuses, verdict_kinds, latest_only=latest_only
+        )
         statement = select(Diagnosis).where(*conditions)
         if after is not None:
             key = tuple_(Diagnosis.created_at, Diagnosis.id)
@@ -314,9 +317,12 @@ class DiagnosesRepository:
         cause_ids: Sequence[UUID] | None,
         statuses: Sequence[DiagnosisStatus] | None,
         verdict_kinds: Sequence[VerdictKind] | None,
+        latest_only: bool = False,
     ) -> int:
         """The number of matching diagnoses."""
-        conditions = _filters(project_id, run_ids, cause_ids, statuses, verdict_kinds)
+        conditions = _filters(
+            project_id, run_ids, cause_ids, statuses, verdict_kinds, latest_only=latest_only
+        )
         statement = select(func.count()).select_from(Diagnosis).where(*conditions)
         return (await self._session.scalar(statement)) or 0
 
@@ -375,8 +381,14 @@ def _filters(
     cause_ids: Sequence[UUID] | None,
     statuses: Sequence[DiagnosisStatus] | None,
     verdict_kinds: Sequence[VerdictKind] | None,
+    *,
+    latest_only: bool,
 ) -> list[ColumnElement[bool]]:
     conditions = [Diagnosis.project_id == project_id]
+    if latest_only:
+        conditions.append(
+            exists().where(Run.project_id == project_id, Run.latest_diagnosis_id == Diagnosis.id)
+        )
     if run_ids is not None:
         conditions.append(Diagnosis.run_id.in_(run_ids))
     if cause_ids is not None:

@@ -19,6 +19,11 @@ class ApiSettings(SettingsBase):
     log_json: bool = False
     lease_seconds: int = Field(default=120, ge=1)
     max_job_attempts: int = Field(default=3, ge=1)
+    abandoned_replay_grace_seconds: float = Field(
+        default=300,
+        gt=0,
+        description="How long a replay run may stay running after its job ended or moved on.",
+    )
     lease_poll_interval_seconds: float = Field(default=0.5, gt=0)
     replay_poll_interval_seconds: float = Field(default=1.0, gt=0)
     slack_timeout_seconds: float = Field(default=5.0, gt=0)

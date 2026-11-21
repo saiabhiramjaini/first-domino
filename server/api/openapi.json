@@ -2572,6 +2572,12 @@
             ],
             "title": "Verdict Kinds",
             "description": "Only diagnoses with one of these verdicts."
+          },
+          "latest_only": {
+            "type": "boolean",
+            "title": "Latest Only",
+            "description": "Only each run's latest diagnosis, so a run diagnosed again counts once.",
+            "default": false
           }
         },
         "type": "object",
@@ -3515,6 +3521,12 @@
             ],
             "title": "Verdict Kinds",
             "description": "Only diagnoses with one of these verdicts."
+          },
+          "latest_only": {
+            "type": "boolean",
+            "title": "Latest Only",
+            "description": "Only each run's latest diagnosis, so a run diagnosed again counts once.",
+            "default": false
           },
           "limit": {
             "type": "integer",

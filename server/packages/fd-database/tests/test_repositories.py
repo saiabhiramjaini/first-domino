@@ -19,9 +19,12 @@ from fd_database.tables.base import utc_now
 from fd_shared.enums import (
     CheckPhase,
     CheckResult,
+    DiagnosisErrorCode,
     MessageRole,
     ReplayJobStatus,
     ReplayOutcome,
+    RunSource,
+    RunStatus,
 )
 from fd_shared.models import Message, TaskInput
 
@@ -318,4 +321,75 @@ async def test_expire_unfinished_ends_queued_and_leased_jobs_only(
         started.id: ReplayJobStatus.EXPIRED,
         waiting.id: ReplayJobStatus.EXPIRED,
         finished.id: ReplayJobStatus.SUCCEEDED,
+    }
+
+
+async def test_latest_only_counts_a_run_diagnosed_twice_once(
+    session: AsyncSession, project: Project
+) -> None:
+    diagnoses = DiagnosesRepository(session)
+    run = await _run(session, project)
+    first = await diagnoses.create(project_id=project.id, run_id=run.id, created_by_id=None)
+    await diagnoses.fail(
+        diagnosis=first, error_code=DiagnosisErrorCode.INTERNAL_ERROR, finished_at=utc_now()
+    )
+    second = await diagnoses.create(project_id=project.id, run_id=run.id, created_by_id=None)
+    run.latest_diagnosis_id = second.id
+    await session.flush()
+
+    def count(*, latest_only: bool):
+        return diagnoses.count_filtered(
+            project_id=project.id,
+            run_ids=None,
+            cause_ids=None,
+            statuses=None,
+            verdict_kinds=None,
+            latest_only=latest_only,
+        )
+
+    assert await count(latest_only=False) == 2
+    assert await count(latest_only=True) == 1
+
+
+async def test_abandoned_replay_runs_end_after_the_grace_period(
+    session: AsyncSession, project: Project
+) -> None:
+    jobs, runs = ReplayJobsRepository(session), RunsRepository(session)
+    recorded = await _run(session, project)
+    long_ago = utc_now() - timedelta(minutes=30)
+
+    async def replay(job_id, started_at):
+        return await runs.create(
+            project_id=project.id,
+            agent_name=recorded.agent_name,
+            task_input=recorded.task_input,
+            tool_names=[],
+            created_by_id=recorded.created_by_id,
+            started_at=started_at,
+            source=RunSource.REPLAY,
+            replay_job_id=job_id,
+        )
+
+    ended_job, running_job, retried_job = await _enqueue(session, project, recorded, samples=3)
+    await jobs.expire_unfinished(project_id=project.id, replay_job_ids=[ended_job.id], now=long_ago)
+    orphan = await replay(ended_job.id, long_ago)
+    busy = await replay(running_job.id, long_ago)
+    first_try = await replay(retried_job.id, long_ago)
+    second_try = await replay(retried_job.id, long_ago + timedelta(minutes=1))
+
+    now = utc_now()
+    ended = await runs.end_abandoned_replays(
+        project_id=project.id, now=now, ended_before=now - timedelta(minutes=5)
+    )
+
+    statuses = {}
+    for run in (orphan, busy, first_try, second_try):
+        await session.refresh(run)
+        statuses[run.id] = run.status
+    assert ended == 2
+    assert statuses == {
+        orphan.id: RunStatus.ERRORED,
+        busy.id: RunStatus.RUNNING,
+        first_try.id: RunStatus.ERRORED,
+        second_try.id: RunStatus.RUNNING,
     }

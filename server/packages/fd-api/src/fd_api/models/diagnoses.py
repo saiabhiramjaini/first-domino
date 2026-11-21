@@ -103,6 +103,10 @@ class DiagnosisFilter(BaseModel):
     verdict_kinds: list[VerdictKind] | None = Field(
         default=None, description="Only diagnoses with one of these verdicts."
     )
+    latest_only: bool = Field(
+        default=False,
+        description="Only each run's latest diagnosis, so a run diagnosed again counts once.",
+    )
 
 
 class CreateDiagnosisRequest(BaseModel):

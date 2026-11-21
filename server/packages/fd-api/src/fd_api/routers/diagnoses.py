@@ -105,6 +105,7 @@ async def list_diagnoses(
         cause_ids=body.cause_ids,
         statuses=body.statuses,
         verdict_kinds=body.verdict_kinds,
+        latest_only=body.latest_only,
         limit=body.limit + 1,
         after=decode_cursor(body.cursor, TimeKey),
     )
@@ -138,5 +139,6 @@ async def count_diagnoses(
         cause_ids=body.cause_ids,
         statuses=body.statuses,
         verdict_kinds=body.verdict_kinds,
+        latest_only=body.latest_only,
     )
     return CountDiagnosesResponse(count=count)

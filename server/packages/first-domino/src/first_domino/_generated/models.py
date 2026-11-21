@@ -645,6 +645,13 @@ class CountDiagnosesRequest(BaseModel):
             title="Verdict Kinds",
         ),
     ] = None
+    latest_only: Annotated[
+        bool | None,
+        Field(
+            description="Only each run's latest diagnosis, so a run diagnosed again counts once.",
+            title="Latest Only",
+        ),
+    ] = False
 
 
 class CountRunsRequest(BaseModel):
@@ -730,6 +737,13 @@ class ListDiagnosesRequest(BaseModel):
             title="Verdict Kinds",
         ),
     ] = None
+    latest_only: Annotated[
+        bool | None,
+        Field(
+            description="Only each run's latest diagnosis, so a run diagnosed again counts once.",
+            title="Latest Only",
+        ),
+    ] = False
     limit: Annotated[
         int | None,
         Field(

@@ -128,7 +128,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | --- | --- | --- | --- | --- |
 | `createDiagnosis` | `POST /v1/diagnoses.create` | P/K | `run_id` | `diagnosis` |
 | `getDiagnosis` | `GET /v1/diagnoses.get` | P/K | `diagnosis_id` | `diagnosis` |
-| `listDiagnoses` | `POST /v1/diagnoses.list` | P | page, `run_ids`, `cause_ids`, `statuses`, `verdict_kinds` (each a list or null) | page of `Diagnosis` |
+| `listDiagnoses` | `POST /v1/diagnoses.list` | P | page, `run_ids`, `cause_ids`, `statuses`, `verdict_kinds` (each a list or null), `latest_only` (bool, default false: only each run's latest diagnosis) | page of `Diagnosis` |
 | `countDiagnoses` | `POST /v1/diagnoses.count` | P | same filters as `listDiagnoses` | `count` |
 
 - Only failed recorded runs with at least one step can be diagnosed. One diagnosis may run per run at a time (`409` otherwise).
@@ -187,6 +187,7 @@ The worker loop:
 
 - A lease lasts `FD_API_LEASE_SECONDS` (default 120). A job whose lease ends goes back to `queued`; each lease raises `attempt`. A job whose lease ends after `FD_API_MAX_JOB_ATTEMPTS` (default 3) leases is `expired`.
 - When the engine stops waiting for a check (decided early, or timed out), its jobs without a result, queued or leased, are `expired`.
+- A replay run still `running` is ended as `errored` once its job ended, or a newer run started for the job, more than `FD_API_ABANDONED_REPLAY_GRACE_SECONDS` (default 300) ago. This happens while workers lease, so a worker that died never leaves a replay running forever.
 - A submitted result ends the job: `succeeded` for a `passed` or `failed` outcome (the replay ran), `failed` for `errored`.
 - `submitReplayResult` is idempotent by `replay_job_id`: the first result for a leased job counts, and any later one (a repeat, or a late result from an earlier lease) changes nothing.
 

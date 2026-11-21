@@ -4,12 +4,13 @@ from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, func, select, tuple_
+from sqlalchemy import ColumnElement, exists, func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from fd_database.pages import TimeKey
-from fd_database.tables import Run
-from fd_shared.enums import RunSource, RunStatus
+from fd_database.tables import ReplayJob, Run
+from fd_shared.enums import ReplayJobStatus, RunSource, RunStatus
 from fd_shared.models import TaskInput
 
 
@@ -70,6 +71,41 @@ class RunsRepository:
         run.finished_at = finished_at
         await self._session.flush()
         return run
+
+    async def end_abandoned_replays(
+        self, *, project_id: UUID, now: datetime, ended_before: datetime
+    ) -> int:
+        """Ends replay runs still `running` that no worker will finish, as `errored`.
+
+        A replay run is abandoned when its job ended before `ended_before`, or when the job was
+        leased again and a newer run started for it (the first worker died). The grace period
+        lets a worker that is about to finish do so. Returns how many runs ended.
+        """
+        newer = aliased(Run)
+        job_ended = exists().where(
+            ReplayJob.id == Run.replay_job_id,
+            ReplayJob.status.in_(
+                [ReplayJobStatus.SUCCEEDED, ReplayJobStatus.FAILED, ReplayJobStatus.EXPIRED]
+            ),
+            ReplayJob.finished_at < ended_before,
+        )
+        replaced = exists().where(
+            newer.replay_job_id == Run.replay_job_id,
+            newer.started_at > Run.started_at,
+            newer.started_at < ended_before,
+        )
+        ended = await self._session.scalars(
+            update(Run)
+            .where(
+                Run.project_id == project_id,
+                Run.source == RunSource.REPLAY,
+                Run.status == RunStatus.RUNNING,
+                job_ended | replaced,
+            )
+            .values(status=RunStatus.ERRORED, finished_at=now)
+            .returning(Run.id)
+        )
+        return len(ended.all())
 
     async def set_step_count(self, *, run: Run, step_count: int) -> Run:
         """Raises the run's step count to cover a newly recorded step."""

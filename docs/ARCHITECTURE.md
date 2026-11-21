@@ -76,6 +76,7 @@ queued | leased ──► expired   the check was decided without it
 - An outcome is idempotent by job id: a repeated submit does not count twice.
 - A check stops as soon as its result is known. Its other jobs are ended; the worker skips queued ones and stops running ones at their next model call, so no model calls are spent on outcomes nobody reads.
 - When no worker has picked a diagnosis's jobs up, the web app says it is waiting for the replay worker.
+- A replay run left `running` by a worker that died or was stopped is ended as `errored` a few minutes after its job moved on.
 
 ## The search and the proof
 

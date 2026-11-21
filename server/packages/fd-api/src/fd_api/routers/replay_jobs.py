@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -20,7 +21,7 @@ from fd_api.models.replay_jobs import (
 )
 from fd_api.settings import ApiSettings
 from fd_database import tables
-from fd_database.repositories import ReplayJobsRepository
+from fd_database.repositories import ReplayJobsRepository, RunsRepository
 from fd_database.session import Database
 from fd_database.tables.base import utc_now
 from fd_shared.enums import ApiErrorCode
@@ -40,6 +41,11 @@ async def _try_lease(
         now = utc_now()
         await jobs.expire_leases(
             project_id=caller.project_id, now=now, max_attempts=settings.max_job_attempts
+        )
+        await RunsRepository(session).end_abandoned_replays(
+            project_id=caller.project_id,
+            now=now,
+            ended_before=now - timedelta(seconds=settings.abandoned_replay_grace_seconds),
         )
         return await jobs.lease_next(
             project_id=caller.project_id,

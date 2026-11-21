@@ -6,7 +6,8 @@
 | API | One EC2 server: one Docker container, nginx + certbot for HTTPS | `https://api-first-domino.abhiramtech.in` |
 | Database | Neon Postgres | private |
 | Server image | Docker Hub `saiabhiramjaini/api-first-domino` | public |
-| Example customer agent | Not deployed: the separate `call-assistant` project on the customer's machine | talks to the API |
+| SDK | PyPI [`first-domino`](https://pypi.org/project/first-domino/) | public |
+| Example customer agents | Not deployed: the separate `call-assistant` and `sdk-agents` projects on the customer's machine | talk to the API |
 
 ## Settings: code vs secrets
 
@@ -21,6 +22,7 @@ Non-secret settings are committed; only secrets live in Vercel and GitHub.
 
 - **Server:** push to `main` touching `server/**` runs `.github/workflows/server.yml`: `check` (lint, types, tests) → `publish` (build the image, push `:<sha>` and `:latest`) → `deploy` (write `~/first-domino/.env` from `config.env` + `SERVER_ENV`, run `deploy/run-api.sh` over SSH to replace the `first-domino-api` container, then call `/health` over HTTPS). Pull requests run `check` only.
 - **Web:** Vercel builds every push to `main` (`client/vercel.json`). Pull requests get preview links.
+- **SDK:** pushing a `sdk-v*` tag runs `.github/workflows/sdk-release.yml`, which publishes to PyPI. See [`RELEASE.md`](./RELEASE.md).
 
 ## One-time setup
 

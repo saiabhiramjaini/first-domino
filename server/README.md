@@ -1,8 +1,6 @@
 # First Domino backend
 
-The Python half of First Domino: the control plane API, the bisect engine, the database, and the public SDK.
-
-> Status: layout only. No product code yet.
+The Python half of First Domino: the control plane API, the engine, the database, and the public SDK (`first-domino` on PyPI). In production the API runs as a Docker container on EC2 (`docs/DEPLOY.md`).
 
 ## Layout
 
@@ -14,10 +12,13 @@ server/
   packages/
     fd-shared/           typed models, enums, errors, settings base, logging
     fd-database/         Postgres tables and repositories
-    fd-engine/           bisect, verify, explain, group, baseline (the core)
-    fd-api/              FastAPI control plane: auth, ingest, jobs, diagnoses
-    first-domino/        public Python SDK: recorder, OpenAI wrapper, replay worker
+    fd-engine/           search, verify, fallback, explain, group (the core)
+    fd-api/              FastAPI control plane: auth, ingest, jobs, diagnoses, causes
+    first-domino/        public Python SDK: @fd.entrypoint, HTTP capture, replay worker
+  api/openapi.json       the generated HTTP contract
+  deploy/                production config, the EC2 scripts and nginx config
   compose.yaml           local Postgres
+  Dockerfile             the API image
   Makefile               common commands
 ```
 
@@ -28,6 +29,8 @@ Run from `server/`.
 ```bash
 make install     # uv sync, all packages and dev tools
 make db-up       # start local Postgres
+make api         # run the API on :8000 with reload
+make dev-key     # print an API key for local work without the web app
 make check       # ruff, pyright, pytest
 make fix         # ruff auto-fix and format
 make openapi     # write api/openapi.json

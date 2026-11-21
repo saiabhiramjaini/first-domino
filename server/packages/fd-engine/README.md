@@ -1,6 +1,6 @@
 # fd-engine
 
-The core: bisect over save points, verify by replay, fallback, explain and group.
+The core: search over save points, verify by replay, fall back to nearby steps, then explain and group. It never touches the database or HTTP; it works through the ports the API implements, and is tested on fakes with no network.
 
 - **Layer:** Logic (the core)
 - **May import:** `fd-shared`
@@ -11,18 +11,16 @@ The core: bisect over save points, verify by replay, fallback, explain and group
 
 | Module | Job |
 | --- | --- |
-| `settings` | EngineSettings: samples per check, verify threshold, fallback window, model ids and timeouts. |
-| `ports` | Protocol ports the engine depends on: ReplayRunner, RunReader and CheckSink. |
+| `settings` | `EngineSettings`: samples per check, doomed rechecks, verify threshold, fallback window, model ids and timeouts. |
+| `ports` | The ports the engine depends on: `ReplayRunner`, `RunReader`, `CheckSink` and `CostSink`. |
 | `errors` | Errors that stop a diagnosis, each with a stable `code`. |
-| `checks` | Runs one check: replay from a save point, count passes, report it through the sink. |
-| `diagnose` | Runs one diagnosis end to end: bisect, verify or fallback, explain and group. |
-| `bisect` | Binary search over save points for the first step from which the run is doomed. |
-| `verify` | Rewrite the found step and replay to prove that it flips the outcome. |
-| `fallback` | Rank and try nearby suspect steps when verify does not prove the found step. |
-| `fix` | Asks the model for a corrected turn of the suspected step (the `StepFixer` verify uses). |
+| `checks` | Runs one check: replay from a save point, count passes, report it. |
+| `bisect` | Binary search for the first step from which the run is doomed; a check with no pass is rechecked. |
+| `verify` | Rewrite the found step and replay to prove it flips the outcome. |
+| `fallback` | Try nearby steps when verify does not prove the found one. |
+| `fix` | Asks the model for a corrected version of a step. |
+| `explain` | Plain-language cause, category and suggested fix. |
+| `group` | Files a cause under a matching root cause or starts a new one. |
+| `diagnose` | Runs one diagnosis end to end. |
 | `transcript` | Renders a run's steps as text for the model prompts. |
-| `explain` | Plain-language cause, category and suggested fix for a verified step. |
-| `group` | Attach a cause to a matching cause group or start a new one. |
-| `llm` | The only OpenAI client in the backend: structured calls with retry, salvage and degrade. |
-
-Status: ports, settings, bisect, verify, fallback, diagnose, fix, explain, group and baseline done and tested on fakes (no network). Next: run against the real API through S0's adapters and tune.
+| `llm` | The backend's only OpenAI client: structured calls with retries. |

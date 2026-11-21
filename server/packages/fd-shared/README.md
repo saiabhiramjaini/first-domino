@@ -12,14 +12,9 @@ Typed domain models, enums, errors, the settings base class and logging, shared 
 | Module | Job |
 | --- | --- |
 | `enums` | Status, kind and category enums used across packages. |
-| `errors` | Error hierarchy: FirstDominoError, RetryableError, UnretryableError, each with a stable code. |
-| `settings` | Settings base class that every package's settings class extends. |
-| `logging` | Structured logging setup and get_logger. |
-| `models/` | Domain models shared across packages. |
-| `models/runs` | Run and run outcome models. |
-| `models/steps` | Step, tool call, tool result and message snapshot models. |
-| `models/replay_jobs` | Replay job and replay result models. |
-| `models/diagnoses` | Diagnosis, check and verdict models. |
-| `models/causes` | Root cause and cause group models. |
-
-Status: layout only. Modules hold a docstring that states their job; no code yet.
+| `errors` | `FirstDominoError`, `RetryableError` and `UnretryableError`, each with a stable code. |
+| `settings` | The base class every package's settings class extends. |
+| `logging` | Structured logging setup and `get_logger`. |
+| `models/runs` | Task input and the run as the engine reads it. |
+| `models/steps` | Messages and tool calls, in the OpenAI chat shape. |
+| `models/diagnoses` | Checks, explanations and the engine's diagnosis result. |

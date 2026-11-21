@@ -2,13 +2,13 @@
 
 **Contract version: 4** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`; 4 added `check_id` to runs and the `check_id` run filter, and `exportCause`)
 
-This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `server/api/openapi.json` is generated from the API and must match this file.
+The agreement between the server, the web app and the SDK: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth; `server/api/openapi.json` is generated from it and must match this file.
 
-Only the platform backend workstream (S0) edits this file. Anyone else who needs a change writes it under "Contract requests" in their `docs/status/<stream>.md`. S0 applies it, bumps the version above, regenerates `server/api/openapi.json` and the SDK models, and merges. Everyone else pulls and regenerates their client.
+To change the contract: change the API, update this file and bump the version above, run `make openapi` and `make sdk-models` in `server/`, then `bun run generate:api` in `client/`.
 
 ## Conventions
 
-- Base URL: `FIRST_DOMINO_BASE_URL` (local `http://localhost:8000`). All routes are under `/v1`.
+- Base URL: `FIRST_DOMINO_BASE_URL` (production `https://api-first-domino.abhiramtech.in`, the SDK default; local `http://localhost:8000`). All routes are under `/v1`.
 - Paths are dot actions: `/v1/<resource>.<action>`. Reads with an id use `GET` with query parameters; everything else uses `POST` with a JSON body.
 - `operation_id` is camelCase, verb first. Request and response models are `<OperationId>Request` and `<OperationId>Response`.
 - A single object comes back in an envelope with one field named for it (`{"run": {...}}`).
@@ -190,7 +190,7 @@ The worker loop:
 
 ## Engine ports
 
-Defined in `fd_engine/ports.py` by the engine workstream (S1); implemented in `fd_api/adapters/` by S0. All methods are async.
+Defined in `fd_engine/ports.py` and implemented in `fd_api/adapters/`. All methods are async.
 
 | Port | Method | Meaning |
 | --- | --- | --- |
@@ -211,39 +211,28 @@ Errors the engine raises derive from `fd_shared.errors` (`RetryableError` or `Un
 
 ## SDK public surface
 
-What a customer writes. Exact signatures are settled by S2 inside these shapes.
+What a customer writes. The SDK is `first-domino` on PyPI; its README has the full guide.
 
 ```python
 import first_domino as fd
 
-# Recording: a no-op without FIRST_DOMINO_API_KEY, and never raises into the agent.
-task = fd.TaskInput(prompt=..., metadata={"task_id": "t1"})
-with fd.record(agent_name="call-assistant", task_input=task) as run:
-    # Each chat completion through the wrapped client becomes a step (or call run.step).
-    client = fd.wrap(OpenAI(), run)
-    ...
-    run.finish(status="failed", final_output=...)
+# Record: each call is one run; every model call inside it is a step, sent live.
+# A no-op without FIRST_DOMINO_API_KEY, and never raises into the agent.
+@fd.entrypoint("support-bot", check=lambda question, answer: "refund" in answer)
+def answer(question: str) -> str: ...
 
-# Replays, on the customer side.
-worker = fd.Worker(agent_names=["call-assistant"])
+# A tool with side effects returns its recorded result inside the replayed prefix.
+@fd.tool
+def send_refund(order_id: str, amount: float) -> str: ...
 
+# Inside the agent, decide the outcome directly (wins over check).
+fd.set_outcome(passed=False, reason="...")
 
-# ctx carries messages, replacement_output, model_override and the replay run.
-@worker.agent("call-assistant")
-def replay(ctx: fd.ReplayContext) -> AgentResult: ...
-
-
-@worker.success_check("call-assistant")
-def check(task_input: fd.TaskInput, result: AgentResult) -> bool: ...
-
-
-# Loops forever.
-worker.run()
+# Replays, on the customer side: blocks and replays runs on request.
+fd.serve()
 
 # Ask for a diagnosis from code.
-fd.diagnose(run_id)
+await fd.diagnose(run_id)
 ```
 
-## Contract requests
-
-Requests go in `docs/status/<stream>.md`, not here.
+Lower-level APIs for full control: `fd.record(agent_name, task_input)` with `run.step(...)` and `run.finish(...)`, `fd.wrap(openai_client, run)`, and `fd.Worker(agent_names=[...])` with `@worker.agent(name)` (receives a `ReplayContext`: `messages`, `from_step`, `replacement_output`, `model_override`) and `@worker.success_check(name)`.

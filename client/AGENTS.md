@@ -4,10 +4,9 @@ This is the First Domino web app: a frontend-only Next.js 16 app that talks to t
 
 | Before you...                           | Read                                                                                   |
 | --------------------------------------- | -------------------------------------------------------------------------------------- |
-| Set up the app for the first time       | [`STANDARDS.md`](./STANDARDS.md), "Scaffold"                                           |
 | Build a screen, component, form or hook | [`STANDARDS.md`](./STANDARDS.md)                                                       |
 | Review a change                         | [`REVIEW.md`](./REVIEW.md)                                                             |
-| Need an API field or operation          | [`../docs/CONTRACT.md`](../docs/CONTRACT.md), then a request in `../docs/status/s3.md` |
+| Need an API field or operation          | [`../docs/CONTRACT.md`](../docs/CONTRACT.md), then change the API in `../server/`       |
 
 ## Non-negotiables
 

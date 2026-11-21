@@ -1,6 +1,6 @@
 # Backend rules
 
-Rules for everything under `server/`: the API, the engine, the database, and the SDK. The repo-root `AGENTS.md` also applies (scope, parallel work, git). `CLAUDE.md` here only imports this file. Rules for one area live in `.claude/rules/<area>.md` and load when you touch the files they name.
+Rules for everything under `server/`: the API, the engine, the database, and the SDK. The repo-root `AGENTS.md` also applies (scope, the contract, git). `CLAUDE.md` here only imports this file. Rules for one area live in `.claude/rules/<area>.md` and load when you touch the files they name.
 
 Run every command in this file from `server/`.
 
@@ -114,4 +114,4 @@ Rules for settings:
 
 - `REVIEW.md` (in `server/`): the self-review checklist.
 - `.claude/rules/`: the rules for each package. They carry decisions already made; read the one for the package you touch.
-- `../docs/CONTRACT.md`, `../docs/ARCHITECTURE.md`, `../docs/DECISIONS.md`, `../docs/PARALLEL_WORK.md`.
+- `../docs/CONTRACT.md`, `../docs/ARCHITECTURE.md`, `../docs/DECISIONS.md`, `../docs/RELEASE.md`.

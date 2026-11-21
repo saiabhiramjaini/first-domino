@@ -12,10 +12,14 @@ export const { handlers, auth } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: SIGN_IN_PATH },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, trigger }) {
       if (account?.provider === "google") token.googleId = account.providerAccountId;
       const nowSeconds = Math.floor(Date.now() / 1000);
-      if (!token.googleId || !apiTokenNeedsRefresh(token.apiTokenExpiresAt, nowSeconds)) {
+      const isForced = trigger === "update";
+      if (
+        !token.googleId ||
+        (!isForced && !apiTokenNeedsRefresh(token.apiTokenExpiresAt, nowSeconds))
+      ) {
         return token;
       }
       try {

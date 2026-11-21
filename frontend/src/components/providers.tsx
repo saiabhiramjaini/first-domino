@@ -6,6 +6,7 @@ import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
 
+import { ApiTokenRefresher } from "@/components/auth/api-token-refresher";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -26,6 +27,7 @@ export function Providers({ session, children }: ProvidersProps) {
   return (
     <SessionProvider session={session} refetchInterval={SESSION_REFRESH_SECONDS}>
       <QueryClientProvider client={client}>
+        <ApiTokenRefresher />
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster richColors />
         {process.env.NODE_ENV === "development" && <ReactQueryDevtools initialIsOpen={false} />}

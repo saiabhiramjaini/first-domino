@@ -39,6 +39,7 @@ export const VERDICT_KIND = {
 } as const satisfies Record<VerdictKind, ToneLabel>;
 
 export const CHECK_PHASE = {
+  calibrate: { tone: "neutral", label: "Calibrate" },
   precheck: { tone: "neutral", label: "Precheck" },
   bisect: { tone: "neutral", label: "Bisect" },
   verify: { tone: "neutral", label: "Verify" },
@@ -50,6 +51,13 @@ export const CHECK_RESULT = {
   can_succeed: { tone: "success", label: "Can succeed" },
   doomed: { tone: "danger", label: "Doomed" },
 } as const satisfies Record<CheckResult, ToneLabel>;
+
+// A check that ended with no usable replay (every one errored or drifted) keeps the
+// `pending` result but has a finish time; it reached no verdict.
+export const CHECK_NO_VERDICT = {
+  tone: "neutral",
+  label: "No verdict",
+} as const satisfies ToneLabel;
 
 export const CAUSE_CATEGORY = {
   wrong_date: { tone: "neutral", label: "Wrong date" },

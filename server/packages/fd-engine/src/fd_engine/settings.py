@@ -24,6 +24,19 @@ class EngineSettings(SettingsBase):
     Off by default: a stronger model recovers from mistakes the agent itself never recovers
     from, so bisect lands late. Measured on planted-bug calls.
     """
+    calibrate: bool = True
+    """Before the search, check that a replay keeping every recorded step fails.
+
+    The search assumes the failed run is doomed with all its steps kept. A check that passes
+    such a replay is flaky or does not judge this run, so any step it blamed would be wrong.
+    Keeping every step answers each recorded model call from the recording, so the check is
+    nearly free.
+    """
+    calibration_samples: int = Field(default=2, ge=1)
+    """Replays in the calibration check. One pass stops the diagnosis as `check_inconsistent`.
+
+    Cheap for the reason above, so a second replay buys a second chance to catch a flaky check.
+    """
     samples_per_check: int = Field(default=3, ge=1)
     doomed_recheck_samples: int = Field(default=3, ge=0)
     """Extra replays for a save point whose first check had no pass, before calling it doomed.

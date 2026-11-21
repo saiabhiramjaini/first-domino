@@ -11,7 +11,7 @@ from fd_engine.diagnose import Diagnoser
 from fd_engine.errors import CheckBudgetError, ReplayUnavailableError
 from fd_engine.fallback import rank_candidates
 from fd_engine.settings import EngineSettings
-from fd_shared.enums import CheckPhase, CheckResult, ReplayOutcome, VerdictKind
+from fd_shared.enums import CheckPhase, CheckResult, VerdictKind
 from fd_shared.models import DiagnosisResult
 
 from .fakes import (
@@ -25,6 +25,7 @@ from .fakes import (
     FakeSink,
     P,
     Script,
+    Scripted,
     break_at,
     settings,
 )
@@ -91,12 +92,12 @@ async def test_task_that_always_fails_blames_no_step() -> None:
     assert result.verdict_kind is VerdictKind.TASK_OR_TOOL_ISSUE
     assert result.first_domino_step is None
     assert result.explanation is None
-    assert result.check_count == 2
-    assert list(dict.fromkeys(call.from_step for call in runner.calls)) == [4, 0]
+    assert result.check_count == 3
+    assert list(dict.fromkeys(call.from_step for call in runner.calls)) == [8, 4, 0]
 
 
 async def test_flaky_middle_counts_any_pass_as_can_succeed() -> None:
-    def flaky(save_point: int) -> list[ReplayOutcome]:
+    def flaky(save_point: int) -> list[Scripted]:
         if save_point >= 5:
             return [F, F, F]
         return [F, P, E] if save_point >= 2 else [P, P, P]
@@ -173,7 +174,11 @@ async def test_sink_sees_each_check_pending_then_finished() -> None:
     assert [c.index for c in sink.started] == list(range(result.check_count))
     assert [c.index for c in sink.finished] == list(range(result.check_count))
     assert all(c.result is CheckResult.PENDING for c in sink.started)
-    assert [c.phase for c in sink.finished[:2]] == [CheckPhase.BISECT, CheckPhase.PRECHECK]
+    assert [c.phase for c in sink.finished[:3]] == [
+        CheckPhase.CALIBRATE,
+        CheckPhase.BISECT,
+        CheckPhase.PRECHECK,
+    ]
     assert sink.finished[-1].phase is CheckPhase.VERIFY
     assert result.replay_count == sum(c.samples for c in sink.finished)
 
@@ -236,7 +241,7 @@ def test_verify_threshold_cannot_exceed_samples() -> None:
     ids=["verified", "fallback"],
 )
 async def test_each_model_call_cost_is_reported_as_it_happens(
-    fixed: dict[int, list[ReplayOutcome]], fixes: int
+    fixed: dict[int, list[Scripted]], fixes: int
 ) -> None:
     sink = FakeSink()
     reader = FakeReader(8)
@@ -257,7 +262,7 @@ async def test_each_model_call_cost_is_reported_as_it_happens(
 
 
 async def test_an_unlucky_check_is_rechecked_before_blaming_a_step() -> None:
-    def unlucky(save_point: int) -> list[ReplayOutcome]:
+    def unlucky(save_point: int) -> list[Scripted]:
         if save_point >= 3:
             return [F, F, F]
         return [F, F, F, P, F, F] if save_point >= 1 else [P, P, P]

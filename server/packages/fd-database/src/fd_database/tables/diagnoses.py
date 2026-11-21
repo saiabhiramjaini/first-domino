@@ -105,6 +105,8 @@ class Check(IdMixin, TimestampMixin, Base):
     samples: Mapped[int]
     passes: Mapped[int]
     result: Mapped[CheckResult] = mapped_column(CHECK_RESULT)
+    drifted: Mapped[int] = mapped_column(default=0, server_default="0")
+    drift_tool_name: Mapped[str | None] = mapped_column(String(128))
     finished_at: Mapped[datetime | None] = optional_timestamp()
 
 

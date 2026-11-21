@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fd_database.tables import ReplayJob
 from fd_shared.enums import ReplayJobStatus, ReplayOutcome
-from fd_shared.models import Message, TaskInput
+from fd_shared.models import Message, ReplayDrift, TaskInput
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,9 +156,10 @@ class ReplayJobsRepository:
         outcome: ReplayOutcome,
         replay_run_id: UUID | None,
         error_code: str | None,
+        drift: ReplayDrift | None,
         now: datetime,
     ) -> ReplayJob | None:
-        """Stores the first result of a leased job. Any later result changes nothing.
+        """Stores the first result of a leased job and its drift. A later result changes nothing.
 
         Returns the job as stored, or None when the project has no such job.
         """
@@ -179,6 +180,8 @@ class ReplayJobsRepository:
                 outcome=outcome,
                 replay_run_id=replay_run_id,
                 error_code=error_code,
+                drift_step=drift.step if drift else None,
+                drift_tool_name=drift.tool_name if drift else None,
                 lease_expires_at=None,
                 finished_at=now,
                 updated_at=now,

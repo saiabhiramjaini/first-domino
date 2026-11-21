@@ -1,7 +1,8 @@
 """A throwaway database per test run, so tests never touch the one the API and web app use.
 
-Each run gets its own `<database>_test_<random>` on the configured server, with a fresh schema,
-dropped when the run ends. Parallel runs from other worktrees never see each other's data.
+Each run gets its own `<database>_test_<random>` on the configured server, migrated to the
+latest revision the way the API migrates at startup, and dropped when the run ends. Parallel
+runs from other worktrees never see each other's data.
 """
 
 import asyncio
@@ -15,6 +16,7 @@ from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+from fd_database.session import Database
 from fd_database.settings import DatabaseSettings
 
 MAINTENANCE_DATABASE = "postgres"
@@ -37,18 +39,46 @@ def _quoted(url: URL) -> str:
     return '"' + (url.database or "").replace('"', '""') + '"'
 
 
-@contextmanager
-def temporary_test_database(settings: DatabaseSettings) -> Iterator[DatabaseSettings | None]:
-    """Yields settings for a new empty database, or None when the server is unreachable."""
+async def create_empty_database(settings: DatabaseSettings) -> DatabaseSettings | None:
+    """Creates a new empty database beside the configured one.
+
+    Returns:
+        Settings for the new database, or None when the server is unreachable.
+    """
     base = make_url(settings.url.get_secret_value())
     url = base.set(database=f"{base.database}{TEST_DATABASE_INFIX}{uuid4().hex[:8]}")
     try:
-        asyncio.run(_execute_on_server(url, f"CREATE DATABASE {_quoted(url)}"))
+        await _execute_on_server(url, f"CREATE DATABASE {_quoted(url)}")
     except OSError:
+        return None
+    rendered = SecretStr(url.render_as_string(hide_password=False))
+    return settings.model_copy(update={"url": rendered})
+
+
+async def drop_database(settings: DatabaseSettings) -> None:
+    """Drops the database, closing any connection still open to it."""
+    url = make_url(settings.url.get_secret_value())
+    await _execute_on_server(url, f"DROP DATABASE IF EXISTS {_quoted(url)} WITH (FORCE)")
+
+
+async def migrate_database(settings: DatabaseSettings) -> None:
+    """Upgrades the database to the latest revision."""
+    database = Database(settings)
+    try:
+        await database.migrate()
+    finally:
+        await database.dispose()
+
+
+@contextmanager
+def temporary_test_database(settings: DatabaseSettings) -> Iterator[DatabaseSettings | None]:
+    """Yields settings for a new migrated database, or None when the server is unreachable."""
+    created = asyncio.run(create_empty_database(settings))
+    if created is None:
         yield None
         return
     try:
-        rendered = SecretStr(url.render_as_string(hide_password=False))
-        yield settings.model_copy(update={"url": rendered})
+        asyncio.run(migrate_database(created))
+        yield created
     finally:
-        asyncio.run(_execute_on_server(url, f"DROP DATABASE IF EXISTS {_quoted(url)} WITH (FORCE)"))
+        asyncio.run(drop_database(created))

@@ -40,16 +40,33 @@ def answer(question: str) -> str: ...  # your agent, unchanged
 - Recording never raises into your agent. If First Domino is unreachable, your code behaves exactly as without it.
 - Failed runs are diagnosed on their own.
 
-### Tools with side effects
+### Tools: mark the ones a replay must not run again
 
-During a replay, the steps before the one being tested come from the recording. Mark a tool that must not run twice (sends an email, moves money) so it returns its recorded result there instead:
+During a replay, the steps before the one being tested come from the recording. Mark a tool with `@fd.tool` so it returns its recorded result there instead of running:
 
 ```python
 @fd.tool
 def send_refund(order_id: str, amount: float) -> str: ...
+
+
+@fd.tool
+def get_stock_price(symbol: str) -> float: ...
 ```
 
-Put it under your framework's own decorator (`@function_tool`, `@tool`). Read-only tools need no marking.
+Put it under your framework's own decorator (`@function_tool`, `@tool`). Mark two kinds of tools:
+
+- Tools with side effects (sends an email, moves money), so they do not run twice.
+- Tools whose result can change between runs: live data (prices, inventory, search, an API), the current time, or randomness.
+
+A tool that always returns the same result for the same arguments (a calculator, a lookup in fixed data) needs no marking.
+
+### Replay drift
+
+An unmarked tool runs again during a replay. If it now returns something else than it did in the recorded run, the replay is no longer the run being diagnosed, so its outcome proves nothing. First Domino calls this drift. While a replay is inside the recorded steps, it compares every tool result your agent sends back to the model with the recorded one (JSON results are compared as values, so key order and whitespace do not count). On the first difference, or when the agent sends back some of a step's recorded results but not all of them:
+
+- The replay stops at its next model call with `fd.ReplayStopped`, so it spends no more on the model.
+- It is reported as `errored`, with the drift: the recorded step and the tool whose result differed. The worker logs a `first_domino.replay_drifted` warning naming both.
+- It does not count as evidence. First Domino shows which tool drifted, so you know what to mark with `@fd.tool`.
 
 ## 2. Start the replay worker
 
@@ -62,7 +79,7 @@ import my_agent  # the module with your @fd.entrypoint
 fd.serve()
 ```
 
-The worker only connects outward. When First Domino needs a replay, the worker calls your function again: model calls up to the save point are answered from the recording, the next one with the fixed step when there is one, and the rest by the model. Your `check` decides whether the replay passed.
+The worker only connects outward. When First Domino needs a replay, the worker calls your function again: model calls up to the save point are answered from the recording, the next one with the fixed step when there is one, and the rest by the model. Your `check` decides whether the replay passed, unless the replay drifted from the recording (see [Replay drift](#replay-drift)).
 
 Async code can run `await fd.worker().run()` instead.
 
@@ -156,6 +173,7 @@ await worker.run()  # leases forever, several jobs at a time
 - The worker refuses to start without an API key or without both handlers for each agent name.
 - `FIRST_DOMINO_WORKER_CONCURRENCY` (default 4) sets how many replays run at once.
 - A replay First Domino no longer needs (its check was already decided) stops at its next model call with `fd.ReplayStopped`, which derives from `BaseException` so `except Exception` does not swallow it. A custom `@worker.agent` can watch `ctx.stop` for the same signal.
+- A custom `@worker.agent` that finds its tools returned other results than the recording for a kept step can set `ctx.drift = fd.ReplayDrift(step=..., tool_name=...)`. The result is submitted with it and does not count as evidence (see [Replay drift](#replay-drift)).
 
 ## Diagnose from code
 
@@ -210,6 +228,6 @@ Settings can also live in a `.env` file in the working directory.
 | `responses_format` | Convert between Responses input items and First Domino messages. |
 | `client` | `FirstDominoClient`, the typed async HTTP client. |
 | `settings` | `SdkSettings`, read with the `FIRST_DOMINO_` prefix. |
-| `errors` | `ConfigurationError` and `ApiRequestError` (with the API's stable `code`). |
+| `errors` | `ConfigurationError`, `ApiRequestError` (with the API's stable `code`) and `ReplayStopped`. |
 | `testing` | An in-memory API for tests. |
 | `_generated/` | Wire models generated from `api/openapi.json` by `make sdk-models`. Do not edit. |

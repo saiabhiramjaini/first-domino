@@ -124,7 +124,8 @@ async def test_failed_run_is_diagnosed_and_proven_by_replay(
         "/v1/checks.list", json={"diagnosis_id": diagnosis["id"]}, headers=person
     )
     phases = [check["phase"] for check in checks.json()["items"]]
-    assert phases[:3] == ["bisect", "bisect", "precheck"], "a doomed save point is rechecked"
+    assert phases[0] == "calibrate"
+    assert phases[1:4] == ["bisect", "bisect", "precheck"], "a doomed save point is rechecked"
     assert phases[-1] == "verify"
     assert all(check["finished_at"] is not None for check in checks.json()["items"])
 

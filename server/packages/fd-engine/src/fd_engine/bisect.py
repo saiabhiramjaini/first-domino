@@ -11,6 +11,11 @@ CAN_SUCCEED_PASSES = 1
 """A save point can succeed when any one of its replays passes."""
 
 
+def bisect_model_override(settings: EngineSettings) -> str | None:
+    """The model that replays the steps after a save point while searching for one."""
+    return settings.strong_model if settings.bisect_with_strong_model else None
+
+
 class Bisector:
     """Finds the first doomed step of one failed run."""
 
@@ -87,9 +92,7 @@ class Bisector:
                 save_point=save_point,
                 samples=samples,
                 required_passes=CAN_SUCCEED_PASSES,
-                model_override=(
-                    self._settings.strong_model if self._settings.bisect_with_strong_model else None
-                ),
+                model_override=bisect_model_override(self._settings),
             )
         )
         return check.result is CheckResult.CAN_SUCCEED

@@ -15,6 +15,7 @@ from first_domino._generated.models import (
     ErrorCode,
     LeaseReplayJobRequest,
     Message,
+    ReplayDrift,
     ReplayJob,
     ReplayJobStatus,
     ReplayOutcome,
@@ -37,6 +38,7 @@ class WorkerErrorCode(StrEnum):
     START_FAILED = "start_failed"
     AGENT_FAILED = "agent_failed"
     CHECK_FAILED = "check_failed"
+    REPLAY_DRIFTED = "replay_drifted"
 
 
 @dataclass(slots=True)
@@ -47,12 +49,16 @@ class ReplayContext:
     as its next step's output instead of calling the model, then continues normally.
     It may set `final_output` for the replay run. `stop` is set once First Domino no longer
     needs the replay; model calls recorded with the SDK then raise `ReplayStopped`.
+    `drift` is set when a kept step's tool results came back different from the
+    recording (`@fd.entrypoint` replays set it themselves); such a replay is submitted
+    but does not count as evidence.
     """
 
     job: ReplayJob
     run: RecordedRun
     final_output: str | None = field(default=None)
     stop: threading.Event = field(default_factory=threading.Event)
+    drift: ReplayDrift | None = field(default=None)
 
     @property
     def task_input(self) -> TaskInput:
@@ -198,10 +204,12 @@ class Worker:
             with contextlib.suppress(asyncio.CancelledError):
                 await watch
         await ctx.run.finish(RunOutcome(outcome.value), final_output=ctx.final_output)
+        if ctx.drift is not None:
+            _warn_drift(job, ctx.drift)
         if ctx.stop.is_set():
             log.info("first_domino.replay_stopped job_id=%s", job.id)
             return outcome
-        return await self._submit(job, outcome, run.id, error)
+        return await self._submit(job, outcome, run.id, error, ctx.drift)
 
     async def _watch(self, ctx: ReplayContext) -> None:
         """Sets `ctx.stop` once the job is ended, or leased again after this lease ran out."""
@@ -221,7 +229,8 @@ class Worker:
         try:
             result = await replay(ctx)
         except ReplayStopped:
-            return ReplayOutcome.errored, None
+            drifted = ctx.drift is not None
+            return ReplayOutcome.errored, WorkerErrorCode.REPLAY_DRIFTED if drifted else None
         except Exception:
             log.exception("first_domino.replay_agent_failed job_id=%s", ctx.job.id)
             return ReplayOutcome.errored, WorkerErrorCode.AGENT_FAILED
@@ -239,12 +248,14 @@ class Worker:
         outcome: ReplayOutcome,
         run_id: UUID | None,
         error: WorkerErrorCode | None,
+        drift: ReplayDrift | None = None,
     ) -> ReplayOutcome:
         request = SubmitReplayResultRequest(
             replay_job_id=job.id,
             outcome=outcome,
             replay_run_id=run_id,
             error_code=ErrorCode(error.value) if error else None,
+            drift=drift,
         )
         try:
             await self._client.submit_replay_result(request)
@@ -252,3 +263,15 @@ class Worker:
             log.warning("first_domino.submit_failed job_id=%s status=%s", job.id, exc.status_code)
         log.info("first_domino.replay_finished job_id=%s outcome=%s", job.id, outcome)
         return outcome
+
+
+def _warn_drift(job: ReplayJob, drift: ReplayDrift) -> None:
+    tool = drift.tool_name.root if drift.tool_name is not None else None
+    log.warning(
+        "first_domino.replay_drifted job_id=%s step=%s tool=%s: a tool result of a kept step "
+        "differs from the recording, so this replay is not evidence. Mark the tool @fd.tool "
+        "so replays reuse its recorded result.",
+        job.id,
+        drift.step,
+        tool,
+    )

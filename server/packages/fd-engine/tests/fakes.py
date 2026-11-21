@@ -13,11 +13,32 @@ from fd_engine.llm import RawCompletion
 from fd_engine.settings import EngineSettings
 from fd_engine.verify import FixedStep
 from fd_shared.enums import DiagnosisStatus, MessageRole, ReplayOutcome, RunStatus
-from fd_shared.models import CheckView, Message, RunView, StepView, TaskInput, ToolCall
+from fd_shared.models import (
+    CheckView,
+    Message,
+    ReplayDrift,
+    ReplayResult,
+    RunView,
+    StepView,
+    TaskInput,
+    ToolCall,
+)
 
 P = ReplayOutcome.PASSED
 F = ReplayOutcome.FAILED
 E = ReplayOutcome.ERRORED
+D = ReplayResult(outcome=ReplayOutcome.PASSED, drift=ReplayDrift(step=1, tool_name="lookup"))
+"""A replay that drifted from the recording at step 1, in the `lookup` tool."""
+
+Scripted = ReplayOutcome | ReplayResult
+"""A scripted replay: a bare outcome is one that reproduced the recording."""
+
+
+def as_result(scripted: Scripted) -> ReplayResult:
+    if isinstance(scripted, ReplayResult):
+        return scripted
+    return ReplayResult(outcome=scripted)
+
 
 TEST_MODEL = "strong-test-model"
 
@@ -37,7 +58,7 @@ def settings(**overrides: object) -> EngineSettings:
     return EngineSettings.model_validate(values)
 
 
-Script = Callable[[int], list[ReplayOutcome]]
+Script = Callable[[int], list[Scripted]]
 """Outcomes for a replay from a save point, given the save point."""
 
 
@@ -63,7 +84,7 @@ class FakeRunner:
     """
 
     plain: Script
-    fixed: dict[int, list[ReplayOutcome]] = field(default_factory=dict)
+    fixed: dict[int, list[Scripted]] = field(default_factory=dict)
     delay_seconds: float = 0.0
     calls: list[ReplayCall] = field(default_factory=list)
     served: dict[tuple[int, bool], int] = field(default_factory=dict)
@@ -76,7 +97,7 @@ class FakeRunner:
         samples: int,
         model_override: str | None,
         replacement_output: Message | None,
-    ) -> list[ReplayOutcome]:
+    ) -> list[ReplayResult]:
         self.calls.append(ReplayCall(from_step, samples, model_override, replacement_output))
         if self.delay_seconds:
             await asyncio.sleep(self.delay_seconds)
@@ -84,7 +105,7 @@ class FakeRunner:
         script = self.fixed.get(from_step + 1, [F]) if fixed else self.plain(from_step)
         start = self.served.get((from_step, fixed), 0)
         self.served[(from_step, fixed)] = start + samples
-        return [script[(start + offset) % len(script)] for offset in range(samples)]
+        return [as_result(script[(start + offset) % len(script)]) for offset in range(samples)]
 
 
 @dataclass

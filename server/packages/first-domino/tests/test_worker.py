@@ -117,3 +117,28 @@ async def test_the_worker_refuses_to_start_without_a_success_check(
 
     with pytest.raises(fd.ConfigurationError):
         await worker.run()
+
+
+async def test_a_drift_the_agent_reports_is_submitted_with_its_outcome(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    api.jobs = [make_job()]
+    worker = fd.Worker(agent_names=[AGENT], client=client)
+    drift = fd.ReplayDrift(step=1)
+
+    @worker.agent(AGENT)
+    async def replay(ctx: fd.ReplayContext) -> bool:
+        ctx.drift = drift
+        return True
+
+    @worker.success_check(AGENT)
+    def check(task_input: fd.TaskInput, result: bool) -> bool:
+        return result
+
+    assert await worker.run_once() == fd.ReplayOutcome.passed
+    (submitted,) = api.submitted
+    assert (submitted.outcome, submitted.drift, submitted.error_code) == (
+        fd.ReplayOutcome.passed,
+        drift,
+        None,
+    )

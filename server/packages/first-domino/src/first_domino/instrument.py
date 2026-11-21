@@ -106,7 +106,11 @@ def tool(fn: Any = None, *, name: str | None = None) -> Any:
     During a replay, the steps before the one being tested are taken from the recording.
     A marked tool returns its recorded result there instead of running, so a tool that
     sends an email or charges a card does not do it twice. After that point it runs
-    normally. Read-only tools need no marking. Put it under your framework's decorator.
+    normally. Mark every tool whose result can change between runs too (live data, the
+    time, randomness): if it returns something else than in the recording, the replay no
+    longer matches the run and First Domino discards it as drifted. A tool that always
+    returns the same result for the same arguments needs no marking. Put it under your
+    framework's decorator.
 
     Example:
         >>> @function_tool
@@ -390,7 +394,9 @@ async def replay(entry: Entrypoint, ctx: ReplayContext, client: FirstDominoClien
     """Run `entry` again for a replay job and return whether it passed.
 
     Model calls up to `ctx.from_step` are answered with the recorded outputs, the next
-    with the fixed output when the job has one, and the rest by the model.
+    with the fixed output when the job has one, and the rest by the model. When a tool
+    result of a kept step comes back different, `ctx.drift` says where and the replay
+    stops at its next model call with `ReplayStopped`.
     """
     steps = await client.list_steps(ctx.job.run_id) if ctx.from_step > 0 else []
     plan = capture.ReplayPlan.of(steps, ctx.from_step, ctx.replacement_output, ctx.model_override)
@@ -418,6 +424,8 @@ async def replay(entry: Entrypoint, ctx: ReplayContext, client: FirstDominoClien
             result = await asyncio.to_thread(scoped, lambda: entry.fn(**kwargs))
     finally:
         capture.deactivate(session)
+        if session.drift is not None:
+            ctx.drift = session.drift
         await _wait(session.close(None, None))
     ctx.final_output = _final_output(result)
     return await entry.passed(session, (), kwargs, result)

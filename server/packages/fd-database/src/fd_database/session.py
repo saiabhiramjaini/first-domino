@@ -1,4 +1,4 @@
-"""Async engine, session factory and table creation at startup."""
+"""Async engine, session factory and the schema migration at startup."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from fd_database.schema import upgrade
 from fd_database.settings import DatabaseSettings
-from fd_database.tables import Base
 
 
 class Database:
@@ -28,10 +28,9 @@ class Database:
         )
         self._sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
-    async def create_tables(self) -> None:
-        """Creates every missing table. There is no migration tool yet."""
-        async with self.engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
+    async def migrate(self) -> None:
+        """Upgrades the schema to the latest revision. See `fd_database.schema.upgrade`."""
+        await upgrade(self.engine)
 
     @asynccontextmanager
     async def transaction(self) -> AsyncIterator[AsyncSession]:

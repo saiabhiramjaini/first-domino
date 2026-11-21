@@ -26,7 +26,14 @@ from time import perf_counter
 from types import ModuleType
 from typing import Any
 
-from first_domino._generated.models import Message, MessageRole, RunOutcome, Step
+from first_domino._generated.models import (
+    Message,
+    MessageRole,
+    ReplayDrift,
+    RunOutcome,
+    Step,
+    ToolName,
+)
 from first_domino.errors import ReplayStopped
 from first_domino.providers import ModelReply, Provider, provider_for
 from first_domino.recorder import RecordedRun
@@ -63,18 +70,30 @@ BACKGROUND = Background()
 
 
 @dataclass(frozen=True, slots=True)
+class KeptToolResult:
+    """A tool result of a kept step, as the recording has it."""
+
+    step: int
+    tool_call_id: str
+    tool_name: str | None
+    content: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class ReplayPlan:
     """How a replay answers model calls and `@fd.tool` calls.
 
     Model calls 1..`from_step` get the recorded outputs, call `from_step + 1` gets
     `replacement` when set, and every later call goes to the model (as `model_override`
     when set). `@fd.tool` functions return the recorded results while the replay is
-    still inside the recorded part.
+    still inside the recorded part. `kept_results` (by tool call id) is what the agent
+    must send back for the replay to still match the recording.
     """
 
     from_step: int
     outputs: Mapping[int, Message]
     tool_results: Mapping[str, Sequence[str | None]]
+    kept_results: Mapping[str, KeptToolResult]
     replacement: Message | None = None
     model_override: str | None = None
 
@@ -88,16 +107,22 @@ class ReplayPlan:
     ) -> ReplayPlan:
         kept = [step for step in steps if step.index <= from_step]
         results: dict[str, list[str | None]] = {}
+        kept_results: dict[str, KeptToolResult] = {}
         for step in sorted(kept, key=lambda s: s.index):
             names = {call.id: call.name for call in step.output.tool_calls or []}
             for result in step.tool_results:
                 name = names.get(result.tool_call_id or "")
                 if name is not None:
                     results.setdefault(name, []).append(result.content)
+                if result.tool_call_id is not None:
+                    kept_results[result.tool_call_id] = KeptToolResult(
+                        step.index, result.tool_call_id, name, result.content
+                    )
         return cls(
             from_step=from_step,
             outputs={step.index: step.output for step in kept},
             tool_results=results,
+            kept_results=kept_results,
             replacement=replacement,
             model_override=model_override,
         )
@@ -142,6 +167,7 @@ class Session:
         self.replay = replay
         self.stop = stop
         self.verdict: Verdict | None = None
+        self.drift: ReplayDrift | None = None
         self._background = background
         self._lock = threading.Lock()
         self._calls = 0
@@ -197,6 +223,25 @@ class Session:
             self._record(
                 pending, [results[c.id] for c in pending.output.tool_calls or [] if c.id in results]
             )
+
+    def check_replay(self, index: int, messages: Sequence[Message]) -> None:
+        """Note the first kept step whose tool results the replay sends back changed.
+
+        Only requests up to `from_step + 1` are compared: by then every kept result was
+        due, and later requests may legitimately trim or rewrite old history.
+        """
+        plan = self.replay
+        if plan is None or self.drift is not None or index > plan.from_step + 1:
+            return
+        drift = _drift_in(plan, index, messages)
+        if drift is not None:
+            with self._lock:
+                self.drift = self.drift or drift
+
+    @property
+    def stopping(self) -> bool:
+        """True once a replay is not worth going on: its job ended, or it drifted."""
+        return self.drift is not None or (self.stop is not None and self.stop.is_set())
 
     def finished_call(
         self, index: int, before: list[Message], reply: ModelReply, latency_ms: int
@@ -278,6 +323,45 @@ class Session:
 
 def _answered(pending: _Pending, results: Mapping[str | None, Message]) -> bool:
     return any(call.id in results for call in pending.output.tool_calls or [])
+
+
+def _drift_in(plan: ReplayPlan, index: int, messages: Sequence[Message]) -> ReplayDrift | None:
+    """The earliest kept step whose result in this request (call `index`) differs, or is
+    missing while other results of the same step `index - 1` are there.
+
+    A request with none of step `index - 1`'s results is not checked for missing ones: a
+    side model call (a guardrail, a sub-agent) may come between a step and its results.
+    """
+    sent = {
+        m.tool_call_id: m.content
+        for m in messages
+        if m.role == MessageRole.tool and m.tool_call_id is not None
+    }
+    previous = [kept for kept in plan.kept_results.values() if kept.step == index - 1]
+    partial = any(kept.tool_call_id in sent for kept in previous)
+    changed = [
+        kept
+        for kept in plan.kept_results.values()
+        if (kept.tool_call_id in sent and not _same_content(kept.content, sent[kept.tool_call_id]))
+        or (partial and kept.step == index - 1 and kept.tool_call_id not in sent)
+    ]
+    if not changed:
+        return None
+    first = min(changed, key=lambda kept: kept.step)
+    name = ToolName(first.tool_name) if first.tool_name is not None else None
+    return ReplayDrift(step=first.step, tool_name=name)
+
+
+def _same_content(recorded: str | None, replayed: str | None) -> bool:
+    """Identical text, or JSON with equal values (key order and whitespace do not count)."""
+    if recorded == replayed:
+        return True
+    if recorded is None or replayed is None:
+        return False
+    try:
+        return json.loads(recorded) == json.loads(replayed)
+    except ValueError:
+        return False
 
 
 async def _nothing() -> None:
@@ -501,17 +585,19 @@ def _begin(module: ModuleType, request: Any) -> _Call | None:
         return None
     before = provider.request_messages(body)
     session.saw_request(before, provider.tool_names(body))
-    return _Call(session, provider, module, request, body, session.reserve(), before)
+    index = session.reserve()
+    _safely("drift", lambda: session.check_replay(index, before), None)
+    return _Call(session, provider, module, request, body, index, before)
 
 
 def _stop_if_asked(call: _Call) -> None:
-    """Ends a replay at its next model call once nobody needs its result.
+    """Ends a replay at its next model call once nobody needs its result, or once it
+    drifted from the recording (it is no evidence then, so it spends no more model calls).
 
     Only model calls stop: the worker's own API calls must go on, even when they find this
     session as the only active one.
     """
-    stop = call.session.stop
-    if stop is not None and stop.is_set():
+    if call.session.stopping:
         call.failed()
         raise ReplayStopped
 

@@ -11,7 +11,6 @@ from .test_verdicts import _failed_run
 
 
 async def test_checks_and_replays_count_up_while_running(database: Database) -> None:
-    await database.create_tables()
     project_id, run_id = await _failed_run(database)
     async with database.transaction() as session:
         diagnosis = await DiagnosesRepository(session).create(

@@ -30,7 +30,7 @@ Set `FIRST_DOMINO_API_KEY` from the web app's Settings page. Every model call ma
 ## How it works
 
 1. **Record.** Each model call is a step, and every step is a save point.
-2. **Search.** For a failed run, the engine asks whether the run can still pass when steps 1 to m are kept and the rest replayed. It binary-searches m for the first step after which no replay passes.
+2. **Search.** For a failed run, the engine first confirms your check fails a replay that keeps every step (free: every model call comes from the recording). Then it asks whether the run can still pass when steps 1 to m are kept and the rest replayed, and binary-searches m for the first step after which no replay passes. A replay whose kept steps no longer match the recording (a tool returned different data) is not counted, and the tool is named so you can mark it with `@fd.tool`.
 3. **Prove.** It rewrites that step and replays. If the run now passes, the step is proven to be the cause.
 4. **Group.** It explains the failure and files it under a root cause with other runs that failed the same way.
 

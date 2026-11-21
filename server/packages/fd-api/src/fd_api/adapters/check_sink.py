@@ -10,6 +10,8 @@ from fd_shared.enums import DiagnosisStatus
 from fd_shared.errors import NotFoundError
 from fd_shared.models import CheckView
 
+_FINAL_STATUSES = frozenset({DiagnosisStatus.DONE, DiagnosisStatus.FAILED})
+
 
 class DatabaseCheckSink:
     """Stores one project's checks and live search range as the engine reports them."""
@@ -31,7 +33,7 @@ class DatabaseCheckSink:
             )
 
     async def check_finished(self, check: CheckView) -> None:
-        """Stores a check's passes and result over the pending one with the same index."""
+        """Stores a check's passes, drift and result over the pending one with the same index."""
         await self._save(check, finished=True)
 
     async def progress(
@@ -42,7 +44,10 @@ class DatabaseCheckSink:
         search_low: int | None,
         search_high: int | None,
     ) -> None:
-        """Stores the diagnosis status and current search range.
+        """Stores the diagnosis status and current search range, unless the diagnosis ended.
+
+        A process that lost the diagnosis to another may still be running it, and must not move
+        a finished diagnosis back to a live status.
 
         Raises:
             NotFoundError: The project has no such diagnosis.
@@ -52,6 +57,8 @@ class DatabaseCheckSink:
             diagnosis = await diagnoses.get(project_id=self._project_id, diagnosis_id=diagnosis_id)
             if diagnosis is None:
                 raise NotFoundError
+            if diagnosis.status in _FINAL_STATUSES:
+                return
             await diagnoses.set_progress(
                 diagnosis=diagnosis, status=status, search_low=search_low, search_high=search_high
             )
@@ -66,6 +73,8 @@ class DatabaseCheckSink:
                 save_point=check.save_point,
                 samples=check.samples,
                 passes=check.passes,
+                drifted=check.drifted,
+                drift_tool_name=check.drift_tool_name,
                 result=check.result,
                 finished_at=utc_now() if finished else None,
             )

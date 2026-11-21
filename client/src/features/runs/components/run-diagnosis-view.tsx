@@ -19,6 +19,7 @@ import { useListChecks } from "@/hooks/api/use-list-checks";
 import { listStepsKey, useListSteps } from "@/hooks/api/use-list-steps";
 import { isApiError } from "@/lib/api-error";
 
+import { latestDriftToolName } from "../replay-drift";
 import { CheckReplays } from "../replays/check-replays";
 import { CheckList } from "./check-list";
 import { checkRows } from "./check-rows";
@@ -177,12 +178,19 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
           onRetry={diagnosisQuery.refetch}
         />
       ) : diagnosis ? (
-        <VerdictHero diagnosis={diagnosis}>{stepStrip}</VerdictHero>
+        <VerdictHero diagnosis={diagnosis} checks={checks.data ?? []}>
+          {stepStrip}
+        </VerdictHero>
       ) : (
         <Skeleton className="h-48 w-full rounded-lg" />
       )}
 
-      {!hasNoSteps && diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
+      {!hasNoSteps && diagnosis?.status === "failed" && (
+        <DiagnosisFailed
+          diagnosis={diagnosis}
+          driftToolName={latestDriftToolName(checks.data ?? [])}
+        />
+      )}
       {!hasNoSteps && diagnosis?.status === "done" && (
         <VerdictCard diagnosis={diagnosis} originalStep={dominoStep} checks={checks.data ?? []} />
       )}

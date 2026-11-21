@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { zCheckResult, zDiagnosisStatus, zRunStatus, zVerdictKind } from "@/api/generated/zod.gen";
+import {
+  zCheckPhase,
+  zCheckResult,
+  zDiagnosisStatus,
+  zRunStatus,
+  zVerdictKind,
+} from "@/api/generated/zod.gen";
 
-import { CHECK_RESULT, DIAGNOSIS_STATUS, RUN_STATUS, VERDICT_KIND } from "./status-tones";
+import {
+  CHECK_PHASE,
+  CHECK_RESULT,
+  DIAGNOSIS_STATUS,
+  RUN_STATUS,
+  VERDICT_KIND,
+} from "./status-tones";
 import { TONE_BADGE_VARIANT } from "./tone";
 
 describe("status tone maps", () => {
@@ -12,6 +24,7 @@ describe("status tone maps", () => {
       [zDiagnosisStatus.options, DIAGNOSIS_STATUS],
       [zVerdictKind.options, VERDICT_KIND],
       [zCheckResult.options, CHECK_RESULT],
+      [zCheckPhase.options, CHECK_PHASE],
     ] as const;
     for (const [values, map] of maps) {
       for (const value of values) {

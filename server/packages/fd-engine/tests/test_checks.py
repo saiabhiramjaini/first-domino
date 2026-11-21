@@ -8,12 +8,12 @@ import pytest
 
 from fd_engine.bisect import Bisector
 from fd_engine.checks import CheckRequest, CheckRunner
-from fd_engine.errors import ReplayUnavailableError
+from fd_engine.errors import ReplayNotFaithfulError, ReplayUnavailableError
 from fd_engine.settings import EngineSettings
-from fd_shared.enums import CheckPhase, CheckResult, ReplayOutcome
-from fd_shared.models import Message
+from fd_shared.enums import CheckPhase, CheckResult
+from fd_shared.models import Message, ReplayResult
 
-from .fakes import E, F, FakeRunner, FakeSink, P, break_at, settings
+from .fakes import D, E, F, FakeRunner, FakeSink, P, Scripted, as_result, break_at, settings
 
 HANG = None
 """A scripted replay that never finishes until it is cancelled."""
@@ -23,7 +23,7 @@ HANG = None
 class GatedRunner:
     """One scripted outcome per call, in order; `HANG` waits until the call is cancelled."""
 
-    script: list[ReplayOutcome | None]
+    script: list[Scripted | None]
     calls: int = 0
     cancelled: int = 0
     in_flight: int = 0
@@ -38,7 +38,7 @@ class GatedRunner:
         samples: int,
         model_override: str | None,
         replacement_output: Message | None,
-    ) -> list[ReplayOutcome]:
+    ) -> list[ReplayResult]:
         outcome = self.script[self.calls]
         self.calls += 1
         self.samples_asked.append(samples)
@@ -48,7 +48,7 @@ class GatedRunner:
             await asyncio.sleep(0)
             if outcome is None:
                 await asyncio.Event().wait()
-            return [outcome] if outcome is not None else []
+            return [as_result(outcome)] if outcome is not None else []
         except asyncio.CancelledError:
             self.cancelled += 1
             raise
@@ -56,12 +56,14 @@ class GatedRunner:
             self.in_flight -= 1
 
 
-def check_runner(runner: GatedRunner, config: EngineSettings | None = None) -> CheckRunner:
+def check_runner(
+    runner: GatedRunner, config: EngineSettings | None = None, sink: FakeSink | None = None
+) -> CheckRunner:
     return CheckRunner(
         diagnosis_id=uuid4(),
         run_id=uuid4(),
         runner=runner,
-        sink=FakeSink(),
+        sink=sink or FakeSink(),
         settings=config or settings(),
     )
 
@@ -113,7 +115,7 @@ async def test_replays_of_a_check_run_at_once_one_per_call() -> None:
     ],
 )
 async def test_verify_stops_once_its_result_is_decided(
-    script: list[ReplayOutcome | None], result: CheckResult, passes: int
+    script: list[Scripted | None], result: CheckResult, passes: int
 ) -> None:
     runner = GatedRunner(script)
 
@@ -130,7 +132,7 @@ async def test_an_errored_replay_does_not_decide_a_check() -> None:
     check = await check_runner(runner).run(bisect_check())
 
     assert check.result is CheckResult.CAN_SUCCEED
-    assert (check.passes, check.samples) == (1, 2)
+    assert (check.passes, check.samples) == (1, 1)
 
 
 async def test_a_check_whose_replays_all_errored_is_unavailable() -> None:
@@ -138,13 +140,63 @@ async def test_a_check_whose_replays_all_errored_is_unavailable() -> None:
         await check_runner(GatedRunner([E, E, E])).run(bisect_check())
 
 
+async def test_drifted_replays_are_reported_but_not_counted() -> None:
+    runner = GatedRunner([D, P, D, P, P])
+    checks = check_runner(runner)
+
+    check = await checks.run(verify_check())
+
+    assert check.result is CheckResult.CAN_SUCCEED
+    assert (check.passes, check.samples) == (3, 3)
+    assert (check.drifted, check.drift_tool_name) == (2, "lookup")
+    assert checks.replay_count == 5
+
+
+async def test_a_drifted_pass_does_not_decide_a_check() -> None:
+    runner = GatedRunner([D, P, HANG])
+
+    check = await check_runner(runner).run(bisect_check())
+
+    assert check.result is CheckResult.CAN_SUCCEED
+    assert (check.passes, check.samples, check.drifted) == (1, 1, 1)
+    assert runner.cancelled == 1
+
+
+async def test_verify_stops_early_once_drift_leaves_too_few_replays() -> None:
+    runner = GatedRunner([D, D, F, HANG, HANG])
+
+    check = await check_runner(runner).run(verify_check())
+
+    assert check.result is CheckResult.DOOMED
+    assert (check.passes, check.samples, check.drifted) == (0, 1, 2)
+    assert runner.cancelled == 2
+
+
+@pytest.mark.parametrize("script", [[D, D, D], [E, D, E]], ids=["all_drifted", "mixed"])
+async def test_a_check_with_drift_and_no_evidence_is_not_faithful(
+    script: list[Scripted | None],
+) -> None:
+    sink = FakeSink()
+
+    with pytest.raises(ReplayNotFaithfulError):
+        await check_runner(GatedRunner(script), sink=sink).run(bisect_check())
+
+    [finished] = sink.finished
+    assert finished.result is CheckResult.PENDING
+    assert (finished.passes, finished.samples) == (0, 0)
+    assert (finished.drifted, finished.drift_tool_name) == (script.count(D), "lookup")
+
+
 async def test_a_timeout_keeps_the_replays_that_finished() -> None:
     runner = GatedRunner([F, HANG, HANG])
 
-    check = await check_runner(runner, settings(replay_timeout_seconds=0.05)).run(bisect_check())
+    checks = check_runner(runner, settings(replay_timeout_seconds=0.05))
+
+    check = await checks.run(bisect_check())
 
     assert check.result is CheckResult.DOOMED
-    assert (check.passes, check.samples) == (0, 3)
+    assert (check.passes, check.samples) == (0, 1)
+    assert checks.replay_count == 3
     assert runner.cancelled == 2
 
 

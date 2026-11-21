@@ -1,7 +1,8 @@
 """Postgres fixtures. Each test runs in a transaction that is rolled back afterwards.
 
 The tests use a throwaway `<database>_test_<random>` on the `FD_DATABASE_URL` server (start
-one with `make db-up`), never the database itself, and skip when the server is unreachable.
+one with `make db-up`), migrated as the API migrates at startup, never the database itself, and
+skip when the server is unreachable.
 """
 
 from collections.abc import AsyncIterator, Iterator
@@ -12,7 +13,7 @@ from sqlalchemy.pool import NullPool
 
 from fd_database.repositories import ProjectsRepository
 from fd_database.settings import DatabaseSettings
-from fd_database.tables import Base, Project
+from fd_database.tables import Project
 from fd_database.testing import temporary_test_database
 
 
@@ -28,8 +29,6 @@ def database_settings() -> Iterator[DatabaseSettings]:
 async def session(database_settings: DatabaseSettings) -> AsyncIterator[AsyncSession]:
     engine = create_async_engine(database_settings.url.get_secret_value(), poolclass=NullPool)
     connection = await engine.connect()
-    await connection.run_sync(Base.metadata.create_all)
-    await connection.commit()
     transaction = await connection.begin()
     async with AsyncSession(
         bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint"

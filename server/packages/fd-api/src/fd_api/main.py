@@ -24,7 +24,7 @@ def _lifespan(settings: ApiSettings, database: Database | None, engine: EngineFa
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         db = database or Database()
-        await db.create_tables()
+        await db.migrate()
         async with httpx.AsyncClient() as http:
             runner = DiagnosisRunner(db, engine or LlmEngineFactory(), http, settings)
             await runner.open()
@@ -45,7 +45,7 @@ def create_app(
     database: Database | None = None,
     engine: EngineFactory | None = None,
 ) -> FastAPI:
-    """Builds the API app. Startup creates any missing tables.
+    """Builds the API app. Startup migrates the database to the latest schema revision.
 
     Args:
         settings: Settings to use. Read from the environment when omitted.

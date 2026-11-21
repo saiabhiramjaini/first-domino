@@ -71,7 +71,6 @@ async def _diagnose(database: Database, project_id: UUID, run_id: UUID, title: s
 
 
 async def test_rediagnosed_run_moves_to_its_new_cause(database: Database) -> None:
-    await database.create_tables()
     project_id, run_id = await _failed_run(database)
 
     first = await _diagnose(database, project_id, run_id, "Converted AM to PM")

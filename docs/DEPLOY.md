@@ -22,11 +22,20 @@ Non-secret settings are committed; only secrets live in Vercel and GitHub.
 
 - **Server:** push to `main` touching `server/**` runs `.github/workflows/server.yml`: `check` (lint, types, tests) → `publish` (build the image, push `:<sha>` and `:latest`) → `deploy` (write `~/first-domino/.env` from `config.env` + `SERVER_ENV`, run `deploy/run-api.sh` over SSH to replace the `first-domino-api` container, then call `/health` over HTTPS). Pull requests run `check` only.
 - **Web:** Vercel builds every push to `main` (`client/vercel.json`). Pull requests get preview links.
+- **Schema:** the API runs the Alembic migrations (`fd_database/migrations/`) when it starts, under a Postgres advisory lock, before it serves. There is no separate migration step. Use the **direct** Neon host: the lock spans several transactions on one session, which a transaction pooler breaks.
 - **SDK:** pushing a `sdk-v*` tag runs `.github/workflows/sdk-release.yml`, which publishes to PyPI. See [`RELEASE.md`](./RELEASE.md).
+
+## First deploy with migrations
+
+The database was created by `create_all` before Alembic. On its first start the new API finds the tables with no `alembic_version`, stamps the baseline revision `0001`, then applies `0002` (the drift columns and the `calibrate` check phase; fast, no table rewrite). Before that deploy:
+
+1. Create a Neon branch of production as a restore point.
+2. Confirm production matches the baseline. Start the image production runs now (before this change) against an empty local database, so its `create_all` builds the reference schema (identical to revision `0001`). Then diff `pg_dump --schema-only --no-owner` of that database against production. `create_all` never added columns to existing tables, so a production table created before a column was added would be stamped wrongly: add any missing column by hand before deploying.
+3. Deploy. Expect `database.stamped`, then `database.migrated from_revision=0001 to_revision=0002`, then `api.started`. A failure leaves the container down and `run-api.sh` reports it; rerunning is safe (every change in `0002` skips when already applied). The previous image still runs against the upgraded schema, so rolling back needs no database change.
 
 ## One-time setup
 
-1. **Neon.** Create a project. Copy the **direct** connection string (not the `-pooler` one) and turn it into `postgresql+asyncpg://USER:PASSWORD@HOST/neondb?ssl=require` (drop `sslmode` and `channel_binding`). The API creates the tables on its first start.
+1. **Neon.** Create a project. Copy the **direct** connection string (not the `-pooler` one) and turn it into `postgresql+asyncpg://USER:PASSWORD@HOST/neondb?ssl=require` (drop `sslmode` and `channel_binding`). The API builds the schema with its migrations on its first start.
 2. **Docker Hub.** Create an access token (Account settings → Personal access tokens, Read & Write).
 3. **EC2.** Ubuntu, `t2.medium` or similar, a fixed IP. Security group: 22 from your IP, 80 and 443 from anywhere. Run `server/deploy/bootstrap-ec2.sh` on it once (Docker, nginx, certbot), then set up nginx as in "nginx and HTTPS" below.
 4. **DNS** for `abhiramtech.in`:

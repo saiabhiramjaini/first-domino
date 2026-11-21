@@ -7,8 +7,8 @@ other way.
 from typing import Protocol
 from uuid import UUID
 
-from fd_shared.enums import DiagnosisStatus, ReplayOutcome
-from fd_shared.models import CheckView, Message, RunView, StepView
+from fd_shared.enums import DiagnosisStatus
+from fd_shared.models import CheckView, Message, ReplayResult, RunView, StepView
 
 
 class RunReader(Protocol):
@@ -24,7 +24,7 @@ class RunReader(Protocol):
 
 
 class ReplayRunner(Protocol):
-    """Replays a run on the customer side and reports each replay's outcome."""
+    """Replays a run on the customer side and reports each replay's result."""
 
     async def replay(
         self,
@@ -34,7 +34,7 @@ class ReplayRunner(Protocol):
         samples: int,
         model_override: str | None,
         replacement_output: Message | None,
-    ) -> list[ReplayOutcome]:
+    ) -> list[ReplayResult]:
         """Enqueue `samples` replays of `run_id` and wait for all of them.
 
         Args:
@@ -46,7 +46,8 @@ class ReplayRunner(Protocol):
                 calling the model, then continue.
 
         Returns:
-            One outcome per replay, `samples` long. A replay that times out is `errored`.
+            One result per replay, `samples` long. A replay that times out is `errored`, and
+            one that could not reproduce a kept step carries its drift.
         """
         ...
 

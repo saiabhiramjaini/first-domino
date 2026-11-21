@@ -1,7 +1,8 @@
 .DEFAULT_GOAL := help
 SDK_GENERATED := packages/first-domino/src/first_domino/_generated/models.py
+MIGRATIONS := packages/fd-database/src/fd_database/migrations/versions
 
-.PHONY: help install lint fix typecheck test check db-up db-down api dev-key seed-demo openapi sdk-models
+.PHONY: help install lint fix typecheck test check db-up db-down migrate migration api dev-key seed-demo openapi sdk-models
 
 help: ## List commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -30,6 +31,16 @@ db-up: ## Start local Postgres
 
 db-down: ## Stop local Postgres
 	docker compose down
+
+migrate: ## Upgrade the database to the latest revision (the API also does at startup)
+	uv run python -m fd_database.migrate upgrade
+
+migration: ## Write a revision for the table changes: make migration MSG="add runs.note"
+	@test -n "$(MSG)" || (echo 'usage: make migration MSG="add runs.note"' >&2; exit 2)
+	uv run python -m fd_database.migrate revision --message "$(MSG)"
+	# Keep new revisions ruff-clean; review each one before committing it.
+	uv run ruff format $(MIGRATIONS)
+	uv run ruff check --fix $(MIGRATIONS)
 
 api: ## Run the API with reload
 	uv run uvicorn fd_api.main:create_app --factory --reload --port 8000

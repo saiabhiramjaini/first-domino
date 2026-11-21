@@ -26,7 +26,7 @@ from fd_shared.enums import (
     RunSource,
     RunStatus,
 )
-from fd_shared.models import Message, TaskInput
+from fd_shared.models import Message, ReplayDrift, TaskInput
 
 MESSAGE = Message(role=MessageRole.ASSISTANT, content="hello")
 
@@ -156,23 +156,25 @@ async def test_submit_counts_only_the_first_result(session: AsyncSession, projec
         lease_seconds=10,
     )
 
-    async def submit(outcome: ReplayOutcome):
+    async def submit(outcome: ReplayOutcome, drift: ReplayDrift | None):
         return await jobs.submit(
             project_id=project.id,
             replay_job_id=job.id,
             outcome=outcome,
             replay_run_id=None,
             error_code=None,
+            drift=drift,
             now=utc_now(),
         )
 
-    first = await submit(ReplayOutcome.PASSED)
-    repeat = await submit(ReplayOutcome.FAILED)
+    first = await submit(ReplayOutcome.PASSED, ReplayDrift(step=1, tool_name="lookup"))
+    repeat = await submit(ReplayOutcome.FAILED, None)
 
     assert first is not None
     assert repeat is not None
     assert repeat.outcome is ReplayOutcome.PASSED
     assert repeat.status is ReplayJobStatus.SUCCEEDED
+    assert (repeat.drift_step, repeat.drift_tool_name) == (1, "lookup")
 
 
 async def test_one_active_diagnosis_per_run(session: AsyncSession, project: Project) -> None:
@@ -191,7 +193,7 @@ async def test_saving_a_check_again_updates_it(session: AsyncSession, project: P
     run = await _run(session, project)
     diagnosis = await diagnoses.create(project_id=project.id, run_id=run.id, created_by_id=None)
 
-    for passes, result in ((0, CheckResult.PENDING), (2, CheckResult.CAN_SUCCEED)):
+    for passes, drifted, result in ((0, 0, CheckResult.PENDING), (2, 1, CheckResult.CAN_SUCCEED)):
         await diagnoses.save_check(
             project_id=project.id,
             diagnosis_id=diagnosis.id,
@@ -200,14 +202,17 @@ async def test_saving_a_check_again_updates_it(session: AsyncSession, project: P
             save_point=0,
             samples=3,
             passes=passes,
+            drifted=drifted,
+            drift_tool_name="lookup" if drifted else None,
             result=result,
             finished_at=None,
         )
 
-    checks = await diagnoses.list_checks(
+    [check] = await diagnoses.list_checks(
         project_id=project.id, diagnosis_id=diagnosis.id, limit=10, after=None
     )
-    assert [(check.passes, check.result) for check in checks] == [(2, CheckResult.CAN_SUCCEED)]
+    assert (check.passes, check.result) == (2, CheckResult.CAN_SUCCEED)
+    assert (check.drifted, check.drift_tool_name) == (1, "lookup")
 
 
 async def test_waiting_replays_count_only_jobs_no_worker_picked_up(
@@ -300,6 +305,7 @@ async def test_expire_unfinished_ends_queued_and_leased_jobs_only(
         outcome=ReplayOutcome.PASSED,
         replay_run_id=None,
         error_code=None,
+        drift=None,
         now=utc_now(),
     )
     first, second = await _enqueue(session, project, run, samples=2)

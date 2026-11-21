@@ -336,6 +336,8 @@ class DiagnosesRepository:
         save_point: int,
         samples: int,
         passes: int,
+        drifted: int,
+        drift_tool_name: str | None,
         result: CheckResult,
         finished_at: datetime | None,
     ) -> Check:
@@ -346,6 +348,8 @@ class DiagnosesRepository:
             "save_point": save_point,
             "samples": samples,
             "passes": passes,
+            "drifted": drifted,
+            "drift_tool_name": drift_tool_name,
             "result": result,
             "finished_at": finished_at,
             "updated_at": now,

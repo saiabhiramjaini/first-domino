@@ -1,6 +1,6 @@
 # Contract
 
-**Contract version: 4** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`; 4 added `check_id` to runs and the `check_id` run filter, and `exportCause`)
+**Contract version: 5** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`; 4 added `check_id` to runs and the `check_id` run filter, and `exportCause`; 5 added the `calibrate` check phase, replay drift (`ReplayDrift` on submitted results and jobs, `drifted` and `drift_tool_name` on checks) and the `check_inconsistent` and `replay_not_faithful` error codes)
 
 The agreement between the server, the web app and the SDK: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth; `server/api/openapi.json` is generated from it and must match this file.
 
@@ -53,9 +53,9 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `RunSource` | `recorded`, `replay` |
 | `MessageRole` | `system`, `user`, `assistant`, `tool` |
 | `DiagnosisStatus` | `queued`, `bisecting`, `verifying`, `explaining`, `done`, `failed` |
-| `DiagnosisErrorCode` | `replay_unavailable`, `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted`, `internal_error` (why a diagnosis `failed`) |
+| `DiagnosisErrorCode` | `replay_unavailable`, `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `check_inconsistent`, `replay_not_faithful`, `interrupted`, `internal_error` (why a diagnosis `failed`) |
 | `VerdictKind` | `step_verified`, `step_unverified`, `multiple_causes`, `task_or_tool_issue` |
-| `CheckPhase` | `precheck`, `bisect`, `verify`, `fallback` |
+| `CheckPhase` | `calibrate`, `precheck`, `bisect`, `verify`, `fallback` |
 | `CheckResult` | `pending`, `can_succeed`, `doomed` |
 | `ReplayJobStatus` | `queued`, `leased`, `succeeded`, `failed`, `expired` |
 | `ReplayOutcome` | `passed`, `failed`, `errored` |
@@ -67,6 +67,8 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 **TaskInput**: `prompt` (string), `metadata` (map of string to string; the customer puts what its success check needs here, such as `task_id`).
 
 **ToolCall**: `id` (string, minted by the model provider), `name` (string), `arguments` (string, JSON text as the provider returned it).
+
+**ReplayDrift**: `step` (int, the first kept step whose tool results came back different from the recording), `tool_name` (string or null; the tool whose result differed, null when the replay never sent it back).
 
 **Message**: `role` (`MessageRole`), `content` (string or null), `tool_calls` (list of `ToolCall`, empty when none), `tool_call_id` (string or null; set on `tool` messages).
 
@@ -132,13 +134,16 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `countDiagnoses` | `POST /v1/diagnoses.count` | P | same filters as `listDiagnoses` | `count` |
 
 - Only failed recorded runs with at least one step can be diagnosed. One diagnosis may run per run at a time (`409` otherwise).
-- `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API process running it stopped heartbeating, for example it restarted), `internal_error` (see the API logs).
+- `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `check_inconsistent` (the success check passed a replay that kept every recorded step, so it does not reliably fail this run), `replay_not_faithful` (a check's replays all drifted from the recording; the check that shows it names the tool), `interrupted` (the API process running it stopped heartbeating, for example it restarted), `internal_error` (see the API logs).
 - A new cause emails the project's owner (see [Alerts](#alerts)) and posts one message to the project's Slack webhook, when one is set.
 - The web app polls `getDiagnosis` and `listChecks` every second while `status` is not `done` or `failed`.
 
 ### Check
 
-`id`, `diagnosis_id`, `index` (order within the diagnosis), `phase` (`CheckPhase`), `save_point` (steps 1..`save_point` kept), `samples`, `passes`, `result` (`CheckResult`), `created_at`, `finished_at` (or null).
+`id`, `diagnosis_id`, `index` (order within the diagnosis), `phase` (`CheckPhase`), `save_point` (steps 1..`save_point` kept), `samples` (replays that count as evidence), `passes`, `result` (`CheckResult`), `drifted` (replays that did not reproduce the kept steps; in neither `samples` nor `passes`), `drift_tool_name` (or null; the tool whose result differed in the first drifted replay), `created_at`, `finished_at` (or null).
+
+- The first check of a diagnosis is `calibrate`: it keeps every recorded step, so every model call is answered from the recording. If any of its replays passes, the diagnosis fails as `check_inconsistent` instead of blaming a step.
+- A check that ended with no evidence (every replay errored or drifted) keeps `result` `pending` and has a `finished_at`: it reached no verdict, and the diagnosis fails as `replay_unavailable` or `replay_not_faithful`.
 
 | Operation | Path | Caller | Request | Response |
 | --- | --- | --- | --- | --- |
@@ -173,9 +178,9 @@ The SDK worker runs on the customer side and only calls out.
 | --- | --- | --- | --- | --- |
 | `leaseReplayJob` | `POST /v1/replay-jobs.lease` | K | `agent_names` (list), `wait_seconds` (0 to 20, default 10) | `replay_job` (`ReplayJob` or null when none arrived in time) |
 | `getReplayJob` | `GET /v1/replay-jobs.get` | K | `replay_job_id` | `replay_job` |
-| `submitReplayResult` | `POST /v1/replay-jobs.submit` | K | `replay_job_id`, `outcome` (`ReplayOutcome`), `replay_run_id` (or null), `error_code` (or null) | `replay_job` |
+| `submitReplayResult` | `POST /v1/replay-jobs.submit` | K | `replay_job_id`, `outcome` (`ReplayOutcome`), `replay_run_id` (or null), `error_code` (or null), `drift` (`ReplayDrift` or null) | `replay_job` |
 
-**ReplayJob**: `id`, `run_id` (the original run), `agent_name`, `task_input`, `from_step` (keep steps 1..`from_step`; 0 means start fresh), `messages` (the message list after `from_step`; the task's opening messages when 0), `replacement_output` (`Message` or null; when set, use it as the next step's model output instead of calling the model, then continue), `model_override` (string or null; when set, run the rest with this model), `status` (`ReplayJobStatus`), `lease_expires_at` (or null), `attempt`.
+**ReplayJob**: `id`, `run_id` (the original run), `agent_name`, `task_input`, `from_step` (keep steps 1..`from_step`; 0 means start fresh), `messages` (the message list after `from_step`; the task's opening messages when 0), `replacement_output` (`Message` or null; when set, use it as the next step's model output instead of calling the model, then continue), `model_override` (string or null; when set, run the rest with this model), `status` (`ReplayJobStatus`), `lease_expires_at` (or null), `attempt`, `drift` (`ReplayDrift` or null; from the submitted result).
 
 The worker loop:
 
@@ -183,6 +188,7 @@ The worker loop:
 2. `startRun` with the job's `replay_job_id`, so the replay is recorded and visible.
 3. Run the customer's agent from `messages`, honouring `replacement_output` and `model_override`, recording each step. Meanwhile poll `getReplayJob`; once the job is no longer `leased` at this `attempt`, stop at the next model call, `finishRun` as `errored` and submit nothing.
 4. Run the customer's success check on the result. `finishRun`, then `submitReplayResult` with the outcome.
+   While the replay is inside the kept steps, compare each tool result the agent sends back with the recorded one. On the first difference, stop at the next model call and submit `errored` with `drift` set: a replay that no longer matches the recording is not evidence about its save point.
 5. On a crash inside one job, `submitReplayResult` with `errored` and an `error_code`, then keep looping.
 
 - A lease lasts `FD_API_LEASE_SECONDS` (default 120). A job whose lease ends goes back to `queued`; each lease raises `attempt`. A job whose lease ends after `FD_API_MAX_JOB_ATTEMPTS` (default 3) leases is `expired`.
@@ -209,7 +215,7 @@ Defined in `fd_engine/ports.py` and implemented in `fd_api/adapters/`. All metho
 | --- | --- | --- |
 | `RunReader` | `get_run(run_id) -> RunView` | The failed run, its task input and step count |
 | `RunReader` | `get_steps(run_id) -> list[StepView]` | Its steps in order, with outputs, for explain and baseline |
-| `ReplayRunner` | `replay(run_id, *, from_step, samples, model_override, replacement_output) -> list[ReplayOutcome]` | Enqueue `samples` replay jobs and wait for all outcomes (or a timeout, counted as `errored`) |
+| `ReplayRunner` | `replay(run_id, *, from_step, samples, model_override, replacement_output) -> list[ReplayResult]` | Enqueue `samples` replay jobs and wait for all results (or a timeout, counted as `errored`) |
 | `CheckSink` | `check_started(check) -> None`, `check_finished(check) -> None` | Persist each check so the web app can show it live |
 | `CheckSink` | `progress(diagnosis_id, *, status, search_low, search_high) -> None` | Persist the live search range and status |
 
@@ -217,7 +223,8 @@ These are `fd-shared` models (`fd_shared.models`), frozen Pydantic models:
 
 - **RunView**: `id`, `agent_name`, `task_input`, `tool_names`, `status`, `step_count`, `final_output`.
 - **StepView**: `index`, `model`, `output` (`Message`), `tool_results` (list of `Message`).
-- **CheckView**: `diagnosis_id`, `index`, `phase`, `save_point`, `samples`, `passes`, `result`. A check is identified by (`diagnosis_id`, `index`); reporting the same pair again updates it.
+- **CheckView**: `diagnosis_id`, `index`, `phase`, `save_point`, `samples`, `passes`, `result`, `drifted`, `drift_tool_name`.
+- **ReplayResult**: `outcome` (`ReplayOutcome`), `drift` (`ReplayDrift` or null). Only a result that ran (not `errored`) and did not drift is evidence. A check is identified by (`diagnosis_id`, `index`); reporting the same pair again updates it.
 - **DiagnosisResult**: `verdict_kind`, `first_domino_step`, `verify_passes`, `verify_samples`, `fixed_output`, `explanation` (`Explanation`), `check_count`, `replay_count`, `cost_usd`. The API stores it on the diagnosis.
 
 Errors the engine raises derive from `fd_shared.errors` (`RetryableError` or `UnretryableError`); a diagnosis that stops on one stores its `code` in `error_code`.

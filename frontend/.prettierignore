@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+*.lock
+**/next-env.d.ts
+**/*.tsbuildinfo
+src/api/generated/
+
+# Rule files change only when the owner asks; formatting them would be an edit.
+AGENTS.md
+CLAUDE.md
+STANDARDS.md
+REVIEW.md
+docs/

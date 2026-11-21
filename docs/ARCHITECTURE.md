@@ -91,7 +91,7 @@ All numbers in this rule (k, the verify threshold, the fallback window) are engi
 
 ## Auth
 
-- People sign in to the web app with Clerk. `fd-api` verifies the Clerk session token.
+- People sign in to the web app with Google through NextAuth. The web app's server mints a short-lived HS256 token with a secret shared with `fd-api`, which verifies it and finds or creates the person.
 - The SDK and worker send a project API key in the `Authorization: Bearer` header.
 
 ## Contract

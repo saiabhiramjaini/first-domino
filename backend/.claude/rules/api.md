@@ -53,7 +53,7 @@ The API is the control plane and owns the HTTP contract. `../api/openapi.json` i
 
 ## Auth
 
-- People: verify the Clerk session token in a dependency in `fd_api/auth/users.py`. Read the project and membership from the database, never from token claims.
+- People: verify the web session token in a dependency in `fd_api/auth/users.py`: HS256 with `FD_API_WEB_JWT_SECRET`, issuer `first-domino-web`, audience `first-domino-api`, unexpired. Find or create the person by `sub`. Read the project from the database, never from token claims.
 - SDK and worker: `Authorization: Bearer <api key>` in `fd_api/auth/api_keys.py`, checked by SHA-256 hash and `hmac.compare_digest`. Parse the scheme case-insensitively.
 - Every handler receives `project_id` from the auth dependency and passes it to every repository call.
 

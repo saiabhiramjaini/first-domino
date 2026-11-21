@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 SDK_GENERATED := packages/first-domino/src/first_domino/_generated/models.py
 
-.PHONY: help install lint fix typecheck test check db-up db-down api dev-key seed-demo worker openapi sdk-models
+.PHONY: help install lint fix typecheck test check db-up db-down api dev-key seed-demo worker demo-live demo-live-clean openapi sdk-models
 
 help: ## List commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -43,6 +43,12 @@ seed-demo: ## Give EMAIL the "Equal AI (demo)" project and print its worker API 
 
 worker: ## Run the demo customer's replay worker
 	uv run python -m fd_demo_agent.worker
+
+demo-live: ## Record one planted-bug call (BUG=b02) and print its web link
+	uv run python -m fd_demo_agent.demo_live --bug $(or $(BUG),b02)
+
+demo-live-clean: ## Record one passing call and print its web link
+	uv run python -m fd_demo_agent.demo_live --clean
 
 openapi: ## Write api/openapi.json from the API
 	uv run python -m fd_api.export_openapi

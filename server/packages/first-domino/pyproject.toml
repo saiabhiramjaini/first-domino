@@ -14,6 +14,9 @@ dependencies = [
 openai = [
     "openai>=1.55",
 ]
+agents = [
+    "openai-agents>=0.25.0",
+]
 
 [build-system]
 requires = ["hatchling"]

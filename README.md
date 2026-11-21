@@ -18,17 +18,30 @@ first-domino/
     status/              one status file per workstream
     ARCHITECTURE.md      how the pieces fit
     DECISIONS.md         what is decided and what is open
-  server/               Python: API, engine, database, SDK, demo agent, scripts
-  client/              Next.js web app
+  server/                Python: API, engine, database, SDK, demo agent, scripts
+  client/                Next.js web app
   .github/workflows/     server.yml and client.yml
 ```
 
-The backend and the frontend are fully separate: each has its own tooling, dependencies, rules, environment file and CI. They meet only at the HTTP contract.
+The server and the client are fully separate: each has its own tooling, dependencies, rules, environment file and CI. They meet only at the HTTP contract (`server/api/openapi.json`).
 
-## Getting started
+## Run it locally
 
-- Backend: see [`server/README.md`](./backend/README.md).
-- Frontend: see [`client/AGENTS.md`](./frontend/AGENTS.md).
+Needs Python 3.12 with `uv`, Bun, Docker (running) and `jq`.
+
+1. Environment files. Copy `server/.env.example` to `server/.env` and fill in `OPENAI_API_KEY`, `FD_ENGINE_STRONG_MODEL`, `FD_DEMO_AGENT_MODEL` and `FD_API_WEB_JWT_SECRET`. Copy `client/.env.example` to `client/.env.local` and fill in the Google OAuth client, `AUTH_SECRET`, and `API_JWT_SECRET` (the same value as `FD_API_WEB_JWT_SECRET`).
+2. Install: `make install` in `server/`, `bun install` in `client/`.
+3. Database and API, from `server/`: `make db-up`, then `make api` (port 8000; it creates the tables on start).
+4. Web app, from `client/`: `bun run dev` (port 3000). Sign in with Google once.
+5. Demo customer, from `server/`: `make seed-demo EMAIL=<your Google email>` prints an API key; put it in `server/.env` as `FIRST_DOMINO_API_KEY`, then start `make worker` in its own terminal.
+6. Try it: `make demo-live` records a failing call and prints its link. Open it and watch the diagnosis.
+
+Checks: `make check` in `server/`, `bun run check` in `client/`.
+
+## Getting started as a contributor
+
+- Server: see [`server/README.md`](./server/README.md).
+- Client: see [`client/AGENTS.md`](./client/AGENTS.md).
 
 Git hooks are Husky scripts in `client/.husky/`. Running `bun install` in `client/` turns them on (its `prepare` script points git at them). The pre-commit hook runs ruff on staged backend files and Prettier on staged frontend files; the commit-msg hook checks `type: subject`.
 

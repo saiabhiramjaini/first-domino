@@ -1,7 +1,7 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Diagnosis } from "@/api/generated";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -17,6 +17,7 @@ import { useListChecks } from "@/hooks/api/use-list-checks";
 import { useListSteps } from "@/hooks/api/use-list-steps";
 import { isApiError } from "@/lib/api-error";
 
+import { CheckReplays } from "../replays/check-replays";
 import { CheckList } from "./check-list";
 import { DiagnoseRunButton } from "./diagnose-run-button";
 import { DiagnosisFailed } from "./diagnosis-failed";
@@ -33,12 +34,20 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
   const steps = useListSteps(runId);
   const [createdDiagnosisId, setCreatedDiagnosisId] = useState<string | null>(null);
   const [pickedStep, setPickedStep] = useState<number | null>(null);
+  const [replayCheckId, setReplayCheckId] = useState<string | null>(null);
 
   const diagnosisId = createdDiagnosisId ?? run.data?.latest_diagnosis_id ?? null;
   const diagnosisQuery = useGetDiagnosis(diagnosisId);
   const diagnosis = diagnosisQuery.data;
   const isLive = isDiagnosisActive(diagnosis?.status);
   const checks = useListChecks(diagnosisId, { isLive: isLive || diagnosis === undefined });
+
+  useEffect(() => {
+    if (replayCheckId === null) return;
+    document
+      .getElementById("check-replays")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [replayCheckId]);
 
   if (isApiError(run.error, "not_found")) notFound();
 
@@ -53,11 +62,13 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
   const selectedStep = pickedStep ?? defaultSelectedStep(stepCount, diagnosis);
   const selected = steps.data?.find((step) => step.index === selectedStep);
   const dominoStep = steps.data?.find((step) => step.index === diagnosis?.first_domino_step);
+  const replayCheck = checks.data?.find((check) => check.id === replayCheckId);
   const canDiagnose = run.data.status === "failed" && run.data.source === "recorded" && !isLive;
 
   function handleCreated(created: Diagnosis) {
     setCreatedDiagnosisId(created.id);
     setPickedStep(null);
+    setReplayCheckId(null);
   }
 
   return (
@@ -167,12 +178,24 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
               onRetry={checks.refetch}
             />
           ) : checks.data ? (
-            <CheckList checks={checks.data} />
+            <CheckList
+              checks={checks.data}
+              selectedCheckId={replayCheckId}
+              onViewReplays={(check) => setReplayCheckId(check.id)}
+            />
           ) : (
             <Skeleton className="h-40 w-full" />
           )}
         </section>
       </div>
+      {replayCheck && (
+        <CheckReplays
+          key={replayCheck.id}
+          check={replayCheck}
+          originalSteps={steps.data ?? []}
+          onClose={() => setReplayCheckId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,21 @@
+[
+  {"doctor_id": "d-anil-mehta-kph", "date": "2026-11-22", "time": "09:30", "status": "booked"},
+  {"doctor_id": "d-anil-mehta-kph", "date": "2026-11-22", "time": "10:30", "status": "waitlist"},
+  {"doctor_id": "d-anil-mehta-kph", "date": "2026-11-24", "time": "11:30", "status": "booked"},
+  {"doctor_id": "d-anil-mehta-mdp", "date": "2026-11-22", "time": "11:00", "status": "booked"},
+  {"doctor_id": "d-anil-mehta-mdp", "date": "2026-11-23", "time": "10:00", "status": "waitlist"},
+  {"doctor_id": "d-kiran-goud-mdp", "date": "2026-11-22", "time": "17:30", "status": "booked"},
+  {"doctor_id": "d-kiran-goud-mdp", "date": "2026-11-23", "time": "19:00", "status": "booked"},
+  {"doctor_id": "d-meera-shah-mdp", "date": "2026-11-22", "time": "15:30", "status": "booked"},
+  {"doctor_id": "d-farhan-qureshi-bjh", "date": "2026-11-27", "time": "09:00", "status": "booked"},
+  {"doctor_id": "d-farhan-qureshi-bjh", "date": "2026-11-26", "time": "10:30", "status": "waitlist"},
+  {"doctor_id": "d-anjali-varma-bjh", "date": "2026-11-26", "time": "13:00", "status": "waitlist"},
+  {"doctor_id": "d-anjali-varma-bjh", "date": "2026-11-26", "time": "10:00", "status": "booked"},
+  {"doctor_id": "d-ravi-teja-bjh", "date": "2026-11-22", "time": "14:00", "status": "booked"},
+  {"doctor_id": "d-priya-nair-ind", "date": "2026-11-27", "time": "17:30", "status": "booked"},
+  {"doctor_id": "d-priya-nair-ind", "date": "2026-11-27", "time": "12:00", "status": "waitlist"},
+  {"doctor_id": "d-venkat-rao-wfd", "date": "2026-11-23", "time": "19:00", "status": "waitlist"},
+  {"doctor_id": "d-arjun-rao-jyn", "date": "2026-11-25", "time": "11:00", "status": "booked"},
+  {"doctor_id": "d-kavitha-murthy-jyn", "date": "2026-11-24", "time": "09:00", "status": "booked"},
+  {"doctor_id": "d-deepa-hegde-wfd", "date": "2026-11-24", "time": "10:00", "status": "booked"}
+]

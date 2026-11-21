@@ -11,8 +11,11 @@ from fd_shared.models import Message, TaskInput
 
 from .conftest import Headers
 
-TASK = {"prompt": "Book Dr. Mehta for Tuesday", "metadata": {"task_id": "t1"}}
-AGENT = "booker-replays"
+TASK = {
+    "prompt": "Call the clinic and add tomorrow at 10 to the calendar",
+    "metadata": {"task_id": "t1"},
+}
+AGENT = "call-assistant-replays"
 
 
 async def _failed_run(client: AsyncClient, api_key: Headers) -> dict:

@@ -9,7 +9,10 @@ from fd_shared.enums import ApiErrorCode
 
 from .conftest import Headers, bearer, web_token
 
-TASK = {"prompt": "Book Dr. Mehta for Tuesday", "metadata": {"task_id": "t1"}}
+TASK = {
+    "prompt": "Call the clinic and add tomorrow at 10 to the calendar",
+    "metadata": {"task_id": "t1"},
+}
 
 
 def _step(run_id: str, index: int) -> dict[str, Any]:
@@ -29,7 +32,7 @@ def _step(run_id: str, index: int) -> dict[str, Any]:
 
 async def _start(client: AsyncClient, api_key: Headers) -> str:
     response = await client.post(
-        "/v1/runs.start", json={"agent_name": "booker", "task_input": TASK}, headers=api_key
+        "/v1/runs.start", json={"agent_name": "call-assistant", "task_input": TASK}, headers=api_key
     )
     assert response.status_code == 200, response.text
     return response.json()["run"]["id"]
@@ -43,7 +46,11 @@ async def test_record_and_read_a_failed_run(
         recorded = await client.post("/v1/steps.record", json=_step(run_id, index), headers=api_key)
         assert recorded.status_code == 200, recorded.text
     repeat = await client.post("/v1/steps.record", json=_step(run_id, 1), headers=api_key)
-    finish = {"run_id": run_id, "status": "failed", "final_output": "Booked Monday"}
+    finish = {
+        "run_id": run_id,
+        "status": "failed",
+        "final_output": "Added the event for the wrong day",
+    }
     finished = await client.post("/v1/runs.finish", json=finish, headers=api_key)
     again = await client.post("/v1/runs.finish", json=finish, headers=api_key)
 

@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>First Domino launch video</title>
+    <!-- One 1920x1080 scene. window.seek(seconds) draws the frame for that time, so
+         scripts/video/render.mjs can capture every frame exactly. Scene times follow the
+         voiceover in out/timing.js (made by voice.mjs). Add #play to watch it with sound. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0a0a0b;
+        --card: #121214;
+        --line: #232327;
+        --text: #ededef;
+        --muted: #8e8e96;
+        --faint: #5b5b63;
+        --red: #f26464;
+        --red-bg: rgba(242, 100, 100, 0.12);
+        --green: #4ade80;
+        --green-bg: rgba(74, 222, 128, 0.12);
+        --violet: #8b7cff;
+        --violet-bg: rgba(139, 124, 255, 0.14);
+        --mono: "JetBrains Mono", ui-monospace, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+      }
+      .stage {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: radial-gradient(1200px 700px at 70% 40%, #141418 0%, var(--bg) 70%);
+        font-family: Inter, system-ui, sans-serif;
+        color: var(--text);
+      }
+      .layer {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+      }
+      .center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .title {
+        font-size: 104px;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+        margin: 0;
+      }
+      .title.dim {
+        color: var(--muted);
+      }
+
+      /* Left column: the moment, and where we are in the flow. */
+      .left {
+        position: absolute;
+        left: 150px;
+        top: 230px;
+        width: 560px;
+      }
+      .clock {
+        font-family: var(--mono);
+        font-size: 104px;
+        letter-spacing: -0.02em;
+        line-height: 1;
+        height: 110px;
+        position: relative;
+      }
+      .clock span,
+      .moment span {
+        position: absolute;
+        left: 0;
+        top: 0;
+        white-space: nowrap;
+      }
+      .moment {
+        position: relative;
+        height: 30px;
+        margin-top: 22px;
+        font-family: var(--mono);
+        font-size: 22px;
+        letter-spacing: 0.22em;
+        color: var(--muted);
+      }
+      .flow {
+        position: relative;
+        margin-top: 64px;
+        display: flex;
+        flex-direction: column;
+        gap: 34px;
+      }
+      .flow .rail {
+        position: absolute;
+        left: 13px;
+        top: 16px;
+        width: 2px;
+        height: 312px;
+        background: var(--line);
+      }
+      .flow .fill {
+        position: absolute;
+        left: 13px;
+        top: 16px;
+        width: 2px;
+        height: 0;
+        background: var(--violet);
+      }
+      .item {
+        position: relative;
+        display: flex;
+        gap: 26px;
+        align-items: flex-start;
+      }
+      .dot {
+        position: relative;
+        z-index: 1;
+        flex: none;
+        width: 28px;
+        height: 28px;
+        margin-top: 4px;
+        border-radius: 50%;
+        border: 2px solid var(--faint);
+        background: var(--bg);
+      }
+      .item .name {
+        font-size: 34px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .item .sub {
+        margin-top: 4px;
+        font-size: 22px;
+        color: var(--muted);
+      }
+
+      /* Right column: one card at a time. */
+      .card {
+        position: absolute;
+        left: 800px;
+        top: 236px;
+        width: 970px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: var(--card);
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.55);
+        opacity: 0;
+        overflow: hidden;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 26px 34px;
+        border-bottom: 1px solid var(--line);
+      }
+      .head .t {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .head .m {
+        font-family: var(--mono);
+        font-size: 20px;
+        color: var(--muted);
+      }
+      .body {
+        padding: 18px 34px 30px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 21px;
+        font-weight: 500;
+        padding: 6px 16px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .badge::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .b-run {
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .b-fail {
+        color: var(--red);
+        background: var(--red-bg);
+      }
+      .b-pass {
+        color: var(--green);
+        background: var(--green-bg);
+      }
+      .b-dom {
+        color: var(--violet);
+        background: var(--violet-bg);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 88px 1fr auto;
+        gap: 18px;
+        align-items: baseline;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--line);
+        opacity: 0;
+      }
+      .row:last-child {
+        border-bottom: 0;
+      }
+      .idx {
+        font-family: var(--mono);
+        font-size: 20px;
+        color: var(--faint);
+      }
+      .code {
+        font-family: var(--mono);
+        font-size: 24px;
+        line-height: 1.45;
+      }
+      .note {
+        font-size: 21px;
+        color: var(--muted);
+        margin-top: 6px;
+        line-height: 1.4;
+      }
+      .quote {
+        font-size: 25px;
+        line-height: 1.45;
+      }
+      .alert {
+        margin-top: 20px;
+        padding: 18px 22px;
+        border-radius: 14px;
+        background: var(--red-bg);
+        color: var(--red);
+        font-size: 23px;
+        opacity: 0;
+      }
+      .step2 {
+        border-radius: 12px;
+        padding: 4px 10px;
+        margin-left: -10px;
+      }
+
+      /* Checks */
+      .crow {
+        display: grid;
+        grid-template-columns: 1fr 110px 220px;
+        align-items: center;
+        padding: 22px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 26px;
+        opacity: 0;
+      }
+      .crow .n {
+        font-family: var(--mono);
+        text-align: right;
+        padding-right: 30px;
+        color: var(--muted);
+      }
+      .crow .r {
+        text-align: right;
+      }
+      .strip {
+        display: flex;
+        gap: 16px;
+        margin-top: 28px;
+        align-items: center;
+        opacity: 0;
+      }
+      .tile {
+        width: 84px;
+        height: 84px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--mono);
+        font-size: 28px;
+        color: var(--muted);
+      }
+      .strip .label {
+        margin-left: 18px;
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--violet);
+        opacity: 0;
+      }
+
+      /* Proof */
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+        margin-top: 8px;
+      }
+      .box {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 22px 24px;
+      }
+      .box .k {
+        font-size: 20px;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+      .replays {
+        display: flex;
+        gap: 16px;
+        margin-top: 30px;
+      }
+      .replay {
+        flex: 1;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 20px;
+        opacity: 0;
+      }
+      .replay .k {
+        font-family: var(--mono);
+        font-size: 19px;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+      .verdict {
+        margin-top: 30px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 30px;
+        font-weight: 600;
+        opacity: 0;
+      }
+
+      /* Email */
+      .mailhead {
+        padding: 26px 34px;
+        border-bottom: 1px solid var(--line);
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        row-gap: 10px;
+        font-size: 22px;
+      }
+      .mailhead .k {
+        color: var(--muted);
+      }
+      .subject {
+        font-size: 34px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        padding: 26px 34px 6px;
+      }
+      .mailbody {
+        padding: 10px 34px 34px;
+        font-size: 25px;
+        line-height: 1.55;
+      }
+      .mailbody p {
+        margin: 14px 0 0;
+      }
+      .button {
+        display: inline-block;
+        margin-top: 26px;
+        padding: 14px 26px;
+        border-radius: 12px;
+        background: var(--text);
+        color: var(--bg);
+        font-weight: 600;
+        font-size: 23px;
+      }
+
+      /* End card */
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 92px;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+      }
+      .tag {
+        margin-top: 34px;
+        font-size: 40px;
+        color: var(--muted);
+        letter-spacing: -0.01em;
+      }
+      .install {
+        margin-top: 64px;
+        font-family: var(--mono);
+        font-size: 34px;
+        padding: 20px 34px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--card);
+      }
+      .install b {
+        color: var(--violet);
+        font-weight: 500;
+      }
+      .url {
+        margin-top: 28px;
+        font-family: var(--mono);
+        font-size: 26px;
+        color: var(--faint);
+      }
+
+      /* Problem: what tracing shows you today. */
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 22px;
+        letter-spacing: 0.22em;
+        color: var(--muted);
+      }
+      .today {
+        position: absolute;
+        left: 50%;
+        top: 120px;
+        width: 1320px;
+        margin-left: -660px;
+      }
+      .today h2,
+      .vs h2 {
+        margin: 18px 0 34px;
+        font-size: 56px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+      }
+      .span {
+        display: grid;
+        grid-template-columns: 330px 1fr 90px;
+        align-items: center;
+        gap: 20px;
+        padding: 11px 34px;
+        font-family: var(--mono);
+        font-size: 21px;
+        color: var(--muted);
+        opacity: 0;
+      }
+      .span .bar {
+        height: 14px;
+        border-radius: 7px;
+        background: #2b2b31;
+      }
+      .span .ms {
+        text-align: right;
+        color: var(--faint);
+      }
+      .verdicts {
+        display: flex;
+        gap: 18px;
+        padding: 18px 34px 26px;
+      }
+      .pill {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 22px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        font-size: 23px;
+        opacity: 0;
+      }
+      .pill .k {
+        color: var(--muted);
+      }
+      .guess {
+        font-family: var(--mono);
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        color: #e9b949;
+        border: 1px solid rgba(233, 185, 73, 0.4);
+        border-radius: 8px;
+        padding: 3px 10px;
+      }
+
+      /* Problem vs answer table. */
+      .vs {
+        position: absolute;
+        left: 50%;
+        top: 150px;
+        width: 1320px;
+        margin-left: -660px;
+      }
+      .vs .titles {
+        position: relative;
+        height: 150px;
+      }
+      .vs .titles > div {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr 1fr;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        overflow: hidden;
+        background: var(--card);
+      }
+      .grid > div {
+        padding: 28px 34px;
+        border-bottom: 1px solid var(--line);
+        font-size: 30px;
+      }
+      .grid .h {
+        font-size: 24px;
+        font-family: var(--mono);
+        letter-spacing: 0.1em;
+        color: var(--muted);
+      }
+      .grid .fd {
+        background: rgba(139, 124, 255, 0.07);
+        border-left: 1px solid rgba(139, 124, 255, 0.35);
+      }
+      .grid .last {
+        border-bottom: 0;
+      }
+      .no {
+        color: var(--red);
+      }
+      .yes {
+        color: var(--violet);
+        font-weight: 600;
+      }
+
+      /* Close */
+      .works {
+        margin-top: 30px;
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+      }
+      .works span {
+        font-size: 24px;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 10px 22px;
+      }
+
+      /* Captions follow the voiceover. */
+      .caption {
+        position: absolute;
+        left: 50%;
+        bottom: 64px;
+        transform: translateX(-50%);
+        width: max-content;
+        max-width: 1500px;
+        padding: 14px 28px;
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.72);
+        font-size: 32px;
+        line-height: 1.35;
+        text-align: center;
+        color: #f4f4f6;
+        opacity: 0;
+      }
+    </style>
+    <script src="out/timing.js"></script>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <!-- Problem 1: the failure -->
+      <div class="layer center" id="hook">
+        <p class="title" id="hook1">Your agent failed in production.</p>
+        <p class="title" id="hook2" style="color: var(--red); font-size: 64px; margin-top: 28px">
+          Refunded $100. The policy allows $20.
+        </p>
+      </div>
+
+      <!-- Problem 2: what a tracing platform gives you -->
+      <div class="layer" id="today">
+        <div class="today">
+          <div class="eyebrow">TODAY · LANGSMITH, BRAINTRUST AND OTHER TRACING PLATFORMS</div>
+          <h2>You get every step, and a guess.</h2>
+          <div class="card" style="position: relative; left: 0; top: 0; width: 100%; opacity: 1">
+            <div class="head"><div class="t">Trace <span class="m">· refund-desk · failed</span></div><span class="badge b-fail">Failed</span></div>
+            <div style="padding: 14px 0">
+              <div class="span" id="s0"><span>chat.completions</span><div class="bar" style="width: 34%"></div><span class="ms">1.2s</span></div>
+              <div class="span" id="s1"><span>  lookup_order</span><div class="bar" style="width: 12%; margin-left: 34%"></div><span class="ms">0.3s</span></div>
+              <div class="span" id="s2"><span>chat.completions</span><div class="bar" style="width: 30%; margin-left: 46%"></div><span class="ms">1.1s</span></div>
+              <div class="span" id="s3"><span>  issue_refund</span><div class="bar" style="width: 10%; margin-left: 76%"></div><span class="ms">0.2s</span></div>
+              <div class="span" id="s4"><span>chat.completions</span><div class="bar" style="width: 14%; margin-left: 86%"></div><span class="ms">0.6s</span></div>
+            </div>
+            <div class="verdicts">
+              <div class="pill" id="judge"><span class="k">Judge score</span> 0.2 <span class="badge b-fail">failed</span></div>
+              <div class="pill" id="assistant"><span class="k">Assistant</span> “The model may have misread the refund policy.” <span class="guess">GUESS</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Problem 3 and the answer: the gap, then what First Domino adds -->
+      <div class="layer" id="vs">
+        <div class="vs">
+          <div class="titles">
+            <div id="gapTitle"><div class="eyebrow">THE GAP</div><h2>A trace shows what happened. Not why.</h2></div>
+            <div id="answerTitle"><div class="eyebrow" style="color: var(--violet)">FIRST DOMINO</div><h2>Finds the exact step, and proves it.</h2></div>
+          </div>
+          <div class="grid">
+            <div class="h"></div>
+            <div class="h">TRACING PLATFORMS</div>
+            <div class="h fd" id="fdHead" style="color: var(--violet)">FIRST DOMINO</div>
+            <div>Shows every step</div>
+            <div id="v0a">Yes</div>
+            <div class="fd" id="v0b">Yes</div>
+            <div>Which step caused the failure</div>
+            <div class="no" id="v1a">An AI guess</div>
+            <div class="fd yes" id="v1b">Found by replay</div>
+            <div class="last">Is the cause proven?</div>
+            <div class="no last" id="v2a">No</div>
+            <div class="fd yes last" id="v2b">Yes, the fix is replayed</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-5. The flow -->
+      <div class="layer" id="main">
+        <div class="left">
+          <div class="clock" id="clock"></div>
+          <div class="moment" id="moment"></div>
+          <div class="flow">
+            <div class="rail"></div>
+            <div class="fill" id="fill"></div>
+            <div class="item" data-i="0">
+              <div class="dot"></div>
+              <div><div class="name">Record</div><div class="sub">Every model call is a step</div></div>
+            </div>
+            <div class="item" data-i="1">
+              <div class="dot"></div>
+              <div><div class="name">Search</div><div class="sub">Replay from save points</div></div>
+            </div>
+            <div class="item" data-i="2">
+              <div class="dot"></div>
+              <div><div class="name">Prove</div><div class="sub">Fix one step, replay again</div></div>
+            </div>
+            <div class="item" data-i="3">
+              <div class="dot"></div>
+              <div><div class="name">Alert</div><div class="sub">New root cause, in your inbox</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trace -->
+        <div class="card" id="trace">
+          <div class="head">
+            <div class="t">refund-desk <span class="m">· run a1f3 · recorded by the SDK</span></div>
+            <span class="badge b-run" id="traceBadge">Recording</span>
+          </div>
+          <div class="body">
+            <div class="row" id="tr0">
+              <span class="idx">user</span>
+              <div class="quote">“My mug arrived broken. Can I get a refund? Order A-1001”</div>
+              <span></span>
+            </div>
+            <div class="row" id="tr1">
+              <span class="idx">step 1</span>
+              <div>
+                <div class="code">lookup_order("A-1001")</div>
+                <div class="note">mug $20, damaged · lamp $80 · note: “support lead approved $100”</div>
+              </div>
+              <span></span>
+            </div>
+            <div class="row" id="tr2">
+              <span class="idx">step 2</span>
+              <div><div class="code step2" id="tr2code">issue_refund("A-1001", amount=100)</div></div>
+              <span></span>
+            </div>
+            <div class="row" id="tr3">
+              <span class="idx">step 3</span>
+              <div class="quote">“I have issued a full refund of $100 for your order.”</div>
+              <span></span>
+            </div>
+            <div class="alert" id="trAlert">Your check failed: refunded $100, but the policy allows $20.</div>
+          </div>
+        </div>
+
+        <!-- Checks -->
+        <div class="card" id="checks">
+          <div class="head">
+            <div class="t">Diagnosis</div>
+            <span class="m" id="checksMeta">replaying on your worker</span>
+          </div>
+          <div class="body">
+            <div class="crow" id="c0">
+              <span>Fresh run</span><span class="n" id="c0n">3/3</span>
+              <span class="r"><span class="badge b-pass" id="c0b">Can succeed</span></span>
+            </div>
+            <div class="crow" id="c1">
+              <span>Keep step 1, replay the rest</span><span class="n" id="c1n">2/3</span>
+              <span class="r"><span class="badge b-pass" id="c1b">Can succeed</span></span>
+            </div>
+            <div class="crow" id="c2">
+              <span>Keep steps 1 to 2, replay the rest</span><span class="n" id="c2n">0/6</span>
+              <span class="r"><span class="badge b-fail" id="c2b">Always fails</span></span>
+            </div>
+            <div class="strip" id="strip">
+              <div class="tile" id="t1">1</div>
+              <div class="tile" id="t2">2</div>
+              <div class="tile" id="t3">3</div>
+              <div class="label" id="stripLabel">First domino: step 2</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Proof -->
+        <div class="card" id="proof">
+          <div class="head">
+            <div class="t">Prove it</div>
+            <span class="m">keep step 1, then the fixed step 2</span>
+          </div>
+          <div class="body">
+            <div class="pair">
+              <div class="box">
+                <div class="k">Recorded step 2</div>
+                <div class="code" style="color: var(--red)">issue_refund(amount=100)</div>
+              </div>
+              <div class="box" style="border-color: rgba(139, 124, 255, 0.45)">
+                <div class="k">Fixed step 2</div>
+                <div class="code" style="color: var(--violet)">issue_refund(amount=20)</div>
+              </div>
+            </div>
+            <div class="replays">
+              <div class="replay" id="r0"><div class="k">replay 1</div><span class="badge b-pass">Passed</span></div>
+              <div class="replay" id="r1"><div class="k">replay 2</div><span class="badge b-pass">Passed</span></div>
+              <div class="replay" id="r2"><div class="k">replay 3</div><span class="badge b-pass">Passed</span></div>
+            </div>
+            <div class="verdict" id="verdict">
+              <span class="badge b-dom">Proven</span>
+              Step 2 is the first domino: 3 of 3 pass after the fix.
+            </div>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="card" id="mail">
+          <div class="mailhead">
+            <span class="k">From</span><span>First Domino</span>
+            <span class="k">To</span><span>you</span>
+          </div>
+          <div class="verdicts" style="padding: 22px 34px 0">
+            <div class="pill" id="grouped" style="opacity: 0"><span class="k">Root cause</span> Refunded $100 instead of $20 <span class="badge b-fail">21 failed runs</span></div>
+          </div>
+          <div class="subject" id="subject">New root cause: Refunded $100 instead of $20</div>
+          <div class="mailbody" id="mailbody">
+            <div style="color: var(--muted)">Bad tool arguments · at issue_refund · Proven by replay</div>
+            <p>The agent trusted a stale note on the order and refunded the full $100.</p>
+            <p>Suggested fix: check the refund policy before issuing a refund.</p>
+            <span class="button">Open it in First Domino</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Close -->
+      <div class="layer center" id="end">
+        <div id="works" class="works">
+          <span>OpenAI</span><span>Anthropic</span><span>LangChain</span><span>OpenAI Agents SDK</span>
+        </div>
+        <div id="brandBlock" class="center">
+          <div class="brand" style="margin-top: 70px">
+            <svg width="120" height="120" viewBox="0 0 32 32" aria-hidden="true">
+              <rect x="17.3" y="7.3" width="7.4" height="18.4" rx="2" fill="none" stroke="#8B7CFF" stroke-width="1.6" stroke-dasharray="2.2 1.8" opacity=".75" />
+              <rect id="tile" x="16.5" y="6.5" width="9" height="20" rx="2.6" fill="#8B7CFF" />
+            </svg>
+            First Domino
+          </div>
+          <div class="tag">Find the step that broke your agent. Prove it by replay.</div>
+          <div class="install"><b>$</b> pip install first-domino</div>
+          <div class="url">first-domino.abhiramtech.in</div>
+        </div>
+      </div>
+
+      <div class="caption" id="caption"></div>
+    </div>
+
+    <script>
+      const TIMING = window.TIMING;
+      const DURATION = TIMING.total;
+      const SEG = Object.fromEntries(TIMING.segments.map((s) => [s.id, s]));
+      // Distance between two dots of the flow, measured once the fonts load.
+      let ITEM_GAP = 104;
+      const $ = (id) => document.getElementById(id);
+      const clamp = (v) => Math.min(1, Math.max(0, v));
+      const ease = (v) => 1 - Math.pow(1 - clamp(v), 3);
+      // 0 -> 1 over [start, start + length], eased.
+      const rise = (t, start, length = 0.5) => ease((t - start) / length);
+      // Visible between in and out: the old scene is gone at the boundary, the new one starts there.
+      const window_ = (t, inAt, outAt, fade = 0.3) =>
+        Math.min(rise(t, inAt, fade + 0.1), 1 - rise(t, outAt - fade, fade));
+      // A moment inside a line of narration: 0 is its start, 1 its end.
+      const at = (id, fraction) => SEG[id].start + (SEG[id].end - SEG[id].start) * fraction;
+
+      function show(el, amount, lift = 18) {
+        el.style.opacity = amount;
+        el.style.transform = `translateY(${(1 - amount) * lift}px)`;
+      }
+
+      // Scene boundaries follow the voiceover.
+      const T = {
+        hook: [0, SEG.today.start - 0.15],
+        today: [SEG.today.start - 0.15, SEG.gap.start - 0.15],
+        vs: [SEG.gap.start - 0.15, SEG.record.start - 0.15],
+        main: [SEG.record.start - 0.15, SEG.close.start - 0.15],
+        trace: [SEG.record.start - 0.15, SEG.search.start - 0.15],
+        checks: [SEG.search.start - 0.15, SEG.prove.start - 0.15],
+        proof: [SEG.prove.start - 0.15, SEG.alert.start - 0.15],
+        mail: [SEG.alert.start - 0.15, SEG.close.start - 0.15],
+        end: SEG.close.start - 0.15,
+      };
+      const MOMENTS = [
+        { at: 0, clock: "2:14 PM", moment: "LIVE IN PRODUCTION" },
+        { at: T.checks[0], clock: "2:15 PM", moment: "REPLAYING YOUR AGENT" },
+        { at: T.proof[0], clock: "2:17 PM", moment: "FIX ONE STEP" },
+        { at: T.mail[0], clock: "2:17 PM", moment: "IN YOUR INBOX" },
+      ];
+
+      // Captions: each line of narration split into sentences, timed by length.
+      const CAPTIONS = TIMING.segments.flatMap((seg) => {
+        const sentences = seg.text.match(/[^.!?]+[.!?]+/g) ?? [seg.text];
+        const total = sentences.reduce((sum, s) => sum + s.length, 0);
+        let start = seg.start;
+        return sentences.map((sentence) => {
+          const end = start + ((seg.end - seg.start) * sentence.length) / total;
+          const caption = { text: sentence.trim(), start, end };
+          start = end;
+          return caption;
+        });
+      });
+
+      function textSwap(el, t) {
+        el.innerHTML = MOMENTS.map((m, i) => {
+          const next = MOMENTS[i + 1];
+          const a = Math.min(i === 0 ? 1 : rise(t, m.at, 0.25), next ? 1 - rise(t, next.at - 0.2, 0.2) : 1);
+          return `<span style="opacity:${a}">${el.id === "clock" ? m.clock : m.moment}</span>`;
+        }).join("");
+      }
+
+      function phase(t) {
+        if (t < T.checks[0]) return 0;
+        if (t < T.proof[0]) return 1;
+        if (t < T.mail[0]) return 2;
+        return 3;
+      }
+
+      window.seek = function (t) {
+        // Problem 1
+        $("hook").style.opacity = window_(t, -1, T.hook[1]);
+        show($("hook1"), rise(t, 0.3, 0.6), 24);
+        show($("hook2"), rise(t, at("hook", 0.45), 0.6), 24);
+
+        // Problem 2
+        $("today").style.opacity = window_(t, ...T.today);
+        ["s0", "s1", "s2", "s3", "s4"].forEach((id, i) => show($(id), rise(t, at("today", 0.18 + i * 0.07), 0.35), 8));
+        show($("judge"), rise(t, at("today", 0.66), 0.4), 10);
+        show($("assistant"), rise(t, at("today", 0.83), 0.4), 10);
+
+        // Problem 3, then the answer
+        $("vs").style.opacity = window_(t, ...T.vs);
+        const answer = rise(t, SEG.answer.start - 0.2, 0.4);
+        show($("gapTitle"), 1 - answer, 0);
+        show($("answerTitle"), answer, 14);
+        show($("v0a"), rise(t, at("gap", 0.1), 0.4), 8);
+        show($("v1a"), rise(t, at("gap", 0.4), 0.4), 8);
+        show($("v2a"), rise(t, at("gap", 0.7), 0.4), 8);
+        ["fdHead", "v0b", "v1b", "v2b"].forEach((id, i) => show($(id), rise(t, at("answer", 0.05 + i * 0.15), 0.4), 8));
+
+        // The flow
+        $("main").style.opacity = window_(t, ...T.main);
+        textSwap($("clock"), t);
+        textSwap($("moment"), t);
+        const p = phase(t);
+        document.querySelectorAll(".item").forEach((item) => {
+          const i = Number(item.dataset.i);
+          const dot = item.querySelector(".dot");
+          const done = i < p;
+          const active = i === p;
+          item.style.opacity = done || active ? 1 : 0.4;
+          dot.style.borderColor = done || active ? "var(--violet)" : "var(--faint)";
+          dot.style.background = done ? "var(--violet)" : "var(--bg)";
+          dot.style.boxShadow = active ? "0 0 0 8px rgba(139,124,255,0.18)" : "none";
+        });
+        const stops = [T.main[0], T.checks[0], T.proof[0], T.mail[0]];
+        // The line grows from the previous dot to the active one as each phase starts.
+        const reach = p === 0 ? 0 : ITEM_GAP * (p - 1 + ease((t - stops[p]) / 0.6));
+        $("fill").style.height = `${reach}px`;
+
+        // Record: the run fills in as the voice describes it.
+        show($("trace"), window_(t, ...T.trace), 30);
+        [0.08, 0.22, 0.36, 0.5].forEach((f, i) => show($(`tr${i}`), rise(t, at("record", f), 0.45), 14));
+        const failed = t >= at("record", 0.72);
+        $("traceBadge").className = `badge ${failed ? "b-fail" : "b-run"}`;
+        $("traceBadge").textContent = failed ? "Failed" : "Recording";
+        show($("trAlert"), rise(t, at("record", 0.72), 0.45), 10);
+
+        // Search: rows land when the voice says them.
+        show($("checks"), window_(t, ...T.checks), 30);
+        [
+          [0.12, 0.3],
+          [0.42, 0.55],
+          [0.6, 0.72],
+        ].forEach(([rowAt, resultAt], i) => {
+          show($(`c${i}`), rise(t, at("search", rowAt), 0.4), 12);
+          const decided = rise(t, at("search", resultAt), 0.35);
+          $(`c${i}b`).style.opacity = decided;
+          $(`c${i}n`).style.opacity = decided;
+        });
+        show($("strip"), rise(t, at("search", 0.74), 0.4), 12);
+        const found = rise(t, at("search", 0.84), 0.5);
+        $("t2").style.background = `rgba(139,124,255,${0.9 * found})`;
+        $("t2").style.borderColor = found > 0.5 ? "var(--violet)" : "var(--line)";
+        $("t2").style.color = found > 0.5 ? "#0a0a0b" : "var(--muted)";
+        $("t2").style.transform = `scale(${1 + 0.08 * Math.sin(Math.PI * found)})`;
+        $("t3").style.opacity = 1 - 0.55 * found;
+        $("stripLabel").style.opacity = found;
+        $("checksMeta").textContent = found > 0.5 ? "found it in 3 checks" : "replaying on your worker";
+
+        // Prove
+        show($("proof"), window_(t, ...T.proof), 30);
+        [0.38, 0.47, 0.56].forEach((f, i) => show($(`r${i}`), rise(t, at("prove", f), 0.4), 12));
+        show($("verdict"), rise(t, at("prove", 0.66), 0.5), 12);
+
+        // Alert: grouped first, then the email.
+        show($("mail"), window_(t, ...T.mail), 30);
+        show($("grouped"), rise(t, at("alert", 0.1), 0.4), 10);
+        show($("subject"), rise(t, at("alert", 0.45), 0.4), 10);
+        show($("mailbody"), rise(t, at("alert", 0.55), 0.4), 10);
+
+        // Close: frameworks, then the brand; the tile tips over, the ghost stays.
+        $("end").style.opacity = rise(t, T.end, 0.5);
+        show($("works"), rise(t, at("close", 0.02), 0.5), 14);
+        show($("brandBlock"), rise(t, at("close", 0.42), 0.6), 20);
+        const tip = ease((t - at("close", 0.42) - 0.3) / 0.9);
+        $("tile").setAttribute("transform", `rotate(${-34 * tip} 16.5 26.5)`);
+
+        // Captions
+        const caption = CAPTIONS.find((c) => t >= c.start - 0.1 && t < c.end + 0.25);
+        $("caption").style.opacity = caption ? 1 : 0;
+        if (caption && $("caption").textContent !== caption.text) $("caption").textContent = caption.text;
+      };
+
+      window.DURATION = DURATION;
+      window.ready = document.fonts.ready.then(() => {
+        const dots = [...document.querySelectorAll(".dot")].map((d) => d.getBoundingClientRect().top);
+        ITEM_GAP = dots[1] - dots[0];
+        document.querySelector(".rail").style.height = `${dots[3] - dots[0]}px`;
+        window.seek(0);
+        return true;
+      });
+
+      if (location.hash === "#play") {
+        const audio = new Audio("out/narration.wav");
+        const start = performance.now();
+        const tick = () => {
+          window.seek(((performance.now() - start) / 1000) % DURATION);
+          requestAnimationFrame(tick);
+        };
+        window.ready.then(() => {
+          void audio.play().catch(() => {});
+          requestAnimationFrame(tick);
+        });
+      }
+    </script>
+  </body>
+</html>

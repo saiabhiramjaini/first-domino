@@ -1,0 +1,42 @@
+{
+  "voice": "ash",
+  "instructions": "A confident, energetic product launch narrator. Brisk, natural pace, like a polished startup launch video. Clear and warm, never rushed, no long pauses.",
+  "segments": [
+    {
+      "id": "hook",
+      "text": "Your AI agent failed in production. A customer was refunded a hundred dollars, when the policy allows twenty."
+    },
+    {
+      "id": "today",
+      "text": "Today, you open a tracing platform like LangSmith or Braintrust. You see every step: each model call, each tool result. A judge model scores the run, and an assistant guesses what went wrong."
+    },
+    {
+      "id": "gap",
+      "text": "But a trace shows what happened, not why. A guess is not proof. So an engineer still reads every step, and often fixes the wrong one."
+    },
+    {
+      "id": "answer",
+      "text": "First Domino finds the exact step that broke the run, and proves it."
+    },
+    {
+      "id": "record",
+      "text": "Add two lines of our SDK. Every model call becomes a step, and every step is a save point."
+    },
+    {
+      "id": "search",
+      "text": "When a run fails, we replay your agent from those save points, on your own machines. Keep step one, and it can still pass. Keep step two, and it always fails. So step two is the first domino."
+    },
+    {
+      "id": "prove",
+      "text": "Then we rewrite just that step and replay again. Three out of three runs now pass. That is proof, not a guess."
+    },
+    {
+      "id": "alert",
+      "text": "Failures with the same cause are grouped, and the first time a new root cause appears, you get an email with the fix."
+    },
+    {
+      "id": "close",
+      "text": "It works with OpenAI, Anthropic, LangChain and the Agents SDK. First Domino. Find the step that broke your agent, and prove it."
+    }
+  ]
+}

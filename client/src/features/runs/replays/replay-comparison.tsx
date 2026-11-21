@@ -117,8 +117,8 @@ export function ReplayComparison({ check, originalSteps, replays }: ReplayCompar
                       key={lane.run.id}
                       className={cn(
                         "p-3 align-top whitespace-normal",
-                        isDivergence && "bg-warning/8",
-                        isRewritten && "bg-verified/8"
+                        isDivergence && "bg-muted/60",
+                        isRewritten && "bg-muted/40"
                       )}
                     >
                       {(isRewritten || isDivergence) && (

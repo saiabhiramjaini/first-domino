@@ -24,7 +24,7 @@ export function CopyButton({ value, label }: CopyButtonProps) {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={handleCopy} aria-label={label}>
+    <Button variant="ghost" size="xs" onClick={handleCopy} aria-label={label}>
       {hasCopied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
       {hasCopied ? "Copied" : "Copy"}
     </Button>

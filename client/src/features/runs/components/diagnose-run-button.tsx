@@ -33,7 +33,11 @@ export function DiagnoseRunButton({ runId, hasDiagnosis, onCreated }: DiagnoseRu
   }
 
   return (
-    <Button onClick={handleClick} disabled={createDiagnosis.isPending}>
+    <Button
+      variant={hasDiagnosis ? "outline" : "default"}
+      onClick={handleClick}
+      disabled={createDiagnosis.isPending}
+    >
       {createDiagnosis.isPending ? "Starting..." : hasDiagnosis ? "Diagnose again" : "Diagnose run"}
     </Button>
   );

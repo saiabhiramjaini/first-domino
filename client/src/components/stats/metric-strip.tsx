@@ -8,37 +8,26 @@ export type Metric = {
   tone?: "default" | "domino" | "verified";
 };
 
-const TONE_CLASS = {
-  default: "text-foreground",
-  domino: "text-domino",
-  verified: "text-verified",
-} as const;
-
 // Key numbers in one bordered strip, split by dividers.
 export function MetricStrip({ metrics }: { metrics: readonly Metric[] }) {
   return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card lg:grid-flow-col lg:grid-cols-none">
+    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border lg:grid-flow-col lg:grid-cols-none">
       {metrics.map((metric, index) => (
         <div
           key={metric.label}
           className={cn(
-            "flex flex-col gap-2 border-border p-4",
+            "flex flex-col gap-1 border-border px-4 py-3",
             index % 2 === 1 && "border-l",
             index >= 2 && "border-t lg:border-t-0",
             index >= 1 && "lg:border-l"
           )}
         >
-          <dt className="text-xs font-medium text-muted-foreground">{metric.label}</dt>
+          <dt className="text-xs text-muted-foreground">{metric.label}</dt>
           <dd className="flex flex-col gap-1">
             {metric.value === undefined ? (
-              <Skeleton className="h-8 w-14" />
+              <Skeleton className="h-7 w-14" />
             ) : (
-              <span
-                className={cn(
-                  "font-mono text-3xl font-medium tracking-tight tabular-nums",
-                  TONE_CLASS[metric.tone ?? "default"]
-                )}
-              >
+              <span className="text-2xl font-semibold tracking-tight tabular-nums">
                 {metric.value}
               </span>
             )}

@@ -8,35 +8,32 @@ import { shortId } from "@/components/runs/short-id";
 
 type Crumb = { label: string; href?: string; mono?: boolean };
 
+// Only detail pages get a trail (a way back to their list); a list page's title says where you are.
 function crumbsFor(pathname: string): Crumb[] {
   const [section, id] = pathname.split("/").filter(Boolean);
+  if (!id) return [];
   switch (section) {
     case "runs":
-      return id
-        ? [
-            { label: "Runs", href: "/runs" },
-            { label: shortId(id), mono: true },
-          ]
-        : [{ label: "Runs" }];
+      return [
+        { label: "Runs", href: "/runs" },
+        { label: shortId(id), mono: true },
+      ];
     case "causes":
-      return id
-        ? [
-            { label: "Root causes", href: "/causes" },
-            { label: shortId(id), mono: true },
-          ]
-        : [{ label: "Root causes" }];
-    case "settings":
-      return [{ label: "Settings" }, { label: "Connect your agent" }];
+      return [
+        { label: "Root causes", href: "/causes" },
+        { label: shortId(id), mono: true },
+      ];
     default:
-      return [{ label: "Failures" }];
+      return [];
   }
 }
 
 export function Breadcrumbs() {
   const crumbs = crumbsFor(usePathname());
+  if (crumbs.length === 0) return null;
   return (
-    <nav aria-label="Breadcrumb" className="min-w-0">
-      <ol className="flex items-center gap-1.5 text-sm">
+    <nav aria-label="Breadcrumb" className="-mb-3 min-w-0">
+      <ol className="flex items-center gap-1.5 text-xs">
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;
           return (

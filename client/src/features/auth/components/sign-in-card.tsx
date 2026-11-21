@@ -9,11 +9,6 @@ type SignInCardProps = { callbackUrl: string };
 export function SignInCard({ callbackUrl }: SignInCardProps) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
-      <div className="bg-grid pointer-events-none absolute inset-0" aria-hidden="true" />
-      <div
-        className="glow-domino pointer-events-none absolute inset-x-0 top-0 h-96"
-        aria-hidden="true"
-      />
       <div className="relative flex w-full max-w-sm flex-col items-center gap-8">
         <Link
           href="/"
@@ -22,7 +17,7 @@ export function SignInCard({ callbackUrl }: SignInCardProps) {
         >
           <BrandName />
         </Link>
-        <div className="flex w-full flex-col gap-6 rounded-2xl border bg-card/90 p-6 shadow-2xl shadow-black/40 backdrop-blur">
+        <div className="flex w-full flex-col gap-6 rounded-xl border bg-card/90 p-6 backdrop-blur">
           <div className="flex flex-col gap-1.5 text-center">
             <h1 className="text-xl font-semibold tracking-tight">Sign in to First Domino</h1>
             <p className="text-sm text-pretty text-muted-foreground">

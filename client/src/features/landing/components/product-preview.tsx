@@ -7,13 +7,9 @@ const DOMINO = 6;
 export function ProductPreview() {
   return (
     <div className="relative w-full">
-      <div
-        className="glow-domino pointer-events-none absolute -inset-x-20 -top-24 h-72"
-        aria-hidden="true"
-      />
       <figure
         aria-label="Example diagnosis: step 6 is the first domino, proven by 5 of 5 replays"
-        className="relative overflow-hidden rounded-2xl border bg-card shadow-2xl shadow-black/40"
+        className="relative overflow-hidden rounded-lg border bg-card"
       >
         <div className="flex items-center gap-2 border-b px-4 py-3" aria-hidden="true">
           <span className="size-2.5 rounded-full bg-muted-foreground/30" />
@@ -60,7 +56,7 @@ export function ProductPreview() {
                   "flex h-12 w-9 items-center justify-center rounded-md border font-mono text-xs",
                   step < DOMINO && "border-transparent bg-ruled-out/60 text-muted-foreground/70",
                   step === DOMINO &&
-                    "-rotate-6 border-domino bg-domino text-domino-foreground shadow-[0_0_24px_-4px_var(--domino)] ring-2 ring-verified ring-offset-2 ring-offset-card",
+                    "-rotate-6 border-domino bg-domino text-domino-foreground ring-2 ring-verified ring-offset-2 ring-offset-card",
                   step > DOMINO && "border-border bg-muted/40 text-muted-foreground"
                 )}
               >

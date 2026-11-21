@@ -58,50 +58,53 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Graphite + Iris. The app is dark only: these tokens apply everywhere. */
+/* Graphite, kept almost monochrome. Two signal colors only: red for a failed run and
+   violet for the first domino. Everything else (passed, running, proven, warnings) is a
+   shade of gray and is told apart by its label and icon, not by its color. */
 :root,
 .dark {
+  --radius: 0.5rem;
   --background: #0a0a0b;
   --foreground: #ededef;
-  --card: #141417;
+  --card: #0f0f11;
   --card-foreground: #ededef;
-  --popover: #18181b;
+  --popover: #141416;
   --popover-foreground: #ededef;
   --primary: #ededef;
   --primary-foreground: #0a0a0b;
-  --secondary: #1c1c20;
+  --secondary: #18181b;
   --secondary-foreground: #ededef;
-  --muted: #1c1c20;
-  --muted-foreground: #9a9aa3;
-  --accent: #1c1c20;
+  --muted: #18181b;
+  --muted-foreground: #8e8e96;
+  --accent: #18181b;
   --accent-foreground: #ededef;
-  --destructive: #f87171;
-  --border: #26262b;
-  --input: #2e2e34;
-  --ring: #8b7cff;
-  --chart-1: #8b7cff;
-  --chart-2: #5b9dff;
-  --chart-3: #3dd68c;
-  --chart-4: #f5b544;
-  --chart-5: #9a9aa3;
+  --destructive: #f2645a;
+  --border: #222226;
+  --input: #2a2a2f;
+  --ring: #6e6e78;
+  --chart-1: #ededef;
+  --chart-2: #8e8e96;
+  --chart-3: #55555d;
+  --chart-4: #3a3a40;
+  --chart-5: #2a2a2f;
   --domino: #8b7cff;
   --domino-foreground: #0a0a0b;
-  --search-range: #5b9dff;
+  --search-range: #b4b4bb;
   --search-range-foreground: #0a0a0b;
-  --verified: #3dd68c;
+  --verified: #ededef;
   --verified-foreground: #0a0a0b;
-  --warning: #f5b544;
+  --warning: #b4b4bb;
   --warning-foreground: #0a0a0b;
-  --ruled-out: #26262b;
-  --ruled-out-foreground: #9a9aa3;
-  --sidebar: #0f0f11;
+  --ruled-out: #222226;
+  --ruled-out-foreground: #8e8e96;
+  --sidebar: #0a0a0b;
   --sidebar-foreground: #ededef;
   --sidebar-primary: #ededef;
   --sidebar-primary-foreground: #0a0a0b;
-  --sidebar-accent: #1c1c20;
+  --sidebar-accent: #18181b;
   --sidebar-accent-foreground: #ededef;
-  --sidebar-border: #1f1f24;
-  --sidebar-ring: #8b7cff;
+  --sidebar-border: #1c1c20;
+  --sidebar-ring: #6e6e78;
 }
 
 @layer base {
@@ -109,35 +112,12 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "cv11" 1,
+      "ss01" 1;
   }
   html {
     @apply font-sans;
-  }
-}
-
-@layer utilities {
-  /* Faint engineering grid, faded at the edges. */
-  .bg-grid {
-    background-image:
-      linear-gradient(
-        to right,
-        color-mix(in oklch, var(--foreground), transparent 94%) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        color-mix(in oklch, var(--foreground), transparent 94%) 1px,
-        transparent 1px
-      );
-    background-size: 48px 48px;
-    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 100%);
-  }
-  .glow-domino {
-    background: radial-gradient(
-      closest-side,
-      color-mix(in oklch, var(--domino), transparent 82%),
-      transparent
-    );
   }
 }

@@ -1,4 +1,4 @@
-const DEFAULT_CALLBACK = "/failures";
+const DEFAULT_CALLBACK = "/runs";
 
 export function safeCallbackUrl(value: string | string[] | undefined): string {
   if (typeof value !== "string") return DEFAULT_CALLBACK;

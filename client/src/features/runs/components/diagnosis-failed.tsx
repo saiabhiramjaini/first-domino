@@ -7,10 +7,7 @@ type DiagnosisFailedProps = { diagnosis: Diagnosis };
 export function DiagnosisFailed({ diagnosis }: DiagnosisFailedProps) {
   const copy = diagnosisErrorCopy(diagnosis.error_code);
   return (
-    <div
-      role="alert"
-      className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4"
-    >
+    <div role="alert" className="flex flex-col gap-2 rounded-lg border border-destructive/30 p-4">
       <p className="text-sm font-medium text-destructive">{copy.title}</p>
       <p className="text-sm text-muted-foreground">{copy.fix}</p>
       {diagnosis.error_code && (

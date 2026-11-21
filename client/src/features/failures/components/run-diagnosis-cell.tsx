@@ -12,50 +12,39 @@ const CLOCK_MS = 1_000;
 
 type RunDiagnosisCellProps = { diagnosisId: string | null };
 
-// The first domino and verdict of one run's latest diagnosis, for the failures table.
+// A failed run's latest diagnosis in one line: the first domino step and what went wrong, or
+// how far the search has got.
 export function RunDiagnosisCell({ diagnosisId }: RunDiagnosisCellProps) {
   const diagnosis = useGetDiagnosis(diagnosisId);
   const now = useNow(isDiagnosisActive(diagnosis.data?.status) ? CLOCK_MS : false);
   if (diagnosisId === null) {
-    return <span className="text-xs text-muted-foreground">Not diagnosed</span>;
+    return <span className="text-muted-foreground">Not diagnosed</span>;
   }
   if (!diagnosis.data) {
     return diagnosis.isError ? (
-      <span className="text-xs text-muted-foreground">Unavailable</span>
+      <span className="text-muted-foreground">Unavailable</span>
     ) : (
       <Skeleton className="h-4 w-40" />
     );
   }
   const data = diagnosis.data;
   if (isWaitingForWorker(data, now)) {
-    return <StatusBadge status={{ tone: "warning", label: "Waiting for worker" }} />;
+    return <StatusBadge status={{ tone: "warning", label: "Waiting for replay worker" }} />;
   }
-  if (isDiagnosisActive(data.status) || data.status === "failed" || data.verdict_kind === null) {
-    return <StatusBadge status={DIAGNOSIS_STATUS[data.status]} />;
+  if (isDiagnosisActive(data.status)) {
+    return <StatusBadge status={{ tone: "info", label: DIAGNOSIS_STATUS[data.status].label }} />;
+  }
+  if (data.status === "failed" || data.verdict_kind === null) {
+    return <StatusBadge status={DIAGNOSIS_STATUS[data.status]} dot={false} />;
   }
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
+    <span className="flex min-w-0 items-center gap-2">
       {data.first_domino_step !== null && (
-        <span className="shrink-0 rounded-md border border-domino/30 bg-domino/12 px-1.5 py-0.5 font-mono text-xs text-domino">
-          step {data.first_domino_step}
-        </span>
+        <span className="shrink-0 font-mono text-xs text-domino">#{data.first_domino_step}</span>
       )}
-      <span className="truncate text-sm" title={data.explanation?.title}>
+      <span className="truncate" title={data.explanation?.title}>
         {data.explanation?.title ?? VERDICT_KIND[data.verdict_kind].label}
       </span>
-    </div>
+    </span>
   );
-}
-
-export function RunVerdictCell({ diagnosisId }: RunDiagnosisCellProps) {
-  const diagnosis = useGetDiagnosis(diagnosisId);
-  const kind = diagnosis.data?.verdict_kind;
-  if (!diagnosis.data || !kind || diagnosis.data.status !== "done") return null;
-  const passes = diagnosis.data.verify_passes;
-  const samples = diagnosis.data.verify_samples;
-  const status =
-    kind === "step_verified" && passes !== null && samples !== null
-      ? { ...VERDICT_KIND[kind], label: `Proven ${passes}/${samples}` }
-      : VERDICT_KIND[kind];
-  return <StatusBadge status={status} />;
 }

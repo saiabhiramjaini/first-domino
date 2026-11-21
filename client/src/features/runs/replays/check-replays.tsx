@@ -33,7 +33,7 @@ export function CheckReplays({ check, originalSteps, onClose }: CheckReplaysProp
     <section
       id="check-replays"
       aria-labelledby="check-replays-title"
-      className="flex scroll-mt-20 flex-col rounded-xl border border-search-range/30 bg-card"
+      className="flex scroll-mt-20 flex-col rounded-lg border"
     >
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
         <h2 id="check-replays-title" className="text-sm font-semibold">

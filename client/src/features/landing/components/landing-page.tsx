@@ -53,14 +53,9 @@ await worker.run()                     # replays on your side, on request`;
 type LandingPageProps = { isSignedIn: boolean };
 
 export function LandingPage({ isSignedIn }: LandingPageProps) {
-  const appHref = isSignedIn ? "/failures" : "/sign-in";
+  const appHref = isSignedIn ? "/runs" : "/sign-in";
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-clip">
-      <div
-        className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[44rem]"
-        aria-hidden="true"
-      />
-
       <header className="sticky top-0 z-30 bg-background/70 backdrop-blur-md">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link
@@ -159,7 +154,7 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
                 Other tools tell you a run failed. This one tells you why, with proof.
               </h2>
             </div>
-            <div className="grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-3">
+            <div className="grid gap-px overflow-hidden rounded-lg border bg-border md:grid-cols-3">
               {PRINCIPLES.map((item) => (
                 <article key={item.title} className="flex flex-col gap-3 bg-card p-6">
                   <item.icon className="size-5 text-domino" aria-hidden="true" />
@@ -189,7 +184,7 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
                 <li>Your success check decides what passing means</li>
               </ul>
             </div>
-            <div className="min-w-0 overflow-hidden rounded-xl border bg-card">
+            <div className="min-w-0 overflow-hidden rounded-lg border bg-card">
               <div className="flex items-center justify-between border-b px-4 py-2.5">
                 <span className="font-mono text-xs text-muted-foreground">agent.py</span>
                 <span className="font-mono text-[11px] text-muted-foreground">python</span>

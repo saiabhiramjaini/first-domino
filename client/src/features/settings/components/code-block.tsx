@@ -1,20 +1,13 @@
 import { CopyButton } from "./copy-button";
 
-type CodeBlockProps = { code: string; label: string; step?: number };
+type CodeBlockProps = { code: string; label: string };
 
-export function CodeBlock({ code, label, step }: CodeBlockProps) {
+export function CodeBlock({ code, label }: CodeBlockProps) {
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border bg-background/60">
-      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-        <span className="flex items-center gap-2 text-sm font-medium">
-          {step !== undefined && (
-            <span className="flex size-5 items-center justify-center rounded-full bg-domino/15 font-mono text-[11px] text-domino">
-              {step}
-            </span>
-          )}
-          {label}
-        </span>
-        <CopyButton value={code} label={`Copy ${label.toLowerCase()}`} />
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-md border bg-card">
+      <div className="flex h-9 items-center justify-between gap-2 border-b pr-1.5 pl-3">
+        <span className="font-mono text-xs text-muted-foreground">{label}</span>
+        <CopyButton value={code} label={`Copy ${label}`} />
       </div>
       <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
         <code>{code}</code>

@@ -23,7 +23,7 @@ export function QueryError({ error, what, source, onRetry }: QueryErrorProps) {
   return (
     <div
       role="alert"
-      className="flex flex-col items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4"
+      className="flex flex-col items-start gap-2 rounded-lg border border-destructive/30 p-4"
     >
       <p className="text-sm font-medium text-destructive">{copy.title}</p>
       <p className="text-sm text-muted-foreground">{copy.description}</p>

@@ -18,7 +18,7 @@ export default function SignedInError({ error, reset }: SignedInErrorProps) {
   return (
     <div
       role="alert"
-      className="flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-6"
+      className="flex flex-col items-start gap-3 rounded-lg border border-destructive/30 p-6"
     >
       <h2 className="font-semibold">This page could not be shown</h2>
       <p className="text-sm text-muted-foreground">

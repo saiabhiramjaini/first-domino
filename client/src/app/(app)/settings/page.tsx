@@ -8,10 +8,7 @@ export const metadata: Metadata = { title: "Settings" };
 export default function Page() {
   return (
     <>
-      <PageHeader
-        title="Connect your agent"
-        description="Four steps. Each one ticks itself as soon as First Domino sees it working."
-      />
+      <PageHeader title="Settings" description="Connect your agent and manage this project." />
       <SettingsPage />
     </>
   );

@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/app-shell/page-header";
-import { RunsList } from "@/features/runs";
+import { InboxStats } from "@/features/failures";
+import { RunsList, runFilterFrom } from "@/features/runs";
 
 export const metadata: Metadata = { title: "Runs" };
 
-export default function RunsPage() {
+export default async function RunsPage({ searchParams }: PageProps<"/runs">) {
+  const { status } = await searchParams;
   return (
     <>
       <PageHeader
         title="Runs"
-        description="Every run your agent records, with its full trace, updated live while it runs."
+        description="Every run your agent records, live. Failed runs are diagnosed on their own."
       />
-      <RunsList />
+      <InboxStats />
+      <RunsList initialFilter={runFilterFrom(status)} />
     </>
   );
 }

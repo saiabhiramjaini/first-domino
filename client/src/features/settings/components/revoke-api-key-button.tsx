@@ -36,7 +36,7 @@ export function RevokeApiKeyButton({ apiKey }: RevokeApiKeyButtonProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger render={<Button variant="destructive" size="sm" />}>Revoke key</DialogTrigger>
+      <DialogTrigger render={<Button variant="ghost" size="sm" />}>Revoke</DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Revoke &quot;{apiKey.name}&quot;?</DialogTitle>

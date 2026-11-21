@@ -8,9 +8,9 @@ describe("safeCallbackUrl", () => {
   });
 
   it("falls back for missing, repeated or external values", () => {
-    expect(safeCallbackUrl(undefined)).toBe("/failures");
-    expect(safeCallbackUrl(["/a", "/b"])).toBe("/failures");
-    expect(safeCallbackUrl("https://evil.example")).toBe("/failures");
-    expect(safeCallbackUrl("//evil.example")).toBe("/failures");
+    expect(safeCallbackUrl(undefined)).toBe("/runs");
+    expect(safeCallbackUrl(["/a", "/b"])).toBe("/runs");
+    expect(safeCallbackUrl("https://evil.example")).toBe("/runs");
+    expect(safeCallbackUrl("//evil.example")).toBe("/runs");
   });
 });

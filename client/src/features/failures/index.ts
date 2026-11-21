@@ -1,1 +1,1 @@
-export { FailuresInbox } from "./components/failures-inbox";
+export { InboxStats } from "./components/inbox-stats";

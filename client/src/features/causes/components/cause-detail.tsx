@@ -8,7 +8,6 @@ import { PageHeader } from "@/components/app-shell/page-header";
 import { QueryError } from "@/components/feedback/query-error";
 import { Panel } from "@/components/layout/panel";
 import { MetricStrip } from "@/components/stats/metric-strip";
-import { StatusBadge } from "@/components/status/status-badge";
 import { CAUSE_CATEGORY } from "@/components/status/status-tones";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,8 +40,8 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
       <div className="flex flex-col gap-6" aria-busy="true">
         <BackToCauses />
         <Skeleton className="h-8 w-2/3" />
-        <Skeleton className="h-24 w-full rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
       </div>
     );
   }
@@ -67,8 +66,8 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
       <PageHeader
         eyebrow={
           <>
-            <StatusBadge status={CAUSE_CATEGORY[data.category]} dot={false} />
             <span className="font-mono">{data.step_name}</span>
+            <span>{CAUSE_CATEGORY[data.category].label}</span>
           </>
         }
         title={data.title}
@@ -83,7 +82,6 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
             label: "Proven by a fix",
             value: formatInteger(data.verified_count),
             hint: `of ${formatCount(data.run_count, RUN_NOUN)}`,
-            tone: "verified",
           },
           {
             label: "First seen",
@@ -98,18 +96,11 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
         ]}
       />
 
-      <Panel
-        title="Suggested fix"
-        description="Apply it in your agent, then export the runs as tests."
-      >
+      <Panel title="Suggested fix">
         <p className="p-4 text-sm text-pretty whitespace-pre-line">{data.suggested_fix}</p>
       </Panel>
 
-      <Panel
-        id="cause-runs"
-        title="Runs with this cause"
-        description="Each row is a diagnosis that grouped its run here."
-      >
+      <Panel id="cause-runs" title="Runs with this cause">
         <CauseRunsTable causeId={causeId} />
       </Panel>
     </div>

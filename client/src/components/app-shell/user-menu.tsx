@@ -42,9 +42,9 @@ export function UserMenu({ user }: UserMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Open the user menu"
-        className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="flex w-full items-center gap-2 rounded-md p-1.5 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <Avatar className="size-7">
+        <Avatar className="size-6">
           {user.image && <AvatarImage src={user.image} alt="" />}
           <AvatarFallback>{initials(user)}</AvatarFallback>
         </Avatar>

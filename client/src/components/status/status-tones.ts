@@ -19,7 +19,7 @@ export const RUN_STATUS = {
 
 export const RUN_SOURCE = {
   recorded: { tone: "neutral", label: "Recorded" },
-  replay: { tone: "info", label: "Replay" },
+  replay: { tone: "neutral", label: "Replay" },
 } as const satisfies Record<RunSource, ToneLabel>;
 
 export const DIAGNOSIS_STATUS = {
@@ -40,23 +40,23 @@ export const VERDICT_KIND = {
 
 export const CHECK_PHASE = {
   precheck: { tone: "neutral", label: "Precheck" },
-  bisect: { tone: "info", label: "Bisect" },
-  verify: { tone: "success", label: "Verify" },
-  fallback: { tone: "warning", label: "Fallback" },
+  bisect: { tone: "neutral", label: "Bisect" },
+  verify: { tone: "neutral", label: "Verify" },
+  fallback: { tone: "neutral", label: "Fallback" },
 } as const satisfies Record<CheckPhase, ToneLabel>;
 
 export const CHECK_RESULT = {
   pending: { tone: "neutral", label: "Running" },
   can_succeed: { tone: "success", label: "Can succeed" },
-  doomed: { tone: "domino", label: "Doomed" },
+  doomed: { tone: "danger", label: "Doomed" },
 } as const satisfies Record<CheckResult, ToneLabel>;
 
 export const CAUSE_CATEGORY = {
-  wrong_date: { tone: "domino", label: "Wrong date" },
-  wrong_entity: { tone: "domino", label: "Wrong entity" },
-  wrong_filter: { tone: "domino", label: "Wrong filter" },
-  bad_tool_args: { tone: "domino", label: "Bad tool arguments" },
-  hallucination: { tone: "domino", label: "Hallucination" },
-  tool_issue: { tone: "warning", label: "Tool issue" },
+  wrong_date: { tone: "neutral", label: "Wrong date" },
+  wrong_entity: { tone: "neutral", label: "Wrong entity" },
+  wrong_filter: { tone: "neutral", label: "Wrong filter" },
+  bad_tool_args: { tone: "neutral", label: "Bad tool arguments" },
+  hallucination: { tone: "neutral", label: "Hallucination" },
+  tool_issue: { tone: "neutral", label: "Tool issue" },
   other: { tone: "neutral", label: "Other" },
 } as const satisfies Record<CauseCategory, ToneLabel>;

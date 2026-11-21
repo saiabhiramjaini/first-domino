@@ -26,13 +26,13 @@ export function Panel({
     <section
       id={id}
       aria-labelledby={title ? headingId : undefined}
-      className={cn("flex min-w-0 flex-col rounded-xl border bg-card", className)}
+      className={cn("flex min-w-0 flex-col rounded-lg border", className)}
     >
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
           <div className="flex min-w-0 flex-col gap-0.5">
             {title && (
-              <h2 id={headingId} className="text-sm font-semibold">
+              <h2 id={headingId} className="text-sm font-medium">
                 {title}
               </h2>
             )}

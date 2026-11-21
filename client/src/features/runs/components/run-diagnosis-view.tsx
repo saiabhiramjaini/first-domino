@@ -105,9 +105,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
   ) : (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-          Steps
-        </h3>
+        <h3 className="text-xs text-muted-foreground">Steps</h3>
         <span className="text-xs text-muted-foreground">
           Each step is a save point. Pick one to read it.
         </span>
@@ -170,7 +168,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
       ) : diagnosis ? (
         <VerdictHero diagnosis={diagnosis}>{stepStrip}</VerdictHero>
       ) : (
-        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-lg" />
       )}
 
       {diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
@@ -181,15 +179,13 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
       <Panel
         id="trace"
         title="Trace"
-        description={
-          isRecording
-            ? "Live: every step the agent takes, as it takes it."
-            : "Every step of this run, as recorded. Open one to read it in full."
-        }
         actions={
           isRecording && (
-            <span className="inline-flex items-center gap-1.5 text-xs text-search-range">
-              <span className="size-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                className="size-1.5 animate-pulse rounded-full bg-foreground"
+                aria-hidden="true"
+              />
               Live
             </span>
           )
@@ -223,7 +219,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         <Panel
           id="checks"
           title="Checks"
-          description="Each check keeps the first steps as recorded and replays the rest."
+          description="Each check keeps the first steps as recorded and replays the rest"
         >
           {checks.isError ? (
             <div className="p-4">
@@ -263,14 +259,14 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
 function RunDiagnosisSkeleton() {
   return (
     <div className="flex flex-col gap-6" aria-busy="true">
-      <div className="flex flex-col gap-3 border-b pb-6">
+      <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-40" />
         <Skeleton className="h-8 w-96 max-w-full" />
       </div>
-      <Skeleton className="h-64 w-full rounded-xl" />
+      <Skeleton className="h-48 w-full rounded-lg" />
       <div className="grid gap-6 xl:grid-cols-2">
-        <Skeleton className="h-56 w-full rounded-xl" />
-        <Skeleton className="h-56 w-full rounded-xl" />
+        <Skeleton className="h-56 w-full rounded-lg" />
+        <Skeleton className="h-56 w-full rounded-lg" />
       </div>
     </div>
   );
@@ -308,18 +304,20 @@ function RunStatusNote({
       {Icon ? (
         <Icon
           className={
-            status === "passed" ? "mt-0.5 size-5 text-verified" : "mt-0.5 size-5 text-warning"
+            status === "passed"
+              ? "mt-0.5 size-4 text-foreground"
+              : "mt-0.5 size-4 text-muted-foreground"
           }
           aria-hidden="true"
         />
       ) : (
         <span className="relative mt-1.5 flex size-2.5" aria-hidden="true">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-search-range opacity-75 motion-reduce:animate-none" />
-          <span className="relative inline-flex size-2.5 rounded-full bg-search-range" />
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-foreground opacity-60 motion-reduce:animate-none" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-foreground" />
         </span>
       )}
       <div className="flex flex-col gap-1">
-        <h2 className="font-semibold">{note.title}</h2>
+        <h2 className="text-sm font-medium">{note.title}</h2>
         <p className="text-sm text-muted-foreground" aria-live="polite">
           {note.body} {status === "running" && `${stepCount} so far.`}
         </p>

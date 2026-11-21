@@ -32,11 +32,11 @@ function liveText(diagnosis: Diagnosis): string {
   return `The first domino is between step ${low} and step ${high}.`;
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Stat({ label, value, isDomino }: { label: string; value: string; isDomino?: boolean }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex items-baseline gap-1.5">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn("font-mono text-lg font-medium tabular-nums", tone)}>{value}</dd>
+      <dd className={cn("text-sm font-medium tabular-nums", isDomino && "text-domino")}>{value}</dd>
     </div>
   );
 }
@@ -51,35 +51,42 @@ export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
   const proof =
     diagnosis.verify_passes !== null && diagnosis.verify_samples !== null
       ? `${diagnosis.verify_passes}/${diagnosis.verify_samples}`
-      : "-";
+      : "–";
   const verdict = diagnosis.verdict_kind;
   return (
-    <section
-      aria-labelledby="verdict-title"
-      className="relative overflow-hidden rounded-xl border bg-card"
-    >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(60%_100%_at_0%_0%,color-mix(in_oklch,var(--domino),transparent_86%),transparent)]"
-        aria-hidden="true"
-      />
-      <div className="relative flex flex-col gap-6 p-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {isActive && !isWaiting && (
-              <span className="relative flex size-2" aria-hidden="true">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-search-range opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-search-range" />
-              </span>
-            )}
-            {verdict && diagnosis.status === "done" ? (
-              <StatusBadge status={VERDICT_KIND[verdict]} />
-            ) : isWaiting ? (
-              <StatusBadge status={{ tone: "warning", label: "Waiting for your worker" }} />
-            ) : (
-              <StatusBadge status={DIAGNOSIS_STATUS[diagnosis.status]} />
-            )}
-          </div>
-          <h2 id="verdict-title" className="text-xl font-semibold tracking-tight text-balance">
+    <section aria-labelledby="verdict-title" className="rounded-lg border">
+      <div className="flex flex-col gap-4 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          {verdict && diagnosis.status === "done" ? (
+            <StatusBadge
+              status={{
+                tone: diagnosis.first_domino_step === null ? "neutral" : "domino",
+                label: VERDICT_KIND[verdict].label,
+              }}
+            />
+          ) : isWaiting ? (
+            <StatusBadge status={{ tone: "warning", label: "Waiting for your replay worker" }} />
+          ) : (
+            <StatusBadge
+              status={{
+                tone: isActive ? "info" : "neutral",
+                label: DIAGNOSIS_STATUS[diagnosis.status].label,
+              }}
+            />
+          )}
+          <dl className="flex flex-wrap gap-x-5 gap-y-1">
+            <Stat
+              label="First domino"
+              value={diagnosis.first_domino_step === null ? "–" : `#${diagnosis.first_domino_step}`}
+              isDomino={diagnosis.first_domino_step !== null}
+            />
+            <Stat label="Proof" value={proof} />
+            <Stat label="Replays" value={formatInteger(diagnosis.replay_count)} />
+            <Stat label="Cost" value={formatUsd(diagnosis.cost_usd)} />
+          </dl>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <h2 id="verdict-title" className="text-lg font-semibold tracking-tight text-balance">
             {copy?.headline ??
               (isWaiting
                 ? "Waiting for your replay worker"
@@ -87,41 +94,23 @@ export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
                   ? "Searching for the first domino"
                   : "Diagnosis")}
           </h2>
-          <p className="max-w-2xl text-sm text-pretty text-muted-foreground" aria-live="polite">
+          <p className="max-w-3xl text-sm text-pretty text-muted-foreground" aria-live="polite">
             {isWaiting
-              ? `${diagnosis.replays_waiting ?? 0} replays have been waiting ${waitedText(waited)} and no worker has picked them up. Replays run on your side, so start the replay worker next to your agent. The search carries on by itself as soon as it connects.`
+              ? `${diagnosis.replays_waiting ?? 0} replays have waited ${waitedText(waited)} and no worker has picked them up. Replays run on your side, so start the replay worker next to your agent. The search carries on as soon as it connects.`
               : (copy?.body ?? (isActive ? liveText(diagnosis) : ""))}
           </p>
-          {isWaiting && (
-            <Link
-              href="/settings#start_worker"
-              className={buttonVariants({
-                variant: "outline",
-                size: "sm",
-                className: "self-start",
-              })}
-            >
-              <PlugZapIcon aria-hidden="true" />
-              Set up the replay worker
-            </Link>
-          )}
         </div>
-        <dl className="grid shrink-0 grid-cols-4 gap-x-6 gap-y-3 rounded-lg border bg-background/50 px-4 py-3">
-          <Stat
-            label="First domino"
-            value={diagnosis.first_domino_step === null ? "-" : `#${diagnosis.first_domino_step}`}
-            tone="text-domino"
-          />
-          <Stat
-            label="Proof"
-            value={proof}
-            tone={verdict === "step_verified" ? "text-verified" : undefined}
-          />
-          <Stat label="Replays" value={formatInteger(diagnosis.replay_count)} />
-          <Stat label="Cost" value={formatUsd(diagnosis.cost_usd)} />
-        </dl>
+        {isWaiting && (
+          <Link
+            href="/settings#start_worker"
+            className={buttonVariants({ variant: "outline", size: "sm", className: "self-start" })}
+          >
+            <PlugZapIcon aria-hidden="true" />
+            Set up the replay worker
+          </Link>
+        )}
       </div>
-      <div className="relative border-t px-5 py-5">{children}</div>
+      <div className="border-t px-5 py-4">{children}</div>
     </section>
   );
 }

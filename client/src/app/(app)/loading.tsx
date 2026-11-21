@@ -7,8 +7,8 @@ export default function SignedInLoading() {
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-80 max-w-full" />
       </div>
-      <Skeleton className="h-28 w-full rounded-xl" />
-      <Skeleton className="h-72 w-full rounded-xl" />
+      <Skeleton className="h-28 w-full rounded-lg" />
+      <Skeleton className="h-72 w-full rounded-lg" />
     </div>
   );
 }

@@ -37,12 +37,12 @@ export function ApiKeySecretDialog({ createdKey, onClose }: ApiKeySecretDialogPr
             where your agent runs.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+        <div className="flex items-start gap-2 rounded-md border p-3 text-sm text-muted-foreground">
           <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>This is the only time you will see this key. Store it somewhere safe now.</p>
         </div>
         <div className="flex items-center gap-2">
-          <code className="min-w-0 flex-1 truncate rounded-lg border bg-muted px-3 py-2 font-mono text-xs">
+          <code className="min-w-0 flex-1 truncate rounded-md border bg-card px-3 py-2 font-mono text-xs">
             {createdKey?.secret}
           </code>
           {createdKey && <CopyButton value={createdKey.secret} label="Copy the API key" />}

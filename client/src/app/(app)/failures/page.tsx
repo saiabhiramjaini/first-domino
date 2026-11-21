@@ -1,18 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { PageHeader } from "@/components/app-shell/page-header";
-import { FailuresInbox } from "@/features/failures";
-
-export const metadata: Metadata = { title: "Failures" };
-
+// Failures are the Runs list filtered to failed runs; old links keep working.
 export default function FailuresPage() {
-  return (
-    <>
-      <PageHeader
-        title="Failures"
-        description="Every failed run, the first step that doomed it, and whether a fix proved it."
-      />
-      <FailuresInbox />
-    </>
-  );
+  redirect("/runs?status=failed");
 }

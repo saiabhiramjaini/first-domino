@@ -37,7 +37,7 @@ export function BisectDemo() {
   if (!frame) return null;
 
   return (
-    <figure className="flex w-full flex-col gap-5 rounded-2xl border bg-card p-4 sm:p-6">
+    <figure className="flex w-full flex-col gap-5 rounded-xl border bg-card p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-xs text-muted-foreground tabular-nums">

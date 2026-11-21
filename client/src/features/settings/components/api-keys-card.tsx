@@ -36,7 +36,7 @@ function ApiKeyList() {
 
   return (
     <div className="flex flex-col gap-2">
-      <ul className="flex flex-col divide-y rounded-lg border" aria-label="Your API keys">
+      <ul className="flex flex-col divide-y rounded-md border" aria-label="Your API keys">
         {items.map((apiKey) => {
           const state = apiKeyState(apiKey);
           return (

@@ -1,10 +1,7 @@
 export type OnboardingStatus = "done" | "todo" | "loading";
 
 export type OnboardingItem = {
-  id: "create_key" | "install_sdk" | "record_run" | "start_worker";
-  title: string;
-  description: string;
-  href: string;
+  id: "create_key" | "connect_agent" | "start_worker";
   status: OnboardingStatus;
 };
 
@@ -23,42 +20,16 @@ function positive(count: number | undefined): boolean | undefined {
   return count === undefined ? undefined : count > 0;
 }
 
+/** The three setup steps, each ticked from the project's own data. */
 export function onboardingItems({
   hasActiveKey,
   recordedRuns,
   replayRuns,
 }: OnboardingInput): OnboardingItem[] {
   return [
-    {
-      id: "create_key",
-      title: "Create an API key",
-      description: "The SDK and the replay worker send it with every call.",
-      href: "#api-keys",
-      status: statusOf(hasActiveKey),
-    },
-    {
-      id: "install_sdk",
-      title: "Install the SDK",
-      description:
-        "Install first-domino where your agent runs and set the key. This ticks when your first run arrives.",
-      href: "#connect",
-      status: statusOf(positive(recordedRuns)),
-    },
-    {
-      id: "record_run",
-      title: "Record a first run",
-      description: "Wrap your agent with fd.record. Failed runs are diagnosed automatically.",
-      href: "#connect",
-      status: statusOf(positive(recordedRuns)),
-    },
-    {
-      id: "start_worker",
-      title: "Start a replay worker",
-      description:
-        "Run fd.Worker next to your agent so diagnoses can replay it. This ticks after its first replay.",
-      href: "#connect",
-      status: statusOf(positive(replayRuns)),
-    },
+    { id: "create_key", status: statusOf(hasActiveKey) },
+    { id: "connect_agent", status: statusOf(positive(recordedRuns)) },
+    { id: "start_worker", status: statusOf(positive(replayRuns)) },
   ];
 }
 

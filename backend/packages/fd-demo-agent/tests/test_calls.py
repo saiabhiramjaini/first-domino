@@ -231,6 +231,7 @@ def test_each_bug_names_a_call_and_valid_tool_arguments(bug: PlantedBug) -> None
 
 
 SWAPPED_FOR = {
+    "b01": (T.ADD_CALENDAR_EVENT, FailureReason.WRONG_EVENT),
     "b02": (T.ADD_CALENDAR_EVENT, FailureReason.WRONG_EVENT),
     "b03": (T.SCHEDULE_CALLBACK, FailureReason.UNEXPECTED_CALLBACK),
     "b04": (T.ADD_CALENDAR_EVENT, FailureReason.WRONG_EVENT),

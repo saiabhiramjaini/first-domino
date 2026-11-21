@@ -198,14 +198,12 @@ async def test_a_finished_conversation_is_not_continued() -> None:
 
 async def test_a_planted_bug_overwrites_its_step_and_the_model_follows_it() -> None:
     bug = get_bug("b01")
-    model = ScriptedModel(
-        [LOOKUP, MEMORY, ASK, CONFIRM, add_event("2026-11-23", "10:00"), *AFTER_ADD]
-    )
+    model = ScriptedModel([LOOKUP, MEMORY, ASK, CALENDAR, *AFTER_ADD])
 
     run = await run_task(agent_for(model), CLINIC, bug=bug)
 
     assert run.steps[bug.step - 1].output == bug.replacement
-    assert [step.index for step in run.steps] == list(range(1, 11))
+    assert [step.index for step in run.steps] == list(range(1, 10))
     assert run.report.failure == FailureReason.WRONG_EVENT
 
 
@@ -240,14 +238,12 @@ async def test_a_recorded_run_sends_every_step_and_its_verdict() -> None:
 
 async def test_a_recorded_bug_run_carries_its_label_and_fails() -> None:
     api = FakeApi()
-    model = ScriptedModel(
-        [LOOKUP, MEMORY, ASK, CONFIRM, add_event("2026-11-23", "10:00"), *AFTER_ADD]
-    )
+    model = ScriptedModel([LOOKUP, MEMORY, ASK, CALENDAR, *AFTER_ADD])
 
     await run_recorded(agent_for(model), CLINIC, bug=get_bug("b01"), client=fake_client(api))
 
     (run,) = api.runs.values()
-    assert run.task_input.metadata == {"task_id": "t01", "bug_id": "b01", "planted_step": "4"}
+    assert run.task_input.metadata == {"task_id": "t01", "bug_id": "b01", "planted_step": "5"}
     assert [f.status for f in api.finished] == [fd.RunOutcome.failed]
 
 

@@ -1,10 +1,10 @@
 .DEFAULT_GOAL := help
 SDK_GENERATED := packages/first-domino/src/first_domino/_generated/models.py
 
-.PHONY: help install lint fix typecheck test check db-up db-down api dev-key seed-demo worker demo-live demo-live-clean openapi sdk-models
+.PHONY: help install lint fix typecheck test check db-up db-down api dev-key seed-demo worker demo-live demo-live-clean customer-worker customer-demo openapi sdk-models
 
 help: ## List commands
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-16s %s\n", $$1, $$2}'
 
 install: ## Install all packages and dev tools
 	uv sync
@@ -49,6 +49,17 @@ demo-live: ## Record one planted-bug call (BUG=b02) and print its web link
 
 demo-live-clean: ## Record one passing call and print its web link
 	uv run python -m fd_demo_agent.demo_live --clean
+
+# Acting as a real customer of the live product: settings come from .env.customer
+# (copy customer.env.example), so the agent talks to the deployed API, not localhost.
+CUSTOMER_ENV ?= .env.customer
+CUSTOMER_RUN = test -f $(CUSTOMER_ENV) || { echo "copy customer.env.example to $(CUSTOMER_ENV) first" >&2; exit 2; }; set -a; . ./$(CUSTOMER_ENV); set +a;
+
+customer-worker: ## As the customer: run the replay worker against the live API
+	@$(CUSTOMER_RUN) uv run python -m fd_demo_agent.worker
+
+customer-demo: ## As the customer: record one planted-bug call (BUG=b02) on the live site
+	@$(CUSTOMER_RUN) uv run python -m fd_demo_agent.demo_live --bug $(or $(BUG),b02)
 
 openapi: ## Write api/openapi.json from the API
 	uv run python -m fd_api.export_openapi

@@ -3,9 +3,10 @@
 | Part | Where | Address |
 | --- | --- | --- |
 | Web app | Vercel (deploys itself from GitHub) | `https://first-domino.abhiramtech.in` |
-| API + demo worker | One EC2 server: Docker Compose, nginx + certbot for HTTPS | `https://api-first-domino.abhiramtech.in` |
+| API | One EC2 server: one Docker container, nginx + certbot for HTTPS | `https://api-first-domino.abhiramtech.in` |
 | Database | Neon Postgres | private |
 | Server image | Docker Hub `saiabhiramjaini/api-first-domino` | public |
+| Demo customer agent | Not deployed: runs on the customer's own machine (your laptop) | talks to the API |
 
 ## Settings: code vs secrets
 
@@ -18,14 +19,14 @@ Non-secret settings are committed; only secrets live in Vercel and GitHub.
 
 ## How a change ships
 
-- **Server:** push to `main` touching `server/**` runs `.github/workflows/server.yml`: `check` (lint, types, tests) → `publish` (build the image, push `:<sha>` and `:latest`) → `deploy` (copy `server/deploy/` files, write `.env` from `config.env` + `SERVER_ENV`, `docker compose pull && up`, then call `/health` over HTTPS). Pull requests run `check` only.
+- **Server:** push to `main` touching `server/**` runs `.github/workflows/server.yml`: `check` (lint, types, tests) → `publish` (build the image, push `:<sha>` and `:latest`) → `deploy` (write `~/first-domino/.env` from `config.env` + `SERVER_ENV`, run `deploy/run-api.sh` over SSH to replace the `first-domino-api` container, then call `/health` over HTTPS). Pull requests run `check` only.
 - **Web:** Vercel builds every push that touches `client/` (`client/vercel.json`). Pull requests get preview links.
 
 ## One-time setup
 
 1. **Neon.** Create a project. Copy the **direct** connection string (not the `-pooler` one) and turn it into `postgresql+asyncpg://USER:PASSWORD@HOST/neondb?ssl=require` (drop `sslmode` and `channel_binding`). The API creates the tables on its first start.
 2. **Docker Hub.** Create an access token (Account settings → Personal access tokens, Read & Write).
-3. **EC2.** Ubuntu 24.04, `t3.small`, 20 GB disk, an Elastic IP. Security group: 22 from your IP, 80 and 443 from anywhere. Run `server/deploy/bootstrap-ec2.sh` on it once (Docker, nginx, certbot), then set up nginx as in "nginx and HTTPS" below.
+3. **EC2.** Ubuntu, `t2.medium` or similar, a fixed IP. Security group: 22 from your IP, 80 and 443 from anywhere. Run `server/deploy/bootstrap-ec2.sh` on it once (Docker, nginx, certbot), then set up nginx as in "nginx and HTTPS" below.
 4. **DNS** for `abhiramtech.in`:
    - `api-first-domino` → `A` (DNS only, proxy off) → the Elastic IP
    - `first-domino` → `CNAME` → the value Vercel shows when you add the domain
@@ -60,25 +61,30 @@ sudo certbot --nginx -d api-first-domino.abhiramtech.in --redirect --agree-tos -
 
 certbot adds the HTTPS part to the file and renews the certificate by itself.
 
-## Demo customer in production
+## Acting as the customer
 
-After the first deploy and your first Google sign-in on the live site, on the server:
+The demo agent is a separate thing: the "Equal AI (demo)" call assistant, a customer of First Domino. It is never deployed with the product. It runs on the customer's machine (your laptop) and talks to the live API, like any real customer.
 
-```bash
-cd ~/first-domino && docker compose run --rm api python -m fd_api.seed_demo --email <your-google-email>
-```
-
-Add the printed key to `SERVER_ENV` as `FIRST_DOMINO_API_KEY`, set `COMPOSE_PROFILES=demo` in `server/deploy/config.env`, and push. The worker then starts. To record a failing call:
-
-```bash
-cd ~/first-domino && docker compose run --rm worker python -m fd_demo_agent.demo_live --bug b02
-```
+1. Sign in once on `https://first-domino.abhiramtech.in` with Google.
+2. Give your account the demo project and get its API key, on the server:
+   ```bash
+   sudo docker exec first-domino-api python -m fd_api.seed_demo --email <your-google-email>
+   ```
+3. On your laptop, in `server/`: copy `customer.env.example` to `.env.customer`, fill in `FIRST_DOMINO_API_KEY` and `OPENAI_API_KEY`.
+4. Start the customer's replay worker, and leave it running:
+   ```bash
+   make customer-worker
+   ```
+5. In another terminal, record a failing call; it prints the link to watch the diagnosis:
+   ```bash
+   make customer-demo BUG=b02
+   ```
 
 ## Useful on the server
 
 ```bash
-cd ~/first-domino && docker compose ps
-cd ~/first-domino && docker compose logs -f api
+sudo docker ps
+sudo docker logs -f first-domino-api
 ```
 
 Roll back: Actions → server → re-run the deploy job of an older green run (it redeploys that run's image tag).

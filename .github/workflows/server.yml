@@ -1,7 +1,7 @@
 name: server
 
 # check -> publish -> deploy. A pull request runs check only. A push to main also builds the
-# image, pushes it to Docker Hub and rolls it out on the EC2 server. Publish and deploy are
+# image, pushes it to Docker Hub and runs it as the API container on the EC2 server. Publish and deploy are
 # skipped until the repository variables in docs/DEPLOY.md are set.
 
 on:
@@ -85,18 +85,14 @@ jobs:
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2 && chmod 600 ~/.ssh/ec2
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-      - name: Copy the compose files and settings
+      - name: Write the settings
         run: |
-          remote="$EC2_USER@$EC2_HOST"
-          ssh -i ~/.ssh/ec2 "$remote" 'mkdir -p ~/first-domino'
-          scp -i ~/.ssh/ec2 deploy/compose.yaml "$remote:first-domino/"
-          # Committed settings first, then the secrets (later values win), then the image.
-          { cat deploy/config.env; printf '\n%s\n' "$SERVER_ENV"; printf 'IMAGE=%s\nIMAGE_TAG=%s\n' "$IMAGE" "$GITHUB_SHA"; } \
-            | ssh -i ~/.ssh/ec2 "$remote" 'umask 077 && cat > ~/first-domino/.env'
+          # Committed settings first, then the secrets (later values win).
+          { cat deploy/config.env; printf '\n%s\n' "$SERVER_ENV"; } \
+            | ssh -i ~/.ssh/ec2 "$EC2_USER@$EC2_HOST" 'mkdir -p ~/first-domino && umask 077 && cat > ~/first-domino/.env'
       - name: Roll out the new image
         run: |
-          ssh -i ~/.ssh/ec2 "$EC2_USER@$EC2_HOST" \
-            'cd ~/first-domino && docker compose pull && docker compose up -d --remove-orphans --wait && docker image prune -f'
+          ssh -i ~/.ssh/ec2 "$EC2_USER@$EC2_HOST" "IMAGE_REF=$IMAGE:$GITHUB_SHA bash -s" < deploy/run-api.sh
       - name: Check the live API
         run: |
           API_DOMAIN=$(sed -n 's/^API_DOMAIN=//p' deploy/config.env)

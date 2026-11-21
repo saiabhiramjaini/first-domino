@@ -8,7 +8,7 @@ Changes from the original:
 - Removed: init and package lists (in `STANDARDS.md`), Husky, the `apiFetch` wrapper (replaced by the generated client), the feature folder and app structure sections (in `STANDARDS.md`), the governance document templates, the Vercel files and the CI template.
 - `reportClientError` is always called with a `"feature.action"` string as its source.
 - The toast component is shadcn `sonner`.
-- `.env.example` adds the Clerk keys.
+- `.env.example` adds the NextAuth and API token variables.
 
 ---
 
@@ -29,13 +29,13 @@ reportClientError(...)          →   POST /api/log/client-error → same Pino l
 - Forms: Zod via `zodResolver` plus `toast.error` or `form.setError`. Never a raw fetch error string.
 - API responses are checked with their generated Zod schema. Drift becomes an `ApiError` and a toast, not a crash three components down.
 
-| Level | When |
-| --- | --- |
-| `fatal` | The process is going down |
+| Level   | When                                                       |
+| ------- | ---------------------------------------------------------- |
+| `fatal` | The process is going down                                  |
 | `error` | SSR, route or API call failed; a client error was reported |
-| `warn` | Recoverable |
-| `info` | Rare in this app |
-| `debug` | Off in production unless `LOG_LEVEL=debug` |
+| `warn`  | Recoverable                                                |
+| `info`  | Rare in this app                                           |
+| `debug` | Off in production unless `LOG_LEVEL=debug`                 |
 
 - Dual fields: `level` and GCP-style `severity`. `service` from `DD_SERVICE`.
 - `APP_ENV=local|dev|prod` is a **build argument**. Browser source maps on local and dev, **off in prod**.
@@ -104,8 +104,12 @@ const isProd = process.env.NODE_ENV === "production";
 const isTest = process.env.NODE_ENV === "test";
 
 const PINO_TO_SEVERITY: Record<string, string> = {
-  trace: "DEBUG", debug: "DEBUG", info: "INFO",
-  warn: "WARNING", error: "ERROR", fatal: "CRITICAL",
+  trace: "DEBUG",
+  debug: "DEBUG",
+  info: "INFO",
+  warn: "WARNING",
+  error: "ERROR",
+  fatal: "CRITICAL",
 };
 
 const baseOptions: LoggerOptions = {
@@ -113,7 +117,10 @@ const baseOptions: LoggerOptions = {
   serializers: { err: pino.stdSerializers.err, error: pino.stdSerializers.err },
   formatters: {
     level(label) {
-      return { level: label, severity: PINO_TO_SEVERITY[label] ?? label.toUpperCase() };
+      return {
+        level: label,
+        severity: PINO_TO_SEVERITY[label] ?? label.toUpperCase(),
+      };
     },
     bindings() {
       return { service: process.env.DD_SERVICE ?? "first-domino-web" };
@@ -122,9 +129,16 @@ const baseOptions: LoggerOptions = {
   timestamp: pino.stdTimeFunctions.isoTime,
   redact: {
     paths: [
-      "password", "*.password", "token", "*.token",
-      "apiKey", "*.apiKey", "authorization", "*.authorization",
-      "headers.authorization", "headers.cookie",
+      "password",
+      "*.password",
+      "token",
+      "*.token",
+      "apiKey",
+      "*.apiKey",
+      "authorization",
+      "*.authorization",
+      "headers.authorization",
+      "headers.cookie",
     ],
     censor: "[REDACTED]",
     remove: false,
@@ -133,14 +147,25 @@ const baseOptions: LoggerOptions = {
 
 const devTransport: LoggerOptions["transport"] =
   !isProd && !isTest
-    ? { target: "pino-pretty", options: { colorize: true, translateTime: "SYS:HH:MM:ss.l", ignore: "pid,hostname,service,severity" } }
+    ? {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "SYS:HH:MM:ss.l",
+          ignore: "pid,hostname,service,severity",
+        },
+      }
     : undefined;
 
 function buildDestination(): pino.DestinationStream | undefined {
   const appLogFile = process.env.APP_LOG_FILE;
   if (!appLogFile || devTransport) return undefined;
   try {
-    const fileStream = pino.destination({ dest: appLogFile, mkdir: true, sync: false });
+    const fileStream = pino.destination({
+      dest: appLogFile,
+      mkdir: true,
+      sync: false,
+    });
     fileStream.on("error", () => {});
     return pino.multistream([
       { stream: pino.destination({ dest: 1, sync: false }) },
@@ -148,7 +173,7 @@ function buildDestination(): pino.DestinationStream | undefined {
     ]);
   } catch (err) {
     process.stderr.write(
-      `[log] APP_LOG_FILE unusable, stdout only: ${err instanceof Error ? err.message : String(err)}\n`
+      `[log] APP_LOG_FILE unusable, stdout only: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     return undefined;
   }
@@ -169,13 +194,16 @@ export const log: Logger = devTransport
 export const APP_ENVIRONMENTS = ["local", "dev", "prod"] as const;
 export type AppEnvironment = (typeof APP_ENVIRONMENTS)[number];
 export type EnvironmentSettings = { enableBrowserSourceMaps: boolean };
-export const ENVIRONMENT_SETTINGS: Record<AppEnvironment, EnvironmentSettings> = {
-  local: { enableBrowserSourceMaps: true },
-  dev: { enableBrowserSourceMaps: true },
-  prod: { enableBrowserSourceMaps: false },
-};
+export const ENVIRONMENT_SETTINGS: Record<AppEnvironment, EnvironmentSettings> =
+  {
+    local: { enableBrowserSourceMaps: true },
+    dev: { enableBrowserSourceMaps: true },
+    prod: { enableBrowserSourceMaps: false },
+  };
 export function appEnvironment(value: string | undefined): AppEnvironment {
-  return APP_ENVIRONMENTS.includes(value as AppEnvironment) ? (value as AppEnvironment) : "local";
+  return APP_ENVIRONMENTS.includes(value as AppEnvironment)
+    ? (value as AppEnvironment)
+    : "local";
 }
 ```
 
@@ -205,7 +233,7 @@ export function attachProcessHandlers(): void {
   process.on("unhandledRejection", (reason) => {
     log.error(
       { err: reason instanceof Error ? reason : new Error(String(reason)) },
-      "process.unhandled_rejection"
+      "process.unhandled_rejection",
     );
   });
 }
@@ -278,7 +306,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!parsed.success) return new NextResponse(null, { status: 400 });
   const err = new Error(parsed.data.message);
   if (parsed.data.stack) err.stack = parsed.data.stack;
-  log.error({ err, source: parsed.data.source, client: { url: parsed.data.url, ip } }, "client.error_reported");
+  log.error(
+    { err, source: parsed.data.source, client: { url: parsed.data.url, ip } },
+    "client.error_reported",
+  );
   return new NextResponse(null, { status: 204 });
 }
 ```
@@ -291,7 +322,9 @@ Zod is the only validation library. Use it at every boundary: form input, API re
 
 ```typescript
 const parsed = CreateApiKeySchema.safeParse(input);
-if (!parsed.success) { /* handle */ }
+if (!parsed.success) {
+  /* handle */
+}
 
 const NameSchema = z
   .string({ message: "Name is required" })
@@ -306,12 +339,12 @@ export type CreateApiKeyInput = z.infer<typeof CreateApiKeySchema>;
 - Messages are user-facing: "Name is required", not "name must be a string".
 - `safeParse`, never `parse`, at a boundary.
 
-| Boundary | Zod |
-| --- | --- |
-| Form input (`react-hook-form` + `zodResolver`) | Always |
-| API response | Always (the generated schema) |
-| Environment variable | At first use |
-| Internal function calls | No, trust TypeScript |
+| Boundary                                       | Zod                           |
+| ---------------------------------------------- | ----------------------------- |
+| Form input (`react-hook-form` + `zodResolver`) | Always                        |
+| API response                                   | Always (the generated schema) |
+| Environment variable                           | At first use                  |
+| Internal function calls                        | No, trust TypeScript          |
 
 ---
 
@@ -323,12 +356,22 @@ export type CreateApiKeyInput = z.infer<typeof CreateApiKeySchema>;
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { CreateApiKeySchema, type CreateApiKeyInput } from "@/features/settings/schema";
+import {
+  CreateApiKeySchema,
+  type CreateApiKeyInput,
+} from "@/features/settings/schema";
 import { useCreateApiKey } from "@/hooks/api/use-create-api-key";
 import { reportClientError } from "@/lib/report-client-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 export function CreateApiKeyForm() {
   const createApiKey = useCreateApiKey();
@@ -344,7 +387,9 @@ export function CreateApiKeyForm() {
       form.reset();
     } catch (error) {
       reportClientError(error, "settings.create_api_key");
-      form.setError("root", { message: "Could not create the key. Try again." });
+      form.setError("root", {
+        message: "Could not create the key. Try again.",
+      });
     }
   }
 
@@ -357,13 +402,17 @@ export function CreateApiKeyForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Key name</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         {form.formState.errors.root && (
-          <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
+          <p className="text-sm text-destructive">
+            {form.formState.errors.root.message}
+          </p>
         )}
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Creating..." : "Create API key"}
@@ -397,15 +446,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 60 * 1000, refetchOnWindowFocus: false, retry: 1 },
+          queries: {
+            staleTime: 60 * 1000,
+            refetchOnWindowFocus: false,
+            retry: 1,
+          },
         },
-      })
+      }),
   );
 
   return (
     <QueryClientProvider client={client}>
       {children}
-      {process.env.NODE_ENV === "development" && <ReactQueryDevtools initialIsOpen={false} />}
+      {process.env.NODE_ENV === "development" && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
     </QueryClientProvider>
   );
 }
@@ -413,7 +468,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
 - One `QueryClient` per app, created with `useState` inside the provider.
 - Query keys are arrays. A mutation's `onSuccess` invalidates the related queries.
-- In the root layout, `ClerkProvider` wraps `Providers`.
+- In the root layout, NextAuth's `SessionProvider` wraps `Providers`.
 
 ---
 
@@ -476,8 +531,11 @@ afterEach(() => {
 ```bash
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
+AUTH_SECRET=
+AUTH_URL=http://localhost:3000
+AUTH_GOOGLE_ID=
+AUTH_GOOGLE_SECRET=
+API_JWT_SECRET=
 APP_ENV=local
 LOG_LEVEL=debug
 DD_SERVICE=first-domino-web
@@ -527,7 +585,10 @@ log.error({ url, err }, "api.fetch_failed");
 
 ```typescript
 import type { NextConfig } from "next";
-import { ENVIRONMENT_SETTINGS, appEnvironment } from "./src/lib/app-environment";
+import {
+  ENVIRONMENT_SETTINGS,
+  appEnvironment,
+} from "./src/lib/app-environment";
 
 const environment = ENVIRONMENT_SETTINGS[appEnvironment(process.env.APP_ENV)];
 
@@ -544,7 +605,10 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
         ],
       },
     ];
@@ -564,17 +628,22 @@ export async function register(): Promise<void> {
   const { attachProcessHandlers } = await import("./lib/process-handlers");
   attachProcessHandlers();
   const { log } = await import("./lib/log");
-  if (!process.env.NEXT_PUBLIC_APP_URL) log.warn({ key: "NEXT_PUBLIC_APP_URL" }, "instrumentation.missing_env");
+  if (!process.env.NEXT_PUBLIC_APP_URL)
+    log.warn({ key: "NEXT_PUBLIC_APP_URL" }, "instrumentation.missing_env");
 }
 
 export async function onRequestError(
   err: unknown,
-  request: { path: string; method: string; headers: { [key: string]: string | undefined } },
+  request: {
+    path: string;
+    method: string;
+    headers: { [key: string]: string | undefined };
+  },
   context: {
     routerKind: "Pages Router" | "App Router";
     routePath: string;
     routeType: "render" | "route" | "action" | "middleware";
-  }
+  },
 ): Promise<void> {
   const { log } = await import("./lib/log");
   const error = err instanceof Error ? err : new Error(String(err));
@@ -586,9 +655,13 @@ export async function onRequestError(
       err: error,
       digest,
       request: { path: request.path, method: request.method, ip },
-      route: { kind: context.routerKind, path: context.routePath, type: context.routeType },
+      route: {
+        kind: context.routerKind,
+        path: context.routePath,
+        type: context.routeType,
+      },
     },
-    "request.error"
+    "request.error",
   );
 }
 ```
@@ -620,7 +693,11 @@ export default function Error({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4">
       <h2 className="text-lg font-semibold">Something went wrong</h2>
-      {error.digest && <p className="text-sm text-muted-foreground">Reference: {error.digest}</p>}
+      {error.digest && (
+        <p className="text-sm text-muted-foreground">
+          Reference: {error.digest}
+        </p>
+      )}
       <Button onClick={reset}>Try again</Button>
     </div>
   );
@@ -690,10 +767,12 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: { default: "First Domino", template: "%s | First Domino" },
-  description: "Find the step where your AI agent's run started to fall. Proven, not guessed.",
+  description:
+    "Find the step where your AI agent's run started to fall. Proven, not guessed.",
   openGraph: {
     title: "First Domino",
-    description: "Find the step where your AI agent's run started to fall. Proven, not guessed.",
+    description:
+      "Find the step where your AI agent's run started to fall. Proven, not guessed.",
     type: "website",
     url: APP_URL,
     siteName: "First Domino",
@@ -726,11 +805,9 @@ COPY . .
 ARG APP_ENV=dev
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV APP_ENV=$APP_ENV
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN bun run build

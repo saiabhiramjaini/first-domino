@@ -26,14 +26,14 @@ Done when `bun run check` passes and `/api/health` answers.
 
 ### 2. Shell and sign-in
 
-- Clerk sign-in and sign-up; signed-out visitors see the landing page only.
+- Google sign-in with NextAuth, as `frontend/STANDARDS.md` "Auth" says; signed-out visitors see the landing page only.
 - App shell: sidebar with Failures, Root causes, Benchmark, Settings; the project name; the user menu.
 - Landing page: the product in one sentence, the "first domino" idea, a sign-in button.
 
 ### 3. API layer (after contract v1)
 
 - Generate the typed client and Zod schemas from `../api/openapi.json` into `src/api/generated/`.
-- One React Query hook per operation in `src/hooks/api/` (`use-list-runs`, `use-get-diagnosis`, `use-create-diagnosis`, ...), sending the Clerk token.
+- One React Query hook per operation in `src/hooks/api/` (`use-list-runs`, `use-get-diagnosis`, `use-create-diagnosis`, ...), sending the web session token.
 - Until real handlers land, the API answers with example data, so screens work from the start.
 
 ### 4. Screens (milestone C2 with example data, C4 with real data)

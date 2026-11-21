@@ -11,7 +11,8 @@ Read [`AGENTS.md`](./AGENTS.md) and [`STANDARDS.md`](./STANDARDS.md) first. ESLi
 - A secret in code or behind `NEXT_PUBLIC_*`, or a server-only module imported by a client component.
 - A module-level `throw` on an environment variable.
 - `err.message` or a stack shown on the page.
-- A first-party database, server action, NextAuth or Redis added.
+- A first-party database, server action, Redis or NextAuth database adapter added, or a sign-in provider other than Google.
+- A signed-in route left out of the `proxy.ts` matcher, or access decided from session claims in the browser only.
 - `console.*` in app code, an empty `catch`, or `alert()`.
 
 ## 🟡 Should fix

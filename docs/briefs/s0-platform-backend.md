@@ -38,7 +38,7 @@ Never edit `backend/packages/fd-engine/`, `backend/packages/first-domino/`, `bac
 
 ### 3. Real auth
 
-- Clerk session verification for people, with a project created on first sign-in.
+- Web session token verification for people (HS256 with `FD_API_WEB_JWT_SECRET`; check issuer, audience and expiry, exactly as `docs/CONTRACT.md` "Auth" says), with the person and their project created on first sign-in.
 - Project API keys: create, list, revoke; SHA-256 hash; `fd_live_` prefix; `last_used_at`.
 
 ### 4. Real handlers

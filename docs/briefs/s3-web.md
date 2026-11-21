@@ -1,13 +1,13 @@
 # Brief S3: web app
 
-You are the frontend engineer for **First Domino**, a hackathon project (Builders 2026, code freeze Sunday 22 Nov 2026 at 2:00 PM). First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. You build the web app that judges click through. It is a frontend-only Next.js app that talks to the First Domino API (FastAPI) over HTTP.
+You are the frontend engineer for **First Domino**. First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. You build the web app that judges click through. It is a frontend-only Next.js app that talks to the First Domino API (FastAPI) over HTTP.
 
 **Open this chat in `client/`** (inside your worktree), so it loads the frontend rules. Paths below are from the repo root.
 
 ## Read first, in this order
 
 1. `client/AGENTS.md`, then `client/STANDARDS.md` and `client/REVIEW.md` (your rules)
-2. `AGENTS.md` at the repo root (shared rules: git, no copied code, hackathon constraints)
+2. `AGENTS.md` at the repo root (shared rules: git, no copied code, scope)
 3. `docs/PARALLEL_WORK.md`
 4. `docs/CONTRACT.md` (every screen reads from these operations)
 5. `docs/ARCHITECTURE.md`

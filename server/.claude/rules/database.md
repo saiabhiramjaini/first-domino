@@ -65,7 +65,7 @@ The one exception is a **computed row**: an aggregate (`group_by` with `func.cou
 
 ## Schema changes
 
-- Tables are created at startup by `create_all`. There is no migration tool during the hackathon; see `docs/DECISIONS.md`.
+- Tables are created at startup by `create_all`. There is no migration tool yet; see `docs/DECISIONS.md`.
 - A schema change therefore means dropping the local database. Say so in the change.
 
 ## Settings

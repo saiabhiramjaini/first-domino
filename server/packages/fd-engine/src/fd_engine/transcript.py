@@ -1,4 +1,4 @@
-"""Renders a run's steps as plain text for the fixer, the explainer and the baseline judge."""
+"""Renders a run's steps as plain text for the fixer and the explainer."""
 
 from fd_shared.models import Message, RunView, StepView
 

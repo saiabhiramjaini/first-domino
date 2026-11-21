@@ -1,7 +1,7 @@
 [project]
 name = "fd-engine"
 version = "0.1.0"
-description = "The core: bisect over save points, verify by replay, fallback, explain, group and the baseline judge."
+description = "The core: bisect over save points, verify by replay, fallback, explain and group."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

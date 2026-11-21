@@ -15,7 +15,7 @@ select = [
   "RUF",     # ruff-specific
   "ASYNC",   # async pitfalls, such as blocking calls in async functions
   "T10",     # no debugger calls
-  "T20",     # no print outside fd-scripts
+  "T20",     # no print
   "C901",    # complexity cap
   "FBT",     # no positional boolean parameters
   "N818",    # exception names end in Error
@@ -36,12 +36,11 @@ ban-relative-imports = "parents"
 [lint.isort]
 known-first-party = [
   "fd_shared", "fd_database", "fd_engine", "fd_api",
-  "first_domino", "fd_demo_agent", "fd_scripts",
+  "first_domino",
 ]
 
 [lint.per-file-ignores]
 "**/tests/**" = ["FBT", "PLR0915", "ERA001"]
-"packages/fd-scripts/**" = ["T20"]
 
 [format]
 quote-style = "double"

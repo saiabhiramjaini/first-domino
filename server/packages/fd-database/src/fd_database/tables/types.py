@@ -11,7 +11,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import TypeDecorator
 
 from fd_shared.enums import (
-    BenchmarkMethod,
     CauseCategory,
     CheckPhase,
     CheckResult,
@@ -38,7 +37,6 @@ CHECK_RESULT = _pg_enum(CheckResult, "check_result")
 REPLAY_JOB_STATUS = _pg_enum(ReplayJobStatus, "replay_job_status")
 REPLAY_OUTCOME = _pg_enum(ReplayOutcome, "replay_outcome")
 CAUSE_CATEGORY = _pg_enum(CauseCategory, "cause_category")
-BENCHMARK_METHOD = _pg_enum(BenchmarkMethod, "benchmark_method")
 
 # Stored as text (not a Postgres enum) so adding a code never needs a schema change.
 DIAGNOSIS_ERROR_CODE = SqlEnum(

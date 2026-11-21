@@ -23,12 +23,11 @@ An agent run is a list of steps. Each step is one LLM turn plus the results of t
 
 | Component | Runs where | Job |
 | --- | --- | --- |
-| `fd-api` | our cloud | Auth, ingest, job queue, diagnoses, causes, benchmark |
+| `fd-api` | our cloud | Auth, ingest, job queue, diagnoses, causes |
 | `fd-engine` | inside `fd-api` | Decides which save point to test, reads results, proves the root cause |
 | `fd-database` | our cloud | Postgres tables and repositories |
 | `first-domino` SDK | customer side | Records steps; replay worker runs the customer's agent on command |
-| `fd-demo-agent` | customer side (demo) | Plays the customer: its own agent, mock world and success check |
-| `client/` | our cloud | Next.js app: sign-in, failures inbox, live diagnosis, causes, benchmark, settings |
+| `client/` | our cloud | Next.js app: sign-in, failures inbox, live diagnosis, causes, settings |
 
 ## Why the replay runs on the customer side
 
@@ -87,7 +86,6 @@ All numbers in this rule (k, the verify threshold, the fallback window) are engi
 | `diagnoses` | One per diagnose request: status, first domino step, verified, cost |
 | `checks` | One per bisect or verify check: save point, passes, total |
 | `causes` | Grouped root causes: title, category, explanation, suggested fix |
-| `benchmark_results` | Method, run, predicted step, true step, cost |
 
 ## Auth
 

@@ -4,7 +4,7 @@ Find the first domino: the step where your AI agent's run started to fall. Prove
 
 First Domino takes a failed agent run, re-runs the agent from its own save points, binary-searches for the step where the run became doomed, then fixes that one step and replays to prove it.
 
-> Status: built for Builders 2026 and running locally (web on :3000, API on :8000).
+> Status: early version. Runs locally (web on :3000, API on :8000) and in production (see `docs/DEPLOY.md`).
 
 ## Repository layout
 
@@ -18,7 +18,7 @@ first-domino/
     status/              one status file per workstream
     ARCHITECTURE.md      how the pieces fit
     DECISIONS.md         what is decided and what is open
-  server/                Python: API, engine, database, SDK, demo agent, scripts
+  server/                Python: API, engine, database, SDK
   client/                Next.js web app
   .github/workflows/     server.yml and client.yml
 ```
@@ -29,12 +29,11 @@ The server and the client are fully separate: each has its own tooling, dependen
 
 Needs Python 3.12 with `uv`, Bun, Docker (running) and `jq`.
 
-1. Environment files. Copy `server/.env.example` to `server/.env` and fill in `OPENAI_API_KEY`, `FD_ENGINE_STRONG_MODEL`, `FD_DEMO_AGENT_MODEL` and `FD_API_WEB_JWT_SECRET`. Copy `client/.env.example` to `client/.env.local` and fill in the Google OAuth client, `AUTH_SECRET`, and `API_JWT_SECRET` (the same value as `FD_API_WEB_JWT_SECRET`).
+1. Environment files. Copy `server/.env.example` to `server/.env` and fill in `OPENAI_API_KEY`, `FD_ENGINE_STRONG_MODEL` and `FD_API_WEB_JWT_SECRET`. Copy `client/.env.example` to `client/.env.local` and fill in the Google OAuth client, `AUTH_SECRET`, and `API_JWT_SECRET` (the same value as `FD_API_WEB_JWT_SECRET`).
 2. Install: `make install` in `server/`, `bun install` in `client/`.
 3. Database and API, from `server/`: `make db-up`, then `make api` (port 8000; it creates the tables on start).
 4. Web app, from `client/`: `bun run dev` (port 3000). Sign in with Google once.
-5. Demo customer, from `server/`: `make seed-demo EMAIL=<your Google email>` prints an API key; put it in `server/.env` as `FIRST_DOMINO_API_KEY`, then start `make worker` in its own terminal.
-6. Try it: `make demo-live` records a failing call and prints its link. Open it and watch the diagnosis.
+5. Connect an agent: follow the steps on the web app's Settings page. The example customer is the separate `call-assistant` project (not in this repository): it installs the SDK, records calls and runs the replay worker against this API.
 
 Checks: `make check` in `server/`, `bun run check` in `client/`.
 

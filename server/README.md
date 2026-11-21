@@ -1,6 +1,6 @@
 # First Domino backend
 
-The Python half of First Domino: the control plane API, the bisect engine, the database, the public SDK, the demo customer agent and the scripts.
+The Python half of First Domino: the control plane API, the bisect engine, the database, and the public SDK.
 
 > Status: layout only. No product code yet.
 
@@ -17,9 +17,6 @@ server/
     fd-engine/           bisect, verify, explain, group, baseline (the core)
     fd-api/              FastAPI control plane: auth, ingest, jobs, diagnoses
     first-domino/        public Python SDK: recorder, OpenAI wrapper, replay worker
-    fd-demo-agent/       demo customer: agent, mock world, success check, worker
-    fd-scripts/          dataset builder, benchmark, OpenAPI export
-  data/                  generated datasets and benchmark output (not committed)
   compose.yaml           local Postgres
   Makefile               common commands
 ```

@@ -17,7 +17,7 @@ async def test_invited_person_signs_into_the_demo_project(
     by_person = await client.get("/v1/projects.self", headers=person)
     by_key = await client.get("/v1/projects.self", headers=bearer(secret))
 
-    assert by_person.json()["project"]["name"] == "Equal AI (demo)"
+    assert by_person.json()["project"]["name"] == "Call assistant (demo)"
     assert by_person.json()["project"]["id"] == by_key.json()["project"]["id"]
 
 
@@ -28,4 +28,4 @@ async def test_seeding_again_keeps_one_project(client: AsyncClient, database: Da
 
     projects = await client.get("/v1/projects.self", headers=person)
 
-    assert projects.json()["project"]["name"] == "Equal AI (demo)"
+    assert projects.json()["project"]["name"] == "Call assistant (demo)"

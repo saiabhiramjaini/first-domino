@@ -6,9 +6,7 @@ requires-python = "==3.12.*"
 members = [
     "fd-api",
     "fd-database",
-    "fd-demo-agent",
     "fd-engine",
-    "fd-scripts",
     "fd-shared",
     "first-domino",
     "first-domino-workspace",
@@ -324,23 +322,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "fd-demo-agent"
-version = "0.1.0"
-source = { editable = "packages/fd-demo-agent" }
-dependencies = [
-    { name = "first-domino", extra = ["openai"] },
-    { name = "openai" },
-    { name = "pydantic-settings" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "first-domino", extras = ["openai"], editable = "packages/first-domino" },
-    { name = "openai", specifier = ">=1.55" },
-    { name = "pydantic-settings", specifier = ">=2.6" },
-]
-
-[[package]]
 name = "fd-engine"
 version = "0.1.0"
 source = { editable = "packages/fd-engine" }
@@ -353,29 +334,6 @@ dependencies = [
 requires-dist = [
     { name = "fd-shared", editable = "packages/fd-shared" },
     { name = "openai", specifier = ">=1.55" },
-]
-
-[[package]]
-name = "fd-scripts"
-version = "0.1.0"
-source = { editable = "packages/fd-scripts" }
-dependencies = [
-    { name = "click" },
-    { name = "fd-api" },
-    { name = "fd-database" },
-    { name = "fd-demo-agent" },
-    { name = "fd-engine" },
-    { name = "fd-shared" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.1" },
-    { name = "fd-api", editable = "packages/fd-api" },
-    { name = "fd-database", editable = "packages/fd-database" },
-    { name = "fd-demo-agent", editable = "packages/fd-demo-agent" },
-    { name = "fd-engine", editable = "packages/fd-engine" },
-    { name = "fd-shared", editable = "packages/fd-shared" },
 ]
 
 [[package]]
@@ -430,9 +388,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fd-api" },
     { name = "fd-database" },
-    { name = "fd-demo-agent" },
     { name = "fd-engine" },
-    { name = "fd-scripts" },
     { name = "fd-shared" },
     { name = "first-domino" },
 ]
@@ -451,9 +407,7 @@ dev = [
 requires-dist = [
     { name = "fd-api", editable = "packages/fd-api" },
     { name = "fd-database", editable = "packages/fd-database" },
-    { name = "fd-demo-agent", editable = "packages/fd-demo-agent" },
     { name = "fd-engine", editable = "packages/fd-engine" },
-    { name = "fd-scripts", editable = "packages/fd-scripts" },
     { name = "fd-shared", editable = "packages/fd-shared" },
     { name = "first-domino", editable = "packages/first-domino" },
 ]

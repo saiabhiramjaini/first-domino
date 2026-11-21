@@ -10,8 +10,6 @@ dependencies = [
     "fd-engine",
     "fd-api",
     "first-domino",
-    "fd-demo-agent",
-    "fd-scripts",
 ]
 
 [dependency-groups]
@@ -36,8 +34,6 @@ fd-database = { workspace = true }
 fd-engine = { workspace = true }
 fd-api = { workspace = true }
 first-domino = { workspace = true }
-fd-demo-agent = { workspace = true }
-fd-scripts = { workspace = true }
 
 [tool.ruff]
 extend = "ruff.toml"

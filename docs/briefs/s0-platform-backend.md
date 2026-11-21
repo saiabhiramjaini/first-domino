@@ -1,6 +1,6 @@
 # Brief S0: platform backend (contract, database, API)
 
-You are the platform backend engineer for **First Domino**, a hackathon project (Builders 2026, code freeze Sunday 22 Nov 2026 at 2:00 PM). First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. You own the contract, the database and the API. Four other agents work in parallel and depend on your first milestone.
+You are the platform backend engineer for **First Domino**. First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. You own the contract, the database and the API. Four other agents work in parallel and depend on your first milestone.
 
 **Open this chat in `server/`** (inside your worktree), so it loads the backend rules, hooks and skills. Paths below are from the repo root.
 

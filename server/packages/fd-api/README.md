@@ -1,10 +1,10 @@
 # fd-api
 
-FastAPI control plane: auth, run ingest, the replay job queue, diagnoses, causes and the benchmark.
+FastAPI control plane: auth, run ingest, the replay job queue, diagnoses and causes.
 
 - **Layer:** Service
 - **May import:** `fd-shared`, `fd-database`, `fd-engine`
-- **Must never import:** `first-domino`, `fd-demo-agent`
+- **Must never import:** `first-domino`
 - **Rules:** [`.claude/rules/api.md`](../../.claude/rules/api.md)
 
 ## Modules
@@ -25,7 +25,6 @@ FastAPI control plane: auth, run ingest, the replay job queue, diagnoses, causes
 | `routers/diagnoses` | Diagnoses routes: start a diagnosis and read its checks and verdict. |
 | `routers/causes` | Causes routes: list cause groups and get one with its runs. |
 | `routers/replay_jobs` | Worker protocol routes: lease a replay job and submit its result. |
-| `routers/benchmark` | Benchmark routes: start a benchmark and read the latest scores. |
 | `services/` | Application services that coordinate the engine and storage. |
 | `services/diagnosis_runner` | Registry that runs diagnoses as tracked background tasks. |
 | `adapters/` | Adapters that implement the engine ports. |

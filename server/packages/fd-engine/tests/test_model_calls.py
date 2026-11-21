@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import pytest
 
-from fd_engine.baseline import BaselineJudge
 from fd_engine.explain import LlmExplainer, unexplained
 from fd_engine.fix import LlmStepFixer
 from fd_engine.group import CauseCandidate, CauseGrouper
@@ -226,14 +225,3 @@ async def test_group_numbers_only_the_keyed_candidates() -> None:
     assert match.cause_id == keyed.id
     assert f"1. {keyed.title}" in transport.prompts[0]
     assert other_tool.title not in transport.prompts[0]
-
-
-@pytest.mark.parametrize(("step", "expected"), [(3, 3), (9, None), (0, None)])
-async def test_baseline_keeps_only_steps_of_the_run(step: int, expected: int | None) -> None:
-    model, _ = llm(json.dumps({"step": step, "reason": "r"}))
-    reader = FakeReader(step_count=4)
-    run = await reader.get_run(reader.run_id)
-
-    prediction = await BaselineJudge(model).predict(run, await reader.get_steps(reader.run_id))
-
-    assert prediction.step == expected

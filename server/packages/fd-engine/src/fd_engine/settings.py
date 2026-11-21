@@ -22,7 +22,7 @@ class EngineSettings(SettingsBase):
     """Bisect replays on `strong_model` instead of the agent's own model.
 
     Off by default: a stronger model recovers from mistakes the agent itself never recovers
-    from, so bisect lands late. Measured on the call-assistant benchmark.
+    from, so bisect lands late. Measured on planted-bug calls.
     """
     samples_per_check: int = Field(default=3, ge=1)
     verify_samples: int = Field(default=5, ge=1)

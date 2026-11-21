@@ -4,7 +4,6 @@ from fastapi import APIRouter
 
 from fd_api.routers import (
     api_keys,
-    benchmarks,
     causes,
     checks,
     diagnoses,
@@ -24,6 +23,5 @@ ROUTERS: list[APIRouter] = [
     diagnoses.router,
     checks.router,
     causes.router,
-    benchmarks.router,
     replay_jobs.router,
 ]

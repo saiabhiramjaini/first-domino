@@ -23,11 +23,11 @@ Only the platform backend workstream (S0) edits this file. Anyone else who needs
 | Caller | How | Used by |
 | --- | --- | --- |
 | Person | `Authorization: Bearer <web session token>` | Web app |
-| SDK or worker | `Authorization: Bearer <project API key>` (`fd_live_` prefix) | `first-domino` SDK, demo agent |
+| SDK or worker | `Authorization: Bearer <project API key>` (`fd_live_` prefix) | `first-domino` SDK and replay worker |
 
 - People sign in to the web app with Google through NextAuth (Auth.js v5, JWT sessions, no database adapter). The web app's server mints the **web session token**: an HS256 JWT signed with the secret both halves share (`API_JWT_SECRET` in the frontend, `FD_API_WEB_JWT_SECRET` in the backend), with claims `sub` (the Google account id), `email`, `name`, `iss` = `first-domino-web`, `aud` = `first-domino-api`, `iat` and `exp` (1 hour). It is re-minted before it expires.
 - The API verifies the signature, issuer, audience and expiry, then finds or creates the person by `sub`. It never trusts other claims for access.
-- A person's first authenticated call creates their project. A person has exactly one project during the hackathon.
+- A person's first authenticated call creates their project. For now a person has exactly one project.
 - Each operation below lists which caller it accepts: **P** (person), **K** (API key) or **P/K**.
 
 ## Errors
@@ -60,7 +60,6 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `ReplayJobStatus` | `queued`, `leased`, `succeeded`, `failed`, `expired` |
 | `ReplayOutcome` | `passed`, `failed`, `errored` |
 | `CauseCategory` | `wrong_date`, `wrong_entity`, `wrong_filter`, `bad_tool_args`, `hallucination`, `tool_issue`, `other` |
-| `BenchmarkMethod` | `first_domino`, `read_trace_judge` |
 | `ApiErrorCode` | the `code` values in the table above |
 
 ## Shared objects
@@ -105,7 +104,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `countRuns` | `POST /v1/runs.count` | P | same filters as `listRuns` | `count` |
 
 - `startRun` with a `replay_job_id` creates a `replay` run linked to the job's original run.
-- `finishRun` on a `failed` recorded run triggers auto-diagnosis when the project has it on (always on during the hackathon).
+- `finishRun` on a `failed` recorded run triggers auto-diagnosis when the project has it on (always on for now).
 
 ### Step
 
@@ -161,16 +160,6 @@ The runs of a cause come from `listDiagnoses` with `cause_ids`.
 **RegressionCase**: `run_id`, `diagnosis_id`, `agent_name`, `task_input`, `first_domino_step`, `messages` (the conversation just before that step), `original_output` (what the agent did there), `fixed_output` (or null; the step replays passed with), `verified`. Each case is a failed run that should pass once the agent is fixed. Newest first, one per diagnosed run, at most `FD_API_CAUSE_EXPORT_MAX_CASES` (default 100).
 
 - A run belongs to the cause of its latest diagnosis only.
-
-### Benchmark
-
-**BenchmarkScore**: `method` (`BenchmarkMethod`), `runs_scored`, `exact_accuracy`, `within_one_accuracy`, `verified_rate` (or null for methods without proof), `mean_cost_usd`, `mean_seconds`.
-
-| Operation | Path | Caller | Request | Response |
-| --- | --- | --- | --- | --- |
-| `getLatestBenchmark` | `GET /v1/benchmarks.latest` | P | none | `benchmark`: `{id, created_at, scores: [BenchmarkScore]}` or null |
-
-The benchmark is run by `fd-scripts`, which writes results to the database. There is no API to start one.
 
 ### Health
 

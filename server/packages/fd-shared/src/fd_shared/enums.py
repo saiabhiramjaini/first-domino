@@ -128,13 +128,6 @@ class CauseCategory(StrEnum):
     OTHER = "other"
 
 
-class BenchmarkMethod(StrEnum):
-    """A way of finding the first domino step that the benchmark scores."""
-
-    FIRST_DOMINO = "first_domino"
-    READ_TRACE_JUDGE = "read_trace_judge"
-
-
 class ApiErrorCode(StrEnum):
     """The stable `code` of every API error body. Branch on this, never on the text."""
 

@@ -6,7 +6,7 @@ Use this before you call a change done, and when you ask a coding agent to revie
 
 - **Cross-project leak.** A query on a project-owned table with no `project_id` filter.
 - **Layer break.** An import that `AGENTS.md` forbids, such as `fd-engine` importing `fd-database`, or the SDK importing an `fd-*` package.
-- **Hand-copied contract.** An SDK or demo-agent type written by hand instead of generated from `api/openapi.json`.
+- **Hand-copied contract.** An SDK type written by hand instead of generated from `api/openapi.json`.
 - **Plain secret.** An API key stored or compared in plain text, a secret in a log line, or a secret value committed anywhere.
 - **Unguarded model output.** `json.loads` or a parse of model output whose failure can stop a diagnosis.
 - **Lost background task.** `asyncio.create_task` with no strong reference held until the task ends.

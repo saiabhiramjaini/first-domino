@@ -1,6 +1,6 @@
 # Backend rules
 
-Rules for everything under `server/`: the API, the engine, the database, the SDK, the demo agent and the scripts. The repo-root `AGENTS.md` also applies (hackathon constraints, parallel work, git). `CLAUDE.md` here only imports this file. Rules for one area live in `.claude/rules/<area>.md` and load when you touch the files they name.
+Rules for everything under `server/`: the API, the engine, the database, and the SDK. The repo-root `AGENTS.md` also applies (scope, parallel work, git). `CLAUDE.md` here only imports this file. Rules for one area live in `.claude/rules/<area>.md` and load when you touch the files they name.
 
 Run every command in this file from `server/`.
 
@@ -20,13 +20,11 @@ The workspace is a `uv` monorepo under `packages/`. Imports flow one way only. "
 | Shared | `fd-shared` | third-party only | any `fd-*` package |
 | Storage | `fd-database` | `fd-shared` | `fd-engine`, `fd-api` |
 | Logic | `fd-engine` | `fd-shared` | `fd-database`, `fd-api`, `first-domino` |
-| Service | `fd-api` | `fd-shared`, `fd-database`, `fd-engine` | `first-domino`, `fd-demo-agent` |
+| Service | `fd-api` | `fd-shared`, `fd-database`, `fd-engine` | `first-domino` |
 | Public SDK | `first-domino` | third-party only | any `fd-*` package |
-| Demo customer | `fd-demo-agent` | `first-domino` | any `fd-*` package |
-| Tooling | `fd-scripts` | any package | (nothing imports it) |
 
 - The engine never touches the database or HTTP. It depends on the `Protocol` ports in `fd_engine.ports`. The API provides the adapters.
-- The SDK and the demo agent talk to the API only over HTTP. They are a real customer, so they get no shortcut into the backend.
+- The SDK talks to the API only over HTTP. Customers use it from outside, so it gets no shortcut into the backend.
 - The API owns the wire contract. `make openapi` writes `api/openapi.json`, and `make sdk-models` generates `first_domino/_generated/` from it. Never hand-copy a contract type.
 
 ## Typed boundaries
@@ -54,8 +52,8 @@ Rules for settings:
 ## Locating files
 
 - Never hardcode a repo-relative path at a call site, and never walk up from `Path(__file__)`.
-- Data that ships inside a package (the demo agent's world data) is read with `importlib.resources.files("<package>")`.
-- A path to a file read or written at run time (datasets, benchmark output, the OpenAPI export) is a settings field.
+- Data that ships inside a package is read with `importlib.resources.files("<package>")`.
+- A path to a file read or written at run time (such as the OpenAPI export) is a settings field.
 
 ## Async
 
@@ -70,7 +68,7 @@ Rules for settings:
 - Model output is untrusted. Every parse must **retry** once, **salvage** what is valid, and **degrade** to a safe default so one bad response never stops a diagnosis.
 - Use a direct model call for judgment over data you already have (explain, group, judge). Only replays run the agent loop.
 - Use plain code when a rule is enough. Success checks are code, not a model.
-- Record tokens and cost for every call. The benchmark reports them.
+- Record tokens and cost for every call.
 
 ## Errors
 
@@ -88,7 +86,7 @@ Rules for settings:
 
 - Use `fd_shared.logging.get_logger`. Log structured fields with an event name: `log.info("diagnosis.started", run_id=run_id)`.
 - Event names are `area.event` in snake case. Never build a message by string concatenation.
-- Never use `print` outside `fd-scripts`.
+- Never use `print`. Log instead.
 
 ## Comments and docstrings
 
@@ -109,7 +107,6 @@ Rules for settings:
 
 - `make check` runs ruff, pyright and pytest. Run it before you call a change done.
 - Ruff runs on every edited Python file, and again over all packages when an agent stops, through the hooks in `.claude/settings.json`. They load when the agent chat is opened in `server/`.
-- A guard test in `packages/fd-scripts/tests/test_source_guards.py` (written with the first real code) enforces what ruff cannot: the layer import bans, no mixed-value `dict` in a public signature, and no model id outside a settings module.
 - A `# noqa` or `# pyright: ignore` needs a reason on the same line. Do not add one to new code to hide a design problem.
 - The `code-design` skill in `.claude/skills/` is for real placement questions, not a checkbox before every change.
 

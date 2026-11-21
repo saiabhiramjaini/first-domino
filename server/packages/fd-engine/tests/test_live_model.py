@@ -11,7 +11,6 @@ from uuid import uuid4
 import pytest
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from fd_engine.baseline import BaselineJudge
 from fd_engine.explain import LlmExplainer, unexplained
 from fd_engine.fix import LlmStepFixer
 from fd_engine.group import CauseCandidate, CauseGrouper
@@ -256,13 +255,3 @@ async def test_grouper_keeps_the_demo_mistakes_apart(llm: Llm) -> None:
     group_of = await file_all(CauseGrouper(llm))
 
     assert len(set(group_of.values())) == len(DEMO_CAUSES)
-
-
-async def test_baseline_names_a_step_of_the_run(llm: Llm) -> None:
-    run, steps = clinic_call()
-
-    prediction = await BaselineJudge(llm).predict(run, steps)
-
-    assert prediction.step is not None
-    assert 1 <= prediction.step <= len(steps)
-    assert prediction.cost_usd > 0

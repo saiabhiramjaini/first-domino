@@ -19,7 +19,6 @@ Postgres tables and repositories for the control plane, on async SQLAlchemy 2.
 | `tables/runs` | Runs and steps tables. |
 | `tables/replay_jobs` | Replay jobs table. |
 | `tables/diagnoses` | Diagnoses, checks and causes tables. |
-| `tables/benchmark` | Benchmark results table. |
 | `repositories/` | Repositories: one per aggregate, every method scoped by project_id. |
 | `repositories/projects` | Projects repository. |
 | `repositories/api_keys` | API keys repository: create, look up by hash, revoke. |
@@ -28,6 +27,5 @@ Postgres tables and repositories for the control plane, on async SQLAlchemy 2.
 | `repositories/replay_jobs` | Replay jobs repository: enqueue, lease, expire leases, record results. |
 | `repositories/diagnoses` | Diagnoses and checks repository. |
 | `repositories/causes` | Causes repository. |
-| `repositories/benchmark` | Benchmark results repository. |
 
 Status: layout only. Modules hold a docstring that states their job; no code yet.

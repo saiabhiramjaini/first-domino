@@ -1,6 +1,6 @@
 """Prepares the demo workspace (`make seed-demo EMAIL=...`).
 
-Gives the person with this email a project named "Equal AI (demo)", inviting them first when
+Gives the person with this email a project named "Call assistant (demo)", inviting them first when
 they have never signed in, and writes a new API key for that project to stdout. The demo
 worker and recorder use the key, so their runs land in the workspace the person sees on sign-in.
 """
@@ -18,7 +18,7 @@ from fd_shared.logging import configure_logging, get_logger
 
 log = get_logger(__name__)
 
-DEMO_PROJECT_NAME = "Equal AI (demo)"
+DEMO_PROJECT_NAME = "Call assistant (demo)"
 DEMO_KEY_NAME = "demo worker"
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 

@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# One image for the API and the demo customer's replay worker. Pick with the command:
-#   API:    the default CMD
-#   worker: python -m fd_demo_agent.worker
+# The API image.
 
 FROM python:3.12-slim-bookworm AS build
 COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv

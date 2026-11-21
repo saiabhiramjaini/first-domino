@@ -51,8 +51,8 @@ Times assume work starts Saturday afternoon. If you start later, keep the order 
 | C3 | Sat night | First end to end: demo agent records a failed run, auto-diagnosis runs, the worker replays, the verdict is stored and shows in the web app |
 | C4 | Sun 6:30 AM | Labelled dataset and first benchmark numbers. Web shows live bisect and verdict |
 | C5 | Sun 9:30 AM | Deployed on AWS with a public HTTPS link |
-| C6 | Sun 11:00 AM | Feature freeze. Only fixes, the demo video, slides and README after this |
-| C7 | Sun 1:30 PM | Submitted. Code freeze is 2:00 PM |
+| C6 | Sun 11:00 AM | Feature freeze. Only fixes and docs after this |
+| C7 | Sun 1:30 PM | Released |
 
 ## Git and merging
 

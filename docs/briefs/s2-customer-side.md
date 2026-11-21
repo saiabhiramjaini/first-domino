@@ -1,6 +1,6 @@
 # Brief S2: customer side (demo agent and SDK)
 
-You are the customer-side engineer for **First Domino**, a hackathon project (Builders 2026, code freeze Sunday 22 Nov 2026 at 2:00 PM). First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. You build two things: the demo agent that plays a real customer, and the public SDK (`pip install first-domino`) that customers use to record runs and run replays.
+You are the customer-side engineer for **First Domino**. First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. You build two things: the demo agent that plays a real customer, and the public SDK (`pip install first-domino`) that customers use to record runs and run replays.
 
 **Open this chat in `server/`** (inside your worktree), so it loads the backend rules, hooks and skills. Paths below are from the repo root.
 
@@ -19,9 +19,9 @@ You are the customer-side engineer for **First Domino**, a hackathon project (Bu
 
 ## The demo domain
 
-**Equal AI is the first customer we build First Domino for.** The demo agent is our own replica of Equal AI's AI call assistant, built from how their public material describes it: it answers incoming phone calls on the user's behalf, talks to the caller, then takes the actions the call needs, using what it knows about the user. Calls are text transcripts; there is no audio. The user is **Arjun Rao** in Hyderabad. Fixed "today" is Saturday 21 Nov 2026, 11:00 AM IST.
+The demo agent is a generic AI call assistant: it answers incoming phone calls on the user's behalf, talks to the caller, then takes the actions the call needs, using what it knows about the user. Calls are text transcripts; there is no audio. The user is **Arjun Rao** in Hyderabad. Fixed "today" is Saturday 21 Nov 2026, 11:00 AM IST.
 
-The customer workspace in demo data is named **"Equal AI (demo)"**. That is the only real company name used. No Equal AI logos or artwork, no claim that Equal AI uses or endorses First Domino, and no real people: the user, callers and businesses are fictional. In code the agent is `call-assistant`.
+The customer workspace in demo data is named **"Call assistant (demo)"**. No real companies or people: the user, callers and businesses are fictional. In code the agent is `call-assistant`.
 
 ## Tasks, in order
 

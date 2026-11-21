@@ -6,7 +6,7 @@
 | API | One EC2 server: one Docker container, nginx + certbot for HTTPS | `https://api-first-domino.abhiramtech.in` |
 | Database | Neon Postgres | private |
 | Server image | Docker Hub `saiabhiramjaini/api-first-domino` | public |
-| Demo customer agent | Not deployed: runs on the customer's own machine (your laptop) | talks to the API |
+| Example customer agent | Not deployed: the separate `call-assistant` project on the customer's machine | talks to the API |
 
 ## Settings: code vs secrets
 
@@ -63,22 +63,11 @@ certbot adds the HTTPS part to the file and renews the certificate by itself.
 
 ## Acting as the customer
 
-The demo agent is a separate thing: the "Equal AI (demo)" call assistant, a customer of First Domino. It is never deployed with the product. It runs on the customer's machine (your laptop) and talks to the live API, like any real customer.
+The example customer is the separate `call-assistant` project, outside this repository. It is never deployed with the product: it installs the SDK, records calls and runs its replay worker on its own machine, like any real customer.
 
-1. Sign in once on `https://first-domino.abhiramtech.in` with Google.
-2. Give your account the demo project and get its API key, on the server:
-   ```bash
-   sudo docker exec first-domino-api python -m fd_api.seed_demo --email <your-google-email>
-   ```
-3. On your laptop, in `server/`: copy `customer.env.example` to `.env.customer`, fill in `FIRST_DOMINO_API_KEY` and `OPENAI_API_KEY`.
-4. Start the customer's replay worker, and leave it running:
-   ```bash
-   make customer-worker
-   ```
-5. In another terminal, record a failing call; it prints the link to watch the diagnosis:
-   ```bash
-   make customer-demo BUG=b02
-   ```
+1. Sign in on `https://first-domino.abhiramtech.in` and create an API key on the Settings page.
+2. In `call-assistant/`: copy `.env.example` to `.env`, set `FIRST_DOMINO_API_KEY`, `FIRST_DOMINO_BASE_URL=https://api-first-domino.abhiramtech.in`, `CALL_ASSISTANT_WEB_URL=https://first-domino.abhiramtech.in` and `OPENAI_API_KEY`.
+3. `make worker` (leave it running), then `make call BUG=b02` in another terminal. It prints the link to watch the diagnosis.
 
 ## Useful on the server
 

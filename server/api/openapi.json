@@ -1820,53 +1820,6 @@
         ]
       }
     },
-    "/v1/benchmarks.latest": {
-      "get": {
-        "tags": [
-          "benchmarks"
-        ],
-        "summary": "Get the latest benchmark",
-        "description": "Returns the newest benchmark scores, or null when none has run.",
-        "operationId": "getLatestBenchmark",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetLatestBenchmarkResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Not authenticated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiInternalError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/v1/replay-jobs.lease": {
       "post": {
         "tags": [
@@ -2221,111 +2174,6 @@
         ],
         "title": "ApiValidationError",
         "description": "The body of a `422` response."
-      },
-      "Benchmark": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At",
-            "description": "Time the benchmark finished, in UTC RFC 3339 format."
-          },
-          "scores": {
-            "items": {
-              "$ref": "#/components/schemas/BenchmarkScore"
-            },
-            "type": "array",
-            "title": "Scores",
-            "description": "One score per method."
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "created_at",
-          "scores"
-        ],
-        "title": "Benchmark",
-        "description": "One benchmark run over the labelled dataset."
-      },
-      "BenchmarkMethod": {
-        "type": "string",
-        "enum": [
-          "first_domino",
-          "read_trace_judge"
-        ],
-        "title": "BenchmarkMethod",
-        "description": "A way of finding the first domino step that the benchmark scores."
-      },
-      "BenchmarkScore": {
-        "properties": {
-          "method": {
-            "$ref": "#/components/schemas/BenchmarkMethod"
-          },
-          "runs_scored": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Runs Scored",
-            "description": "Number of labelled runs the method was scored on."
-          },
-          "exact_accuracy": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Exact Accuracy",
-            "description": "Share of runs where it named the labelled step exactly."
-          },
-          "within_one_accuracy": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Within One Accuracy",
-            "description": "Share of runs where it was at most one step off."
-          },
-          "verified_rate": {
-            "anyOf": [
-              {
-                "type": "number",
-                "maximum": 1.0,
-                "minimum": 0.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Verified Rate",
-            "description": "Share of runs with a fix proven by replay. Null without proof."
-          },
-          "mean_cost_usd": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Mean Cost Usd",
-            "description": "Mean model cost per run, in US dollars."
-          },
-          "mean_seconds": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Mean Seconds",
-            "description": "Mean wall time per run, in seconds."
-          }
-        },
-        "type": "object",
-        "required": [
-          "method",
-          "runs_scored",
-          "exact_accuracy",
-          "within_one_accuracy",
-          "verified_rate",
-          "mean_cost_usd",
-          "mean_seconds"
-        ],
-        "title": "BenchmarkScore",
-        "description": "How well one method found the labelled first domino step."
       },
       "Cause": {
         "properties": {
@@ -3194,26 +3042,6 @@
         ],
         "title": "GetDiagnosisResponse",
         "description": "The diagnosis."
-      },
-      "GetLatestBenchmarkResponse": {
-        "properties": {
-          "benchmark": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/Benchmark"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "required": [
-          "benchmark"
-        ],
-        "title": "GetLatestBenchmarkResponse",
-        "description": "The newest benchmark, or null when none has run."
       },
       "GetProjectSelfResponse": {
         "properties": {

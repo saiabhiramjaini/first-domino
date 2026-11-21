@@ -1,7 +1,6 @@
 """Repository behavior that the API relies on: idempotence, the job queue and tenancy."""
 
 from datetime import timedelta
-from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -10,9 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fd_database.repositories import (
     ApiKeysRepository,
-    BenchmarkRepository,
     DiagnosesRepository,
-    NewBenchmarkResult,
     ReplayJobsRepository,
     RunsRepository,
     StepsRepository,
@@ -20,7 +17,6 @@ from fd_database.repositories import (
 from fd_database.tables import Project, Run
 from fd_database.tables.base import utc_now
 from fd_shared.enums import (
-    BenchmarkMethod,
     CheckPhase,
     CheckResult,
     MessageRole,
@@ -209,28 +205,3 @@ async def test_saving_a_check_again_updates_it(session: AsyncSession, project: P
         project_id=project.id, diagnosis_id=diagnosis.id, limit=10, after=None
     )
     assert [(check.passes, check.result) for check in checks] == [(2, CheckResult.CAN_SUCCEED)]
-
-
-async def test_benchmark_scores_aggregate_per_method(session: AsyncSession) -> None:
-    benchmarks = BenchmarkRepository(session)
-
-    def result(case_id: str, predicted: int | None, verified: bool | None) -> NewBenchmarkResult:
-        return NewBenchmarkResult(
-            method=BenchmarkMethod.FIRST_DOMINO,
-            case_id=case_id,
-            true_step=3,
-            predicted_step=predicted,
-            verified=verified,
-            cost_usd=Decimal("0.02"),
-            seconds=10.0,
-        )
-
-    benchmark = await benchmarks.create(
-        results=[result("a", 3, True), result("b", 4, False), result("c", None, None)]
-    )
-
-    [score] = await benchmarks.scores(benchmark_id=benchmark.id)
-    assert score.runs_scored == 3
-    assert score.exact_accuracy == pytest.approx(1 / 3)
-    assert score.within_one_accuracy == pytest.approx(2 / 3)
-    assert score.verified_rate == pytest.approx(1 / 2)

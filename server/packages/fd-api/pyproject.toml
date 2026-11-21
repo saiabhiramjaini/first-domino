@@ -1,7 +1,7 @@
 [project]
 name = "fd-api"
 version = "0.1.0"
-description = "FastAPI control plane: auth, run ingest, the replay job queue, diagnoses, causes and the benchmark."
+description = "FastAPI control plane: auth, run ingest, the replay job queue, diagnoses and causes."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

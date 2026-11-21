@@ -14,6 +14,6 @@ The engine is the core. It decides; it never does I/O of its own except model ca
 - `can_succeed(0)` is false means a task or tool problem. Return that verdict kind; never blame step 1 for it.
 - A verdict is "verified" only when the replay count that succeeded meets the threshold. Partial results are reported as such, never rounded up.
 - The engine never decides success itself. Success comes from the customer's check, carried in each replay result.
-- Explain, group and the baseline judge are direct model calls with structured output. Each parse retries once, salvages, then degrades to an "unexplained" result.
+- Explain and group are direct model calls with structured output. Each parse retries once, salvages, then degrades to an "unexplained" result.
 - Keep each stage in its own module: `bisect.py`, `verify.py`, `fallback.py`, `explain.py`, `group.py`, `baseline.py`.
 - Test the search and verify logic with a fake `ReplayRunner` that returns scripted outcomes per save point. These tests need no network and no database.

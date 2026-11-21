@@ -1,6 +1,6 @@
 # fd-engine
 
-The core: bisect over save points, verify by replay, fallback, explain, group and the baseline judge.
+The core: bisect over save points, verify by replay, fallback, explain and group.
 
 - **Layer:** Logic (the core)
 - **May import:** `fd-shared`
@@ -23,7 +23,6 @@ The core: bisect over save points, verify by replay, fallback, explain, group an
 | `transcript` | Renders a run's steps as text for the model prompts. |
 | `explain` | Plain-language cause, category and suggested fix for a verified step. |
 | `group` | Attach a cause to a matching cause group or start a new one. |
-| `baseline` | Read-the-trace baseline judge, used only by the benchmark. |
 | `llm` | The only OpenAI client in the backend: structured calls with retry, salvage and degrade. |
 
 Status: ports, settings, bisect, verify, fallback, diagnose, fix, explain, group and baseline done and tested on fakes (no network). Next: run against the real API through S0's adapters and tune.

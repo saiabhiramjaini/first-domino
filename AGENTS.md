@@ -10,7 +10,7 @@ First Domino finds the step where a failed AI agent run became doomed, and prove
 first-domino/
   AGENTS.md, CLAUDE.md, README.md    repo-wide rules and overview
   docs/                              shared: contract, work plan, briefs, status, architecture, decisions
-  server/                           Python: API, engine, database, SDK, demo agent, scripts
+  server/                           Python: API, engine, database, SDK
   client/                          Next.js web app
   .github/workflows/                 server.yml and client.yml, one per half (GitHub needs them at the root)
 ```
@@ -29,17 +29,16 @@ Several agents build this repo at once. Before any work, read `docs/PARALLEL_WOR
 - The contract changes only through `docs/CONTRACT.md` and its owner, never by editing generated files.
 - Keep your status file current at the end of every work block.
 
-## Hackathon constraints
+## Scope
 
-- Code freeze is **Sunday 22 Nov 2026, 2:00 PM**. Scope decisions favor a working end-to-end demo over completeness.
-- Solo build. Every line of code is written during the event. Open-source libraries are fine.
+- Scope decisions favor a working end-to-end product over completeness. Open-source libraries are fine.
 - Never copy code, prompts, configuration or text from another company's repository. Write it fresh.
-- Never name an employer or its customers in code, docs, commits or slides. Reference products by public names only (LangSmith, Braintrust, Sentry).
+- Never name an employer or its customers in code, docs, commits or public material. Reference products by public names only (LangSmith, Braintrust, Sentry).
 
 ## Principles for both halves
 
 - Follow YAGNI and KISS. Build the smallest thing that makes the demo work, then stop.
-- Code quality is the default. A judge will read this code.
+- Code quality is the default. Others will read this code.
 - Never branch on an error message or any human-readable string. Use enums, error codes and typed fields.
 - Never edit a generated file. Change the source and regenerate.
 - **Follow precedent.** Reuse the pattern that already exists. Deviate only for a concrete reason.

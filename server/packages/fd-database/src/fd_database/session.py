@@ -29,7 +29,7 @@ class Database:
         self._sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     async def create_tables(self) -> None:
-        """Creates every missing table. There is no migration tool during the hackathon."""
+        """Creates every missing table. There is no migration tool yet."""
         async with self.engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
 

@@ -23,7 +23,7 @@ class User(IdMixin, TimestampMixin, Base):
 
 
 class Project(IdMixin, TimestampMixin, Base):
-    """The tenant. During the hackathon each person owns exactly one."""
+    """The tenant. For now each person owns exactly one."""
 
     __tablename__ = "projects"
 

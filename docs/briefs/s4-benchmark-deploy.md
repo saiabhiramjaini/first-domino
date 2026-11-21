@@ -1,6 +1,6 @@
 # Brief S4: benchmark, deploy and demo assets
 
-You join **First Domino** after the first end-to-end run works (milestone C3). First Domino finds the step where a failed AI agent run became doomed and proves it by replay. Your job: the numbers that prove it works, the public deployment, and the demo safety net. Code freeze is Sunday 22 Nov 2026 at 2:00 PM.
+You join **First Domino** after the first end-to-end run works (milestone C3). First Domino finds the step where a failed AI agent run became doomed and proves it by replay. Your job: the numbers that prove it works, the public deployment, and the demo safety net.
 
 **Open this chat in `server/`** (inside your worktree), so it loads the backend rules, hooks and skills. Paths below are from the repo root.
 

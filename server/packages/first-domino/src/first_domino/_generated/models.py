@@ -86,76 +86,6 @@ class ApiKey(BaseModel):
     ]
 
 
-class BenchmarkMethod(StrEnum):
-    first_domino = "first_domino"
-    read_trace_judge = "read_trace_judge"
-
-
-class VerifiedRate(RootModel[float]):
-    root: Annotated[
-        float,
-        Field(
-            description="Share of runs with a fix proven by replay. Null without proof.",
-            ge=0.0,
-            le=1.0,
-            title="Verified Rate",
-        ),
-    ]
-
-
-class BenchmarkScore(BaseModel):
-    method: BenchmarkMethod
-    runs_scored: Annotated[
-        int,
-        Field(
-            description="Number of labelled runs the method was scored on.",
-            ge=0,
-            title="Runs Scored",
-        ),
-    ]
-    exact_accuracy: Annotated[
-        float,
-        Field(
-            description="Share of runs where it named the labelled step exactly.",
-            ge=0.0,
-            le=1.0,
-            title="Exact Accuracy",
-        ),
-    ]
-    within_one_accuracy: Annotated[
-        float,
-        Field(
-            description="Share of runs where it was at most one step off.",
-            ge=0.0,
-            le=1.0,
-            title="Within One Accuracy",
-        ),
-    ]
-    verified_rate: Annotated[
-        VerifiedRate | None,
-        Field(
-            description="Share of runs with a fix proven by replay. Null without proof.",
-            title="Verified Rate",
-        ),
-    ]
-    mean_cost_usd: Annotated[
-        float,
-        Field(
-            description="Mean model cost per run, in US dollars.",
-            ge=0.0,
-            title="Mean Cost Usd",
-        ),
-    ]
-    mean_seconds: Annotated[
-        float,
-        Field(
-            description="Mean wall time per run, in seconds.",
-            ge=0.0,
-            title="Mean Seconds",
-        ),
-    ]
-
-
 class CauseCategory(StrEnum):
     wrong_date = "wrong_date"
     wrong_entity = "wrong_entity"
@@ -595,20 +525,6 @@ class ApiValidationError(BaseModel):
     errors: Annotated[list[FieldError], Field(description="Each invalid field.", title="Errors")]
 
 
-class Benchmark(BaseModel):
-    id: Annotated[UUID, Field(title="Id")]
-    created_at: Annotated[
-        AwareDatetime,
-        Field(
-            description="Time the benchmark finished, in UTC RFC 3339 format.",
-            title="Created At",
-        ),
-    ]
-    scores: Annotated[
-        list[BenchmarkScore], Field(description="One score per method.", title="Scores")
-    ]
-
-
 class Cause(BaseModel):
     id: Annotated[UUID, Field(title="Id")]
     title: Annotated[
@@ -766,10 +682,6 @@ class FinishRunRequest(BaseModel):
 
 class GetCauseResponse(BaseModel):
     cause: Cause
-
-
-class GetLatestBenchmarkResponse(BaseModel):
-    benchmark: Benchmark | None
 
 
 class GetProjectSelfResponse(BaseModel):

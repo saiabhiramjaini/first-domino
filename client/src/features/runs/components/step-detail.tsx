@@ -1,5 +1,6 @@
 import type { Step } from "@/api/generated";
 import { MessageView } from "@/components/runs/message-view";
+import { prettyJson } from "@/components/runs/pretty-json";
 import { formatInteger } from "@/lib/format";
 
 type StepDetailProps = { step: Step; isDomino?: boolean };
@@ -7,14 +8,6 @@ type StepDetailProps = { step: Step; isDomino?: boolean };
 // A step replayed with a fixed output never called the model, so it records no tokens.
 export function isModelCall(step: Pick<Step, "tokens_in" | "tokens_out">): boolean {
   return step.tokens_in + step.tokens_out > 0;
-}
-
-function readable(content: string): string {
-  try {
-    return JSON.stringify(JSON.parse(content), null, 2);
-  } catch {
-    return content;
-  }
 }
 
 export function StepDetail({ step, isDomino = false }: StepDetailProps) {
@@ -52,7 +45,7 @@ export function StepDetail({ step, isDomino = false }: StepDetailProps) {
               >
                 {result.content === null || result.content === undefined
                   ? "No content"
-                  : readable(result.content)}
+                  : prettyJson(result.content).text}
               </pre>
             ))}
           </section>

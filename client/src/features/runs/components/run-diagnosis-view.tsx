@@ -171,7 +171,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
 
       {diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
       {diagnosis?.status === "done" && (
-        <VerdictCard diagnosis={diagnosis} originalStep={dominoStep} />
+        <VerdictCard diagnosis={diagnosis} originalStep={dominoStep} checks={checks.data ?? []} />
       )}
 
       <Panel

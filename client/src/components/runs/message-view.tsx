@@ -1,14 +1,8 @@
 import type { Message } from "@/api/generated";
 
-type MessageViewProps = { message: Message };
+import { prettyJson } from "./pretty-json";
 
-function prettyArguments(raw: string): string {
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
+type MessageViewProps = { message: Message };
 
 export function MessageView({ message }: MessageViewProps) {
   const toolCalls = message.tool_calls ?? [];
@@ -29,7 +23,7 @@ export function MessageView({ message }: MessageViewProps) {
             <span className="text-muted-foreground">()</span>
           </span>
           <pre className="overflow-x-auto p-3 font-mono text-xs leading-relaxed">
-            {prettyArguments(call.arguments)}
+            {prettyJson(call.arguments).text}
           </pre>
         </div>
       ))}

@@ -1,17 +1,30 @@
 import type { Run } from "@/api/generated";
 import { Panel } from "@/components/layout/panel";
+import { prettyJson } from "@/components/runs/pretty-json";
+import { cn } from "@/lib/utils";
 
 type RunInputPanelProps = { run: Run };
 
-// What the agent was asked, what it could use, and what it answered.
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+// What the agent was asked, what it could use, and what it returned.
 export function RunInputPanel({ run }: RunInputPanelProps) {
+  const output = run.final_output ? prettyJson(run.final_output) : null;
   return (
     <Panel title="Task">
       <div className="flex flex-col gap-5 p-4 text-sm">
-        <p className="whitespace-pre-wrap text-pretty">{run.task_input.prompt}</p>
+        <Field label="Input">
+          <p className="text-pretty whitespace-pre-wrap">{run.task_input.prompt}</p>
+        </Field>
         {run.tool_names.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Tools</span>
+          <Field label="Tools">
             <ul className="flex flex-wrap gap-1.5" aria-label="Tools the agent was given">
               {run.tool_names.map((name) => (
                 <li
@@ -22,13 +35,19 @@ export function RunInputPanel({ run }: RunInputPanelProps) {
                 </li>
               ))}
             </ul>
-          </div>
+          </Field>
         )}
-        {run.final_output && (
-          <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Final output</span>
-            <p className="rounded-md border bg-card p-3 whitespace-pre-wrap">{run.final_output}</p>
-          </div>
+        {output && (
+          <Field label="Final output">
+            <pre
+              className={cn(
+                "overflow-x-auto rounded-md border bg-card p-3 whitespace-pre-wrap",
+                output.isJson ? "font-mono text-xs leading-relaxed" : "font-sans text-sm"
+              )}
+            >
+              {output.text}
+            </pre>
+          </Field>
         )}
       </div>
     </Panel>

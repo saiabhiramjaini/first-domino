@@ -1,13 +1,19 @@
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import Link from "next/link";
 
-import type { Diagnosis, Step } from "@/api/generated";
+import type { Check, Diagnosis, Step } from "@/api/generated";
 import { Panel } from "@/components/layout/panel";
 import { MessageView } from "@/components/runs/message-view";
 import { CAUSE_CATEGORY } from "@/components/status/status-tones";
 import { buttonVariants } from "@/components/ui/button";
 
-type VerdictCardProps = { diagnosis: Diagnosis; originalStep: Step | undefined };
+import { AfterTheFix } from "../replays/after-the-fix";
+
+type VerdictCardProps = {
+  diagnosis: Diagnosis;
+  originalStep: Step | undefined;
+  checks: readonly Check[];
+};
 
 function Column({
   label,
@@ -30,7 +36,7 @@ function Column({
 }
 
 // The evidence: what went wrong, and the recorded step next to the fix that made the run pass.
-export function VerdictCard({ diagnosis, originalStep }: VerdictCardProps) {
+export function VerdictCard({ diagnosis, originalStep, checks }: VerdictCardProps) {
   const explanation = diagnosis.explanation;
   const domino = diagnosis.first_domino_step;
   if (!explanation && domino === null) return null;
@@ -93,6 +99,7 @@ export function VerdictCard({ diagnosis, originalStep }: VerdictCardProps) {
             </Column>
           </div>
         )}
+        {domino !== null && <AfterTheFix diagnosis={diagnosis} checks={checks} />}
         {explanation && (
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Suggested fix</span>

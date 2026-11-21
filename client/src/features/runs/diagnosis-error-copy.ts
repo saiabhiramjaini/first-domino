@@ -20,8 +20,8 @@ const COPY = {
     fix: "The model provider returned an error or timed out. Wait a moment, then diagnose the run again.",
   },
   interrupted: {
-    title: "The API restarted mid-diagnosis",
-    fix: "Nothing is wrong with the run. Diagnose it again to start a fresh search.",
+    title: "The API stopped while running this diagnosis",
+    fix: "The API restarted or lost track of the diagnosis. Nothing is wrong with the run; diagnose it again to start a fresh search.",
   },
   internal_error: {
     title: "The diagnosis hit an unexpected error",

@@ -632,7 +632,7 @@ export type Diagnosis = {
  * `check_budget_exceeded`: the search needed more checks than allowed.
  * `llm_not_configured`: the engine has no model key or model id.
  * `llm_call_failed`: a model call failed before returning anything.
- * `interrupted`: the API restarted while the diagnosis ran.
+ * `interrupted`: the API process running it stopped heartbeating (for example, it restarted).
  * `internal_error`: anything else; see the API logs.
  */
 export type DiagnosisErrorCode = 'replay_unavailable' | 'check_budget_exceeded' | 'llm_not_configured' | 'llm_call_failed' | 'interrupted' | 'internal_error';

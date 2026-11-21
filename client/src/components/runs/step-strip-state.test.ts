@@ -98,3 +98,15 @@ describe("stepState for a failed diagnosis", () => {
     expect(strip(3, value)).toEqual(["idle", "idle", "idle"]);
   });
 });
+
+describe("stepState once the search has found a step", () => {
+  it("marks the found step as the first domino while the fix is verified", () => {
+    const value = diagnosis({ status: "verifying", search_low: 3, search_high: 3 });
+    expect(strip(4, value)).toEqual(["ruled_out", "ruled_out", "first_domino", "ruled_out"]);
+  });
+
+  it("keeps a one-step range as the search range while still bisecting", () => {
+    const value = diagnosis({ status: "bisecting", search_low: 3, search_high: 3 });
+    expect(stepState(3, value)).toBe("in_range");
+  });
+});

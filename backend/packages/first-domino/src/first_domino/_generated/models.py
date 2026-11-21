@@ -1005,6 +1005,10 @@ class Run(BaseModel):
         ),
     ]
     task_input: TaskInput
+    tool_names: Annotated[
+        list[str],
+        Field(description="Names of the tools the agent was given.", title="Tool Names"),
+    ]
     status: RunStatus
     step_count: Annotated[
         int,
@@ -1055,6 +1059,14 @@ class StartRunRequest(BaseModel):
         ),
     ]
     task_input: TaskInput
+    tool_names: Annotated[
+        list[str] | None,
+        Field(
+            description="Names of the tools the agent was given, for explaining its mistakes.",
+            max_length=128,
+            title="Tool Names",
+        ),
+    ] = None
     replay_job_id: Annotated[
         UUID | None,
         Field(

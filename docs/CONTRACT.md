@@ -1,6 +1,6 @@
 # Contract
 
-**Contract version: 1 (implemented with example data; real handlers land resource by resource without changing it)**
+**Contract version: 2** (2 added `tool_names` to runs)
 
 This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `api/openapi.json` is generated from the API and must match this file.
 
@@ -93,11 +93,11 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 
 ### Run
 
-`id`, `agent_name`, `source` (`RunSource`), `parent_run_id` (or null; the run a replay came from), `replay_job_id` (or null), `replay_from_step` (or null), `task_input` (`TaskInput`), `status` (`RunStatus`), `step_count`, `final_output` (string or null), `latest_diagnosis_id` (or null), `created_by_id` (the API key), `started_at`, `finished_at` (or null).
+`id`, `agent_name`, `source` (`RunSource`), `parent_run_id` (or null; the run a replay came from), `replay_job_id` (or null), `replay_from_step` (or null), `task_input` (`TaskInput`), `tool_names` (list of string; the tools the agent was given), `status` (`RunStatus`), `step_count`, `final_output` (string or null), `latest_diagnosis_id` (or null), `created_by_id` (the API key), `started_at`, `finished_at` (or null).
 
 | Operation | Path | Caller | Request | Response |
 | --- | --- | --- | --- | --- |
-| `startRun` | `POST /v1/runs.start` | K | `agent_name`, `task_input`, `replay_job_id` (or null) | `run` |
+| `startRun` | `POST /v1/runs.start` | K | `agent_name`, `task_input`, `tool_names` (default empty), `replay_job_id` (or null) | `run` |
 | `finishRun` | `POST /v1/runs.finish` | K | `run_id`, `status` (`RunOutcome`), `final_output` (or null) | `run` |
 | `getRun` | `GET /v1/runs.get` | P/K | `run_id` | `run` |
 | `listRuns` | `POST /v1/runs.list` | P | page, `statuses` (list or null), `sources` (list, default `["recorded"]`; null means every source), `agent_name` (or null) | page of `Run` |
@@ -205,7 +205,7 @@ Defined in `fd_engine/ports.py` by the engine workstream (S1); implemented in `f
 
 These are `fd-shared` models (`fd_shared.models`), frozen Pydantic models:
 
-- **RunView**: `id`, `agent_name`, `task_input`, `status`, `step_count`, `final_output`.
+- **RunView**: `id`, `agent_name`, `task_input`, `tool_names`, `status`, `step_count`, `final_output`.
 - **StepView**: `index`, `model`, `output` (`Message`), `tool_results` (list of `Message`).
 - **CheckView**: `diagnosis_id`, `index`, `phase`, `save_point`, `samples`, `passes`, `result`. A check is identified by (`diagnosis_id`, `index`); reporting the same pair again updates it.
 - **DiagnosisResult**: `verdict_kind`, `first_domino_step`, `verify_passes`, `verify_samples`, `fixed_output`, `explanation` (`Explanation`), `check_count`, `replay_count`, `cost_usd`. The API stores it on the diagnosis.
@@ -221,22 +221,22 @@ import first_domino as fd
 
 # Recording: a no-op without FIRST_DOMINO_API_KEY, and never raises into the agent.
 task = fd.TaskInput(prompt=..., metadata={"task_id": "t1"})
-with fd.record(agent_name="clinic-booker", task_input=task) as run:
+with fd.record(agent_name="call-assistant", task_input=task) as run:
     # Each chat completion through the wrapped client becomes a step (or call run.step).
     client = fd.wrap(OpenAI(), run)
     ...
     run.finish(status="failed", final_output=...)
 
 # Replays, on the customer side.
-worker = fd.Worker(agent_names=["clinic-booker"])
+worker = fd.Worker(agent_names=["call-assistant"])
 
 
 # ctx carries messages, replacement_output, model_override and the replay run.
-@worker.agent("clinic-booker")
+@worker.agent("call-assistant")
 def replay(ctx: fd.ReplayContext) -> AgentResult: ...
 
 
-@worker.success_check("clinic-booker")
+@worker.success_check("call-assistant")
 def check(task_input: fd.TaskInput, result: AgentResult) -> bool: ...
 
 

@@ -3,7 +3,7 @@
   "info": {
     "title": "First Domino API",
     "summary": "Finds the step where a failed AI agent run became doomed, and proves it.",
-    "version": "1"
+    "version": "2"
   },
   "paths": {
     "/health": {
@@ -4017,6 +4017,14 @@
           "task_input": {
             "$ref": "#/components/schemas/TaskInput"
           },
+          "tool_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Names",
+            "description": "Names of the tools the agent was given."
+          },
           "status": {
             "$ref": "#/components/schemas/RunStatus"
           },
@@ -4086,6 +4094,7 @@
           "replay_job_id",
           "replay_from_step",
           "task_input",
+          "tool_names",
           "status",
           "step_count",
           "final_output",
@@ -4176,6 +4185,15 @@
           },
           "task_input": {
             "$ref": "#/components/schemas/TaskInput"
+          },
+          "tool_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Tool Names",
+            "description": "Names of the tools the agent was given, for explaining its mistakes."
           },
           "replay_job_id": {
             "anyOf": [

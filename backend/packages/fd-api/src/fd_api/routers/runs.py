@@ -51,6 +51,7 @@ async def _start_replay(
         project_id=caller.project_id,
         agent_name=body.agent_name,
         task_input=body.task_input,
+        tool_names=body.tool_names,
         created_by_id=caller.actor_id,
         started_at=utc_now(),
         source=RunSource.REPLAY,
@@ -87,6 +88,7 @@ async def start_run(
             project_id=caller.project_id,
             agent_name=body.agent_name,
             task_input=body.task_input,
+            tool_names=body.tool_names,
             created_by_id=caller.actor_id,
             started_at=utc_now(),
         )

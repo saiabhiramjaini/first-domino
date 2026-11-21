@@ -4,7 +4,7 @@ Find the first domino: the step where your AI agent's run started to fall. Prove
 
 First Domino takes a failed agent run, re-runs the agent from its own save points, binary-searches for the step where the run became doomed, then fixes that one step and replays to prove it.
 
-> Status: skeleton. Layout, rules, contract and work plan only. No product code yet.
+> Status: built for Builders 2026 and running locally (web on :3000, API on :8000).
 
 ## Repository layout
 
@@ -18,9 +18,8 @@ first-domino/
     status/              one status file per workstream
     ARCHITECTURE.md      how the pieces fit
     DECISIONS.md         what is decided and what is open
-  api/openapi.json       the generated HTTP contract, shared by both halves
   backend/               Python: API, engine, database, SDK, demo agent, scripts
-  frontend/              Next.js web app (not scaffolded yet)
+  frontend/              Next.js web app
   .github/workflows/     backend.yml and frontend.yml
 ```
 

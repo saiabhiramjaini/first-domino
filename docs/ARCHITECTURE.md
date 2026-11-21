@@ -96,4 +96,4 @@ All numbers in this rule (k, the verify threshold, the fallback window) are engi
 
 ## Contract
 
-`docs/CONTRACT.md` is the agreement; `fd-api` implements it. `make openapi` writes `api/openapi.json`. `make sdk-models` generates the SDK models from it, and the web app generates its TypeScript client and Zod schemas from the same file.
+`docs/CONTRACT.md` is the agreement; `fd-api` implements it. `make openapi` writes `backend/api/openapi.json`. `make sdk-models` generates the SDK models from it, and the web app generates its TypeScript client and Zod schemas from the same file.

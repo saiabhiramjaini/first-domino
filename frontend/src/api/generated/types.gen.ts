@@ -600,11 +600,9 @@ export type Diagnosis = {
      */
     cost_usd: number;
     /**
-     * Error Code
-     *
-     * Stable code of the error that stopped the diagnosis, when `failed`.
+     * Why the diagnosis failed. Null unless `failed`.
      */
-    error_code: string | null;
+    error_code: DiagnosisErrorCode | null;
     /**
      * Created By Id
      *
@@ -624,6 +622,20 @@ export type Diagnosis = {
      */
     finished_at: string | null;
 };
+
+/**
+ * DiagnosisErrorCode
+ *
+ * Why a diagnosis ended `failed`.
+ *
+ * `replay_unavailable`: every replay of a check errored or timed out (is a worker running?).
+ * `check_budget_exceeded`: the search needed more checks than allowed.
+ * `llm_not_configured`: the engine has no model key or model id.
+ * `llm_call_failed`: a model call failed before returning anything.
+ * `interrupted`: the API restarted while the diagnosis ran.
+ * `internal_error`: anything else; see the API logs.
+ */
+export type DiagnosisErrorCode = 'replay_unavailable' | 'check_budget_exceeded' | 'llm_not_configured' | 'llm_call_failed' | 'interrupted' | 'internal_error';
 
 /**
  * DiagnosisStatus

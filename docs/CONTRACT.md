@@ -2,9 +2,9 @@
 
 **Contract version: 3** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`)
 
-This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `api/openapi.json` is generated from the API and must match this file.
+This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `backend/api/openapi.json` is generated from the API and must match this file.
 
-Only the platform backend workstream (S0) edits this file. Anyone else who needs a change writes it under "Contract requests" in their `docs/status/<stream>.md`. S0 applies it, bumps the version above, regenerates `api/openapi.json` and the SDK models, and merges. Everyone else pulls and regenerates their client.
+Only the platform backend workstream (S0) edits this file. Anyone else who needs a change writes it under "Contract requests" in their `docs/status/<stream>.md`. S0 applies it, bumps the version above, regenerates `backend/api/openapi.json` and the SDK models, and merges. Everyone else pulls and regenerates their client.
 
 ## Conventions
 

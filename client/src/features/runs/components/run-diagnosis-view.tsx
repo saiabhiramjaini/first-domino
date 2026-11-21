@@ -82,7 +82,10 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
       : pickedStep;
   const dominoStep = steps.data?.find((step) => step.index === diagnosis?.first_domino_step);
   const replayCheck = checks.data?.find((check) => check.id === replayCheckId);
-  const canDiagnose = run.data.status === "failed" && run.data.source === "recorded" && !isLive;
+  // A finished run with no steps has nothing to search, so it is never diagnosed.
+  const hasNoSteps = !isRecording && stepCount === 0;
+  const canDiagnose =
+    run.data.status === "failed" && run.data.source === "recorded" && !isLive && !hasNoSteps;
 
   function handleCreated(created: Diagnosis) {
     setCreatedDiagnosisId(created.id);
@@ -135,7 +138,15 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         }
       />
 
-      {diagnosisId === null && run.data.status !== "failed" ? (
+      {hasNoSteps && run.data.status === "failed" ? (
+        <Panel>
+          <EmptyState
+            icon={SearchIcon}
+            title="Nothing to diagnose"
+            description="This run failed without recording a step, so there is no step to blame and nothing to replay. Check that your agent's model calls happen inside the function marked with @fd.entrypoint."
+          />
+        </Panel>
+      ) : diagnosisId === null && run.data.status !== "failed" ? (
         <Panel>
           <RunStatusNote status={run.data.status} stepCount={stepCount} />
         </Panel>
@@ -169,8 +180,8 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         <Skeleton className="h-48 w-full rounded-lg" />
       )}
 
-      {diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
-      {diagnosis?.status === "done" && (
+      {!hasNoSteps && diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
+      {!hasNoSteps && diagnosis?.status === "done" && (
         <VerdictCard diagnosis={diagnosis} originalStep={dominoStep} checks={checks.data ?? []} />
       )}
 
@@ -213,7 +224,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         )}
       </Panel>
 
-      {diagnosisId !== null && (
+      {diagnosisId !== null && !hasNoSteps && (
         <Panel
           id="checks"
           title="Checks"

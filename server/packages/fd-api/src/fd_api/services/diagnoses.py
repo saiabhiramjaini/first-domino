@@ -14,8 +14,13 @@ log = get_logger(__name__)
 
 
 def can_diagnose(run: tables.Run) -> bool:
-    """Only failed recorded runs are diagnosed."""
-    return run.source is RunSource.RECORDED and run.status is RunStatus.FAILED
+    """Only failed recorded runs with at least one step are diagnosed.
+
+    A run with no steps has no step to blame and nothing to replay.
+    """
+    return (
+        run.source is RunSource.RECORDED and run.status is RunStatus.FAILED and run.step_count > 0
+    )
 
 
 async def create_diagnosis(

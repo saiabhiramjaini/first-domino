@@ -112,3 +112,22 @@ async def test_steps_cannot_be_added_to_a_finished_run(
     response = await client.post("/v1/steps.record", json=_step(run_id, 1), headers=api_key)
 
     assert response.status_code == 409
+
+
+async def test_a_failed_run_with_no_steps_is_not_diagnosed(
+    client: AsyncClient, api_key: Headers, person: Headers
+) -> None:
+    started = await client.post(
+        "/v1/runs.start",
+        json={"agent_name": "no-steps", "task_input": {"prompt": "nothing recorded"}},
+        headers=api_key,
+    )
+    run_id = started.json()["run"]["id"]
+
+    finished = await client.post(
+        "/v1/runs.finish", json={"run_id": run_id, "status": "failed"}, headers=api_key
+    )
+    asked = await client.post("/v1/diagnoses.create", json={"run_id": run_id}, headers=person)
+
+    assert finished.json()["run"]["latest_diagnosis_id"] is None
+    assert asked.status_code == 409

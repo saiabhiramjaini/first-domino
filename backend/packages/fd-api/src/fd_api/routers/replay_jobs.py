@@ -1,19 +1,51 @@
 """Worker protocol routes: lease a replay job and submit its result."""
 
-from fastapi import APIRouter
+import asyncio
+import time
+from typing import Annotated
 
-from fd_api import examples
-from fd_api.auth.callers import ApiKeyCaller
+from fastapi import APIRouter, Depends
+
+from fd_api.auth.callers import ApiKeyCaller, Caller, get_settings
+from fd_api.database import DbSession, get_database
 from fd_api.errors import error_responses
 from fd_api.models.replay_jobs import (
     LeaseReplayJobRequest,
     LeaseReplayJobResponse,
+    ReplayJob,
     SubmitReplayResultRequest,
     SubmitReplayResultResponse,
 )
-from fd_shared.enums import ApiErrorCode, ReplayJobStatus, ReplayOutcome
+from fd_api.settings import ApiSettings
+from fd_database import tables
+from fd_database.repositories import ReplayJobsRepository
+from fd_database.session import Database
+from fd_database.tables.base import utc_now
+from fd_shared.enums import ApiErrorCode
+from fd_shared.errors import NotFoundError
+from fd_shared.logging import get_logger
+
+log = get_logger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["replay-jobs"])
+
+
+async def _try_lease(
+    database: Database, caller: Caller, agent_names: list[str], settings: ApiSettings
+) -> tables.ReplayJob | None:
+    async with database.transaction() as session:
+        jobs = ReplayJobsRepository(session)
+        now = utc_now()
+        await jobs.expire_leases(
+            project_id=caller.project_id, now=now, max_attempts=settings.max_job_attempts
+        )
+        return await jobs.lease_next(
+            project_id=caller.project_id,
+            agent_names=agent_names,
+            leased_by_id=caller.actor_id,
+            now=now,
+            lease_seconds=settings.lease_seconds,
+        )
 
 
 @router.post(
@@ -25,13 +57,24 @@ router = APIRouter(prefix="/v1", tags=["replay-jobs"])
     ),
 )
 async def lease_replay_job(
-    body: LeaseReplayJobRequest, caller: ApiKeyCaller
+    body: LeaseReplayJobRequest,
+    caller: ApiKeyCaller,
+    database: Annotated[Database, Depends(get_database)],
+    settings: Annotated[ApiSettings, Depends(get_settings)],
 ) -> LeaseReplayJobResponse:
     """Waits up to `wait_seconds` for a queued job for one of `agent_names` and leases it.
 
     Answers with a null job when none arrived in time; lease again.
     """
-    return LeaseReplayJobResponse(replay_job=examples.REPLAY_JOB)
+    deadline = time.monotonic() + body.wait_seconds
+    while True:
+        job = await _try_lease(database, caller, body.agent_names, settings)
+        if job is not None:
+            log.info("replay_jobs.leased", replay_job_id=str(job.id), attempt=job.attempt)
+            return LeaseReplayJobResponse(replay_job=ReplayJob.from_row(job))
+        if time.monotonic() >= deadline:
+            return LeaseReplayJobResponse(replay_job=None)
+        await asyncio.sleep(settings.lease_poll_interval_seconds)
 
 
 @router.post(
@@ -46,18 +89,22 @@ async def lease_replay_job(
     ),
 )
 async def submit_replay_result(
-    body: SubmitReplayResultRequest, caller: ApiKeyCaller
+    body: SubmitReplayResultRequest, caller: ApiKeyCaller, session: DbSession
 ) -> SubmitReplayResultResponse:
     """Reports how a replay ended.
 
-    Idempotent by `replay_job_id`. A late result for a job that was leased again is ignored.
+    Idempotent by `replay_job_id`: the first result for a leased job counts, and any later
+    one (a repeat, or a late result from an earlier lease) changes nothing.
     """
-    status = (
-        ReplayJobStatus.SUCCEEDED
-        if body.outcome is not ReplayOutcome.ERRORED
-        else ReplayJobStatus.FAILED
+    job = await ReplayJobsRepository(session).submit(
+        project_id=caller.project_id,
+        replay_job_id=body.replay_job_id,
+        outcome=body.outcome,
+        replay_run_id=body.replay_run_id,
+        error_code=body.error_code,
+        now=utc_now(),
     )
-    replay_job = examples.REPLAY_JOB.model_copy(
-        update={"id": body.replay_job_id, "status": status, "lease_expires_at": None}
-    )
-    return SubmitReplayResultResponse(replay_job=replay_job)
+    if job is None:
+        raise NotFoundError
+    log.info("replay_jobs.submitted", replay_job_id=str(job.id), outcome=job.outcome)
+    return SubmitReplayResultResponse(replay_job=ReplayJob.from_row(job))

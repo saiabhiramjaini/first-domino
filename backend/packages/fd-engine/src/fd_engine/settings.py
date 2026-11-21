@@ -3,13 +3,15 @@
 from typing import Self
 
 from pydantic import AliasChoices, Field, SecretStr, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
+
+from fd_shared.settings import SettingsBase
 
 
-class EngineSettings(BaseSettings):
+class EngineSettings(SettingsBase):
     """Every tunable number and model id the engine uses, read from `FD_ENGINE_*`."""
 
-    model_config = SettingsConfigDict(env_prefix="FD_ENGINE_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="FD_ENGINE_")
 
     strong_model: str = Field(min_length=1)
     openai_api_key: SecretStr | None = Field(

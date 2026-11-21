@@ -5,8 +5,9 @@ from typing import Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from fd_engine.checks import CheckRequest, CheckRunner
-from fd_engine.models import CheckPhase, Message, RunView, StepView
 from fd_engine.settings import EngineSettings
+from fd_shared.enums import CheckPhase
+from fd_shared.models import Message, RunView, StepView
 
 
 class FixedStep(BaseModel):

@@ -8,23 +8,13 @@ from typing import Protocol
 from openai import AsyncOpenAI, OpenAIError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from fd_engine.errors import EngineError
+from fd_engine.errors import LlmCallError, LlmNotConfiguredError
 from fd_engine.settings import EngineSettings
+from fd_shared.logging import get_logger
 
 _MILLION = 1_000_000
 
-
-class LlmNotConfiguredError(EngineError):
-    """The engine needs a model call but `OPENAI_API_KEY` is not set."""
-
-    code = "llm_not_configured"
-
-
-class LlmCallError(EngineError):
-    """One model call failed before it returned any text."""
-
-    code = "llm_call_failed"
-    retryable = True
+log = get_logger(__name__)
 
 
 class ReplyQuality(StrEnum):
@@ -136,7 +126,7 @@ class Llm:
         """Return the model's reply parsed into `schema`, salvaged, or `fallback`."""
         usage = LlmUsage()
         last_text: str | None = None
-        for _ in range(1 + self._settings.llm_parse_retries):
+        for attempt in range(1 + self._settings.llm_parse_retries):
             try:
                 raw = await self._transport.complete(
                     system=system,
@@ -145,16 +135,21 @@ class Llm:
                     timeout_seconds=self._settings.llm_timeout_seconds,
                 )
             except LlmCallError:
+                log.warning("llm.call_failed", schema=schema.__name__, attempt=attempt)
                 continue
             usage = usage.plus(self._usage(raw))
             last_text = raw.content
             parsed = _parse(schema, raw.content)
             if parsed is not None:
                 return LlmReply(value=parsed, quality=ReplyQuality.PARSED, usage=usage)
+            log.warning("llm.reply_unparsed", schema=schema.__name__, attempt=attempt)
         salvaged = salvage(schema, last_text, fallback)
-        if salvaged is not None:
-            return LlmReply(value=salvaged, quality=ReplyQuality.SALVAGED, usage=usage)
-        return LlmReply(value=fallback, quality=ReplyQuality.DEGRADED, usage=usage)
+        quality = ReplyQuality.DEGRADED if salvaged is None else ReplyQuality.SALVAGED
+        log.warning(
+            "llm.reply_fallback", schema=schema.__name__, quality=quality, cost_usd=usage.cost_usd
+        )
+        value = fallback if salvaged is None else salvaged
+        return LlmReply(value=value, quality=quality, usage=usage)
 
     def _usage(self, raw: RawCompletion) -> LlmUsage:
         cost = (

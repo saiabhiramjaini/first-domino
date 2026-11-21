@@ -4,10 +4,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from fd_api import examples
 from fd_api.auth.callers import PersonCaller
+from fd_api.database import DbSession
 from fd_api.errors import error_responses
 from fd_api.models.causes import (
+    Cause,
     CountCausesRequest,
     CountCausesResponse,
     GetCauseRequest,
@@ -15,7 +16,11 @@ from fd_api.models.causes import (
     ListCausesRequest,
     ListCausesResponse,
 )
+from fd_api.pagination import decode_cursor, paginate
+from fd_database.pages import CountKey
+from fd_database.repositories import CausesRepository
 from fd_shared.enums import ApiErrorCode
+from fd_shared.errors import NotFoundError
 
 router = APIRouter(prefix="/v1", tags=["causes"])
 
@@ -28,9 +33,20 @@ router = APIRouter(prefix="/v1", tags=["causes"])
         ApiErrorCode.BAD_REQUEST, ApiErrorCode.UNAUTHENTICATED, ApiErrorCode.VALIDATION_FAILED
     ),
 )
-async def list_causes(body: ListCausesRequest, caller: PersonCaller) -> ListCausesResponse:
+async def list_causes(
+    body: ListCausesRequest, caller: PersonCaller, session: DbSession
+) -> ListCausesResponse:
     """Lists root causes, most runs first."""
-    return ListCausesResponse(items=[examples.CAUSE], next_cursor=None)
+    rows = await CausesRepository(session).list_filtered(
+        project_id=caller.project_id,
+        categories=body.categories,
+        limit=body.limit + 1,
+        after=decode_cursor(body.cursor, CountKey),
+    )
+    page, next_cursor = paginate(
+        rows, body.limit, lambda row: CountKey(count=row.run_count, id=row.id)
+    )
+    return ListCausesResponse(items=[Cause.from_row(row) for row in page], next_cursor=next_cursor)
 
 
 @router.get(
@@ -42,10 +58,15 @@ async def list_causes(body: ListCausesRequest, caller: PersonCaller) -> ListCaus
     ),
 )
 async def get_cause(
-    request: Annotated[GetCauseRequest, Query()], caller: PersonCaller
+    request: Annotated[GetCauseRequest, Query()], caller: PersonCaller, session: DbSession
 ) -> GetCauseResponse:
     """Returns one root cause. Its runs come from `listDiagnoses` with `cause_ids`."""
-    return GetCauseResponse(cause=examples.CAUSE)
+    cause = await CausesRepository(session).get(
+        project_id=caller.project_id, cause_id=request.cause_id
+    )
+    if cause is None:
+        raise NotFoundError
+    return GetCauseResponse(cause=Cause.from_row(cause))
 
 
 @router.post(
@@ -56,6 +77,11 @@ async def get_cause(
         ApiErrorCode.BAD_REQUEST, ApiErrorCode.UNAUTHENTICATED, ApiErrorCode.VALIDATION_FAILED
     ),
 )
-async def count_causes(body: CountCausesRequest, caller: PersonCaller) -> CountCausesResponse:
+async def count_causes(
+    body: CountCausesRequest, caller: PersonCaller, session: DbSession
+) -> CountCausesResponse:
     """Counts the causes that match the same filters as `listCauses`."""
-    return CountCausesResponse(count=1)
+    count = await CausesRepository(session).count_filtered(
+        project_id=caller.project_id, categories=body.categories
+    )
+    return CountCausesResponse(count=count)

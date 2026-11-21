@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from fd_api.pagination import CountResponse, PageRequest, PageResponse
+from fd_database import tables
 from fd_shared.enums import CauseCategory
 
 
@@ -30,6 +31,22 @@ class Cause(BaseModel):
     last_seen_at: datetime = Field(
         description="Time of the latest diagnosis with this cause, in UTC RFC 3339 format."
     )
+
+    @classmethod
+    def from_row(cls, row: tables.Cause) -> "Cause":
+        """Maps a stored cause to the contract."""
+        return cls(
+            id=row.id,
+            title=row.title,
+            category=row.category,
+            step_name=row.step_name,
+            summary=row.summary,
+            suggested_fix=row.suggested_fix,
+            run_count=row.run_count,
+            verified_count=row.verified_count,
+            first_seen_at=row.first_seen_at,
+            last_seen_at=row.last_seen_at,
+        )
 
 
 class CauseFilter(BaseModel):

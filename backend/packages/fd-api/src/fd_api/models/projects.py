@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl
 
+from fd_database import tables
+
 
 class Project(BaseModel):
     """The tenant. Every run, diagnosis and cause belongs to one project."""
@@ -16,6 +18,17 @@ class Project(BaseModel):
     )
     created_at: datetime = Field(description="Time of creation, in UTC RFC 3339 format.")
     updated_at: datetime = Field(description="Time of the last change, in UTC RFC 3339 format.")
+
+    @classmethod
+    def from_row(cls, row: tables.Project) -> "Project":
+        """Maps a stored project to the contract."""
+        return cls(
+            id=row.id,
+            name=row.name,
+            slack_webhook_set=row.slack_webhook_url is not None,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
 
 
 class GetProjectSelfResponse(BaseModel):

@@ -6,19 +6,31 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator
 
 from fd_engine.llm import Llm, ReplyQuality
-from fd_engine.models import Message, MessageRole, RunView, StepView, ToolCall
-from fd_engine.transcript import render_steps, render_task
+from fd_engine.transcript import render_steps, render_task, tools_seen
 from fd_engine.verify import FixedStep
+from fd_shared.enums import MessageRole
+from fd_shared.models import Message, RunView, StepView, ToolCall
 
 _SYSTEM = """\
 You repair one turn of a failed AI agent run.
 Replays show the run can still succeed before step {step} and is doomed once step {step} is kept,
 so step {step} is where it went wrong. Rewrite only the assistant turn at step {step} so the agent
 can still complete the task.
-- If the original turn called tools, call the tools it should have called, with corrected
-  arguments. Use only tool names that appear in the run.
-- Keep the agent's voice and format. Do not finish the task in this one turn unless the original
-  turn was the last one.
+- Change only what is wrong. Keep the same tool and every correct argument unless the wrong tool
+  was the mistake. Copy the exact argument names and value formats (dates, times, ids) the run
+  already uses.
+- Prefer the tools the run already used, listed with the task. Call another tool only when the
+  right action needs it, named in the same style as the others.
+- Do not finish the task in this one turn unless the original turn was the last one.
+- Check the facts the turn depends on against the task and the tool results before it:
+  - Relative dates and times ("tomorrow", "this Friday", "day after tomorrow, evening", "after
+    6") resolve from the "today" in the task. Keep AM and PM as the caller said them.
+  - The person, contact, number or event acted on is the one the caller and the lookups point to,
+    not a similar name.
+  - Saved user preferences and instructions from memory (reminder lead times, notes to carry,
+    who to block) are followed.
+  - Callers who are spam or scams are blocked, not called back, and never get OTPs, bank details
+    or other private data.
 - Return JSON: "content" (text or null) and "tool_calls" (a list of objects with "name" and
   "arguments", where "arguments" is a JSON object written as a string).
 """
@@ -68,10 +80,14 @@ class LlmStepFixer:
             fallback=FixReply(),
         )
         cost = reply.usage.cost_usd
-        fix = reply.value
-        if reply.quality is not ReplyQuality.PARSED or not (fix.content or fix.tool_calls):
+        if reply.quality is not ReplyQuality.PARSED or not _usable(reply.value):
             return FixedStep(output=None, cost_usd=cost)
-        return FixedStep(output=_to_message(fix), cost_usd=cost)
+        return FixedStep(output=_to_message(reply.value), cost_usd=cost)
+
+
+def _usable(fix: FixReply) -> bool:
+    """A fix says or calls something."""
+    return bool(fix.content or fix.tool_calls)
 
 
 def _prompt(run: RunView, steps: list[StepView], step_index: int) -> str:
@@ -81,6 +97,7 @@ def _prompt(run: RunView, steps: list[StepView], step_index: int) -> str:
     return "\n\n".join(
         [
             render_task(run),
+            f"Tools the run used: {', '.join(tools_seen(steps)) or '(none)'}",
             "# Steps before the mistake",
             render_steps(before) or "(none)",
             "# The turn to rewrite",

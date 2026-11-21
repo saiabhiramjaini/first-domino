@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 SDK_GENERATED := packages/first-domino/src/first_domino/_generated/models.py
 
-.PHONY: help install lint fix typecheck test check db-up db-down api worker openapi sdk-models
+.PHONY: help install lint fix typecheck test check db-up db-down api dev-key worker openapi sdk-models
 
 help: ## List commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -33,6 +33,9 @@ db-down: ## Stop local Postgres
 
 api: ## Run the API with reload
 	uv run uvicorn fd_api.main:create_app --factory --reload --port 8000
+
+dev-key: ## Print a new API key for the local developer's project (needs db-up)
+	@uv run python -m fd_api.dev_api_key
 
 worker: ## Run the demo customer's replay worker
 	uv run python -m fd_demo_agent.worker

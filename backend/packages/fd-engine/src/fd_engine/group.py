@@ -5,7 +5,8 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from fd_engine.llm import Llm
-from fd_engine.models import CauseCategory, Explanation
+from fd_shared.enums import CauseCategory
+from fd_shared.models import Explanation
 
 _SYSTEM = """\
 You group root causes of failed AI agent runs. Two causes match when the same change to the agent

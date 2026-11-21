@@ -1,12 +1,13 @@
 """Structured logging setup and get_logger."""
 
 import logging
+import sys
 
 import structlog
 
 
 def configure_logging(level: str = "INFO", *, json_output: bool = False) -> None:
-    """Sets up structlog once per process.
+    """Sets up structlog once per process. Logs go to stderr, so stdout stays free for output.
 
     Args:
         level: The lowest level to emit, such as `INFO` or `DEBUG`.
@@ -24,6 +25,7 @@ def configure_logging(level: str = "INFO", *, json_output: bool = False) -> None
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelNamesMapping()[level]),
+        logger_factory=structlog.PrintLoggerFactory(sys.stderr),
         cache_logger_on_first_use=True,
     )
 

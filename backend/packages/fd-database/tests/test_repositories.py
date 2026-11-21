@@ -42,8 +42,9 @@ async def _run(session: AsyncSession, project: Project) -> Run:
     )
     return await RunsRepository(session).create(
         project_id=project.id,
-        agent_name="booker",
-        task_input=TaskInput(prompt="Book it"),
+        agent_name="call-assistant",
+        task_input=TaskInput(prompt="Call the clinic and add tomorrow at 10 to the calendar"),
+        tool_names=["add_calendar_event"],
         created_by_id=api_key.id,
         started_at=utc_now(),
     )
@@ -111,7 +112,7 @@ async def test_expired_lease_requeues_then_expires_after_max_attempts(
     for attempt in (1, 2):
         leased = await jobs.lease_next(
             project_id=project.id,
-            agent_names=["booker"],
+            agent_names=["call-assistant"],
             leased_by_id=run.created_by_id,
             now=now,
             lease_seconds=10,
@@ -149,7 +150,7 @@ async def test_submit_counts_only_the_first_result(session: AsyncSession, projec
     [job] = await _enqueue(session, project, run, samples=1)
     await jobs.lease_next(
         project_id=project.id,
-        agent_names=["booker"],
+        agent_names=["call-assistant"],
         leased_by_id=run.created_by_id,
         now=utc_now(),
         lease_seconds=10,

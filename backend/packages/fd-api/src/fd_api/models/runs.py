@@ -6,10 +6,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from fd_api.pagination import CountResponse, PageRequest, PageResponse
+from fd_database import tables
 from fd_shared.enums import RunOutcome, RunSource, RunStatus
 from fd_shared.models import TaskInput
 
 AGENT_NAME_MAX_LENGTH = 128
+MAX_TOOL_NAMES = 128
 
 
 class Run(BaseModel):
@@ -26,6 +28,7 @@ class Run(BaseModel):
         description="For a replay, the last step kept from the parent run (0 means none)."
     )
     task_input: TaskInput
+    tool_names: list[str] = Field(description="Names of the tools the agent was given.")
     status: RunStatus
     step_count: int = Field(ge=0, description="Number of steps recorded so far.")
     final_output: str | None = Field(description="The agent's final answer, if it gave one.")
@@ -35,6 +38,27 @@ class Run(BaseModel):
     finished_at: datetime | None = Field(
         description="Time the run finished, in UTC RFC 3339 format. Null while running."
     )
+
+    @classmethod
+    def from_row(cls, row: tables.Run) -> "Run":
+        """Maps a stored run to the contract."""
+        return cls(
+            id=row.id,
+            agent_name=row.agent_name,
+            source=row.source,
+            parent_run_id=row.parent_run_id,
+            replay_job_id=row.replay_job_id,
+            replay_from_step=row.replay_from_step,
+            task_input=row.task_input,
+            tool_names=row.tool_names,
+            status=row.status,
+            step_count=row.step_count,
+            final_output=row.final_output,
+            latest_diagnosis_id=row.latest_diagnosis_id,
+            created_by_id=row.created_by_id,
+            started_at=row.started_at,
+            finished_at=row.finished_at,
+        )
 
 
 class RunFilter(BaseModel):
@@ -61,6 +85,11 @@ class StartRunRequest(BaseModel):
         description="The customer's name for the agent. Replay jobs are routed by it.",
     )
     task_input: TaskInput
+    tool_names: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_TOOL_NAMES,
+        description="Names of the tools the agent was given, for explaining its mistakes.",
+    )
     replay_job_id: UUID | None = Field(
         default=None, description="The leased replay job this run carries out, if any."
     )

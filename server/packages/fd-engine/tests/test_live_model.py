@@ -20,6 +20,8 @@ from fd_engine.settings import EngineSettings
 from fd_shared.enums import CauseCategory, MessageRole, RunStatus
 from fd_shared.models import Message, RunView, StepView, TaskInput, ToolCall
 
+from .demo_causes import DEMO_CAUSES, file_all
+
 
 class LiveTestSettings(BaseSettings):
     """Whether to run tests that call the real model."""
@@ -220,6 +222,7 @@ async def test_explainer_names_a_date_mistake(llm: Llm) -> None:
 
     assert explained.explanation != unexplained(BROKEN_STEP)
     assert explained.explanation.category is CauseCategory.WRONG_DATE
+    assert not explained.explanation.title.startswith(("Failed to", "Incorrect", "Wrong"))
     assert explained.cost_usd > 0
 
 
@@ -230,19 +233,29 @@ async def test_grouper_matches_the_same_mistake(llm: Llm) -> None:
         id=uuid4(),
         title="Relative date resolved one day late",
         category=CauseCategory.WRONG_DATE,
+        step_name="add_calendar_event",
         summary="The assistant turned 'tomorrow' into the day after tomorrow when adding an event.",
     )
     other = CauseCandidate(
         id=uuid4(),
-        title="Spam caller given a callback",
-        category=CauseCategory.WRONG_ENTITY,
-        summary="A loan offer from a known spam number got a callback instead of a block.",
+        title="Booked 22:00 instead of 10:00",
+        category=CauseCategory.WRONG_DATE,
+        step_name="add_calendar_event",
+        summary="The caller asked for 10 AM and the assistant saved the event at 22:00.",
     )
 
-    match = await CauseGrouper(llm).match(explained.explanation, [other, same])
+    match = await CauseGrouper(llm).match(
+        explained.explanation, [other, same], step_name="add_calendar_event"
+    )
 
     assert match.cause_id == same.id
     assert match.cost_usd > 0
+
+
+async def test_grouper_keeps_the_demo_mistakes_apart(llm: Llm) -> None:
+    group_of = await file_all(CauseGrouper(llm))
+
+    assert len(set(group_of.values())) == len(DEMO_CAUSES)
 
 
 async def test_baseline_names_a_step_of_the_run(llm: Llm) -> None:

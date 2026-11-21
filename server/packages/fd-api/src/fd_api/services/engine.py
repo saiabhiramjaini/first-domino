@@ -15,7 +15,7 @@ class CauseMatcher(Protocol):
     """Matches a new explanation to an existing cause group."""
 
     async def match(
-        self, explanation: Explanation, candidates: list[CauseCandidate]
+        self, explanation: Explanation, candidates: list[CauseCandidate], *, step_name: str
     ) -> CauseMatch: ...
 
 

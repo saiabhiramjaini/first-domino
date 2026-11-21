@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, ExportCauseData, ExportCauseErrors, ExportCauseResponses, FinishRunData, FinishRunErrors, FinishRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetLatestBenchmarkData, GetLatestBenchmarkErrors, GetLatestBenchmarkResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
+import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, ExportCauseData, ExportCauseErrors, ExportCauseResponses, FinishRunData, FinishRunErrors, FinishRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -346,17 +346,6 @@ export const exportCause = <ThrowOnError extends boolean = false>(options: Optio
         'Content-Type': 'application/json',
         ...options.headers
     }
-});
-
-/**
- * Get the latest benchmark
- *
- * Returns the newest benchmark scores, or null when none has run.
- */
-export const getLatestBenchmark = <ThrowOnError extends boolean = false>(options?: Options<GetLatestBenchmarkData, ThrowOnError>): RequestResult<GetLatestBenchmarkResponses, GetLatestBenchmarkErrors, ThrowOnError> => (options?.client ?? client).get<GetLatestBenchmarkResponses, GetLatestBenchmarkErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/benchmarks.latest',
-    ...options
 });
 
 /**

@@ -2,22 +2,12 @@
 
 import { useState } from "react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadMoreButton } from "@/components/feedback/load-more-button";
 import { QueryError } from "@/components/feedback/query-error";
 import { StatusBadge } from "@/components/status/status-badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useListApiKeys } from "@/hooks/api/use-list-api-keys";
-import { formatDateTime, formatRelative } from "@/lib/format";
+import { formatRelative } from "@/lib/format";
 import { pageItems } from "@/lib/paging";
 
 import { ApiKeySecretDialog } from "./api-key-secret-dialog";
@@ -26,8 +16,6 @@ import { CreateApiKeyForm } from "./create-api-key-form";
 import { RevokeApiKeyButton } from "./revoke-api-key-button";
 
 type CreatedApiKey = { name: string; secret: string };
-
-const SKELETON_ROWS = ["first", "second"] as const;
 
 function ApiKeyList() {
   const apiKeys = useListApiKeys();
@@ -43,65 +31,31 @@ function ApiKeyList() {
       />
     );
   }
-
-  if (apiKeys.isPending) {
-    return (
-      <div className="flex flex-col gap-2">
-        {SKELETON_ROWS.map((row) => (
-          <Skeleton key={row} className="h-10 w-full" />
-        ))}
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <EmptyState
-        title="No API keys yet"
-        description="Create a key above, then set it as FIRST_DOMINO_API_KEY where your agent runs."
-      />
-    );
-  }
+  if (apiKeys.isPending) return <Skeleton className="h-12 w-full" />;
+  if (items.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-3">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Key</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Last used</TableHead>
-            <TableHead>State</TableHead>
-            <TableHead>
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((apiKey) => {
-            const state = apiKeyState(apiKey);
-            return (
-              <TableRow key={apiKey.id}>
-                <TableCell className="font-medium">{apiKey.name}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {apiKey.prefix}…
-                </TableCell>
-                <TableCell>{formatDateTime(apiKey.created_at)}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {apiKey.last_used_at ? formatRelative(apiKey.last_used_at) : "Never"}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={API_KEY_STATE[state]} />
-                </TableCell>
-                <TableCell className="text-right">
-                  {state === "active" && <RevokeApiKeyButton apiKey={apiKey} />}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+    <div className="flex flex-col gap-2">
+      <ul className="flex flex-col divide-y rounded-lg border" aria-label="Your API keys">
+        {items.map((apiKey) => {
+          const state = apiKeyState(apiKey);
+          return (
+            <li key={apiKey.id} className="flex items-center gap-3 px-3 py-2.5">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-sm font-medium">{apiKey.name}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {apiKey.prefix}… ·{" "}
+                  {apiKey.last_used_at
+                    ? `used ${formatRelative(apiKey.last_used_at)}`
+                    : "never used"}
+                </span>
+              </div>
+              <StatusBadge status={API_KEY_STATE[state]} />
+              {state === "active" && <RevokeApiKeyButton apiKey={apiKey} />}
+            </li>
+          );
+        })}
+      </ul>
       <LoadMoreButton
         hasNextPage={apiKeys.hasNextPage}
         isFetchingNextPage={apiKeys.isFetchingNextPage}
@@ -111,21 +65,14 @@ function ApiKeyList() {
   );
 }
 
-export function ApiKeysCard() {
+// Create a project key and see the existing ones. The new key's secret is shown once.
+export function ApiKeys() {
   const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null);
   return (
-    <Card id="api-keys" className="scroll-mt-20">
-      <CardHeader>
-        <CardTitle>API keys</CardTitle>
-        <CardDescription>
-          The SDK and the replay worker use a project key. Give each agent or machine its own.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        <CreateApiKeyForm onCreated={setCreatedKey} />
-        <ApiKeyList />
-      </CardContent>
+    <div className="flex flex-col gap-4">
+      <CreateApiKeyForm onCreated={setCreatedKey} />
+      <ApiKeyList />
       <ApiKeySecretDialog createdKey={createdKey} onClose={() => setCreatedKey(null)} />
-    </Card>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import type {
-  BenchmarkMethod,
   CauseCategory,
   CheckPhase,
   CheckResult,
@@ -61,8 +60,3 @@ export const CAUSE_CATEGORY = {
   tool_issue: { tone: "warning", label: "Tool issue" },
   other: { tone: "neutral", label: "Other" },
 } as const satisfies Record<CauseCategory, ToneLabel>;
-
-export const BENCHMARK_METHOD_LABEL = {
-  first_domino: "First Domino (replay and verify)",
-  read_trace_judge: "LLM judge reading the trace",
-} as const satisfies Record<BenchmarkMethod, string>;

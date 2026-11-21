@@ -30,7 +30,6 @@ src/
     (app)/failures/page.tsx
     (app)/runs/[runId]/page.tsx
     (app)/causes/page.tsx, causes/[causeId]/page.tsx
-    (app)/benchmark/page.tsx
     (app)/settings/page.tsx
     api/auth/[...nextauth]/route.ts
     api/health/route.ts, api/log/client-error/route.ts

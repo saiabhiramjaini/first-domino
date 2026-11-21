@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -8,7 +9,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { QueryError } from "@/components/feedback/query-error";
 import { RunStepStrip } from "@/components/runs/run-step-strip";
 import { defaultSelectedStep } from "@/components/runs/step-strip-state";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Panel } from "@/components/layout/panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isDiagnosisActive } from "@/hooks/api/diagnosis-activity";
 import { useGetDiagnosis } from "@/hooks/api/use-get-diagnosis";
@@ -21,11 +22,12 @@ import { CheckReplays } from "../replays/check-replays";
 import { CheckList } from "./check-list";
 import { DiagnoseRunButton } from "./diagnose-run-button";
 import { DiagnosisFailed } from "./diagnosis-failed";
-import { DiagnosisProgress } from "./diagnosis-progress";
 import { RunHeader } from "./run-header";
+import { RunInputPanel } from "./run-input-panel";
 import { StepDetail } from "./step-detail";
 import { StepPager } from "./step-pager";
 import { VerdictCard } from "./verdict-card";
+import { VerdictHero } from "./verdict-hero";
 
 type RunDiagnosisViewProps = { runId: string };
 
@@ -71,10 +73,37 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
     setReplayCheckId(null);
   }
 
+  const stepStrip = steps.isError ? (
+    <QueryError
+      error={steps.error}
+      what="the steps"
+      source="runs.load_steps"
+      onRetry={steps.refetch}
+    />
+  ) : (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+          Steps
+        </h3>
+        <span className="text-xs text-muted-foreground">
+          Each step is a save point. Pick one to read it.
+        </span>
+      </div>
+      <RunStepStrip
+        stepCount={stepCount}
+        diagnosis={diagnosis}
+        selectedStep={selectedStep}
+        onSelectStep={setPickedStep}
+      />
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <RunHeader
         run={run.data}
+        title={diagnosis?.explanation?.title}
         actions={
           canDiagnose && (
             <DiagnoseRunButton
@@ -86,97 +115,89 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Diagnosis</CardTitle>
-          <CardDescription>
-            Each check keeps the first steps exactly as recorded and replays the rest. The first
-            step from which every replay fails is the first domino.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          {diagnosisId === null ? (
-            <EmptyState
-              title="Not diagnosed yet"
-              description={
-                run.data.status === "failed"
-                  ? "Diagnose this run to replay it from its save points and find the first domino."
-                  : "Only failed recorded runs can be diagnosed."
-              }
-            />
-          ) : diagnosisQuery.isError ? (
-            <QueryError
-              error={diagnosisQuery.error}
-              what="the diagnosis"
-              source="runs.load_diagnosis"
-              onRetry={diagnosisQuery.refetch}
-            />
-          ) : diagnosis ? (
-            <DiagnosisProgress diagnosis={diagnosis} />
-          ) : (
-            <Skeleton className="h-6 w-64" />
-          )}
+      {diagnosisId === null ? (
+        <Panel>
+          <EmptyState
+            icon={SearchIcon}
+            title="Not diagnosed yet"
+            description={
+              run.data.status === "failed"
+                ? "Diagnose this run to replay it from its save points and find the first domino."
+                : "Only failed recorded runs can be diagnosed."
+            }
+            action={
+              canDiagnose && (
+                <DiagnoseRunButton runId={runId} hasDiagnosis={false} onCreated={handleCreated} />
+              )
+            }
+          />
+          <div className="border-t px-5 py-5">{stepStrip}</div>
+        </Panel>
+      ) : diagnosisQuery.isError ? (
+        <QueryError
+          error={diagnosisQuery.error}
+          what="the diagnosis"
+          source="runs.load_diagnosis"
+          onRetry={diagnosisQuery.refetch}
+        />
+      ) : diagnosis ? (
+        <VerdictHero diagnosis={diagnosis}>{stepStrip}</VerdictHero>
+      ) : (
+        <Skeleton className="h-64 w-full rounded-xl" />
+      )}
 
-          {steps.isError ? (
-            <QueryError
-              error={steps.error}
-              what="the steps"
-              source="runs.load_steps"
-              onRetry={steps.refetch}
-            />
-          ) : (
-            <RunStepStrip
-              stepCount={stepCount}
-              diagnosis={diagnosis}
-              selectedStep={selectedStep}
-              onSelectStep={setPickedStep}
-            />
-          )}
-        </CardContent>
-      </Card>
-
+      {diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
       {diagnosis?.status === "done" && (
         <VerdictCard diagnosis={diagnosis} originalStep={dominoStep} />
       )}
-      {diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <section className="flex flex-col gap-3" aria-labelledby="step-title">
-          <div className="flex items-center justify-between gap-2">
-            <h2 id="step-title" className="font-medium">
-              Selected step
-            </h2>
-            {selectedStep !== null && (
+      <div className="grid items-start gap-6 xl:grid-cols-2">
+        <Panel
+          id="selected-step"
+          title={selectedStep === null ? "Step" : `Step ${selectedStep}`}
+          description={
+            selectedStep !== null && selectedStep === diagnosis?.first_domino_step
+              ? "The first domino, as recorded."
+              : "As recorded in the original run."
+          }
+          actions={
+            selectedStep !== null && (
               <StepPager
                 selectedStep={selectedStep}
                 stepCount={stepCount}
                 onSelectStep={setPickedStep}
               />
-            )}
-          </div>
+            )
+          }
+        >
           {selected ? (
             <StepDetail step={selected} />
           ) : steps.isPending ? (
-            <Skeleton className="h-40 w-full" />
+            <div className="p-4">
+              <Skeleton className="h-40 w-full" />
+            </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Pick a step above to read it.</p>
+            <p className="p-4 text-sm text-muted-foreground">Pick a step above to read it.</p>
           )}
-        </section>
-        <section className="flex flex-col gap-3" aria-labelledby="checks-title">
-          <h2 id="checks-title" className="font-medium">
-            Checks
-          </h2>
+        </Panel>
+        <Panel
+          id="checks"
+          title="Checks"
+          description="Each check keeps the first steps as recorded and replays the rest."
+        >
           {diagnosisId === null ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="p-4 text-sm text-muted-foreground">
               Checks appear here once you diagnose the run.
             </p>
           ) : checks.isError ? (
-            <QueryError
-              error={checks.error}
-              what="the checks"
-              source="runs.load_checks"
-              onRetry={checks.refetch}
-            />
+            <div className="p-4">
+              <QueryError
+                error={checks.error}
+                what="the checks"
+                source="runs.load_checks"
+                onRetry={checks.refetch}
+              />
+            </div>
           ) : checks.data ? (
             <CheckList
               checks={checks.data}
@@ -184,9 +205,11 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
               onViewReplays={(check) => setReplayCheckId(check.id)}
             />
           ) : (
-            <Skeleton className="h-40 w-full" />
+            <div className="p-4">
+              <Skeleton className="h-40 w-full" />
+            </div>
           )}
-        </section>
+        </Panel>
       </div>
       {replayCheck && (
         <CheckReplays
@@ -196,6 +219,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
           onClose={() => setReplayCheckId(null)}
         />
       )}
+      <RunInputPanel run={run.data} />
     </div>
   );
 }
@@ -203,9 +227,15 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
 function RunDiagnosisSkeleton() {
   return (
     <div className="flex flex-col gap-6" aria-busy="true">
-      <Skeleton className="h-8 w-64" />
-      <Skeleton className="h-20 w-full" />
-      <Skeleton className="h-48 w-full" />
+      <div className="flex flex-col gap-3 border-b pb-6">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-8 w-96 max-w-full" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-xl" />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Skeleton className="h-56 w-full rounded-xl" />
+        <Skeleton className="h-56 w-full rounded-xl" />
+      </div>
     </div>
   );
 }

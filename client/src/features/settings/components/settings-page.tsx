@@ -1,17 +1,9 @@
-import { ApiKeysCard } from "./api-keys-card";
-import { ConnectAgentCard } from "./connect-agent-card";
-import { OnboardingChecklist } from "./onboarding-checklist";
-import { ProjectCard } from "./project-card";
-import { SlackWebhookCard } from "./slack-webhook-card";
+import { SetupTimeline } from "./setup-timeline";
 
 export function SettingsPage() {
   return (
-    <div className="flex flex-col gap-6">
-      <OnboardingChecklist />
-      <ConnectAgentCard />
-      <ApiKeysCard />
-      <SlackWebhookCard />
-      <ProjectCard />
+    <div className="max-w-4xl">
+      <SetupTimeline />
     </div>
   );
 }

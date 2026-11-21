@@ -9,8 +9,8 @@ export default function Page() {
   return (
     <>
       <PageHeader
-        title="Settings"
-        description="Connect your agent, manage API keys and choose where alerts go."
+        title="Connect your agent"
+        description="Four steps. Each one ticks itself as soon as First Domino sees it working."
       />
       <SettingsPage />
     </>

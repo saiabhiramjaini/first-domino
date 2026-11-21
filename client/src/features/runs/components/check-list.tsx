@@ -33,22 +33,22 @@ export function savePointText(phase: CheckPhase, savePoint: number): string {
 export function CheckList({ checks, selectedCheckId, onViewReplays }: CheckListProps) {
   if (checks.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="p-4 text-sm text-muted-foreground">
         No checks yet. Each check replays the run from a save point and appears here when it starts.
       </p>
     );
   }
   return (
-    <div className="max-h-96 overflow-y-auto rounded-xl border">
+    <div className="max-h-[28rem] overflow-y-auto">
       <Table>
-        <TableHeader className="sticky top-0 bg-card">
+        <TableHeader className="sticky top-0 z-10 bg-card">
           <TableRow>
             <TableHead className="w-12">#</TableHead>
             <TableHead>Phase</TableHead>
             <TableHead>Save point</TableHead>
             <TableHead className="text-right">Passed</TableHead>
             <TableHead className="text-right">Result</TableHead>
-            <TableHead className="w-28">
+            <TableHead className="w-24">
               <span className="sr-only">Replays</span>
             </TableHead>
           </TableRow>
@@ -59,13 +59,17 @@ export function CheckList({ checks, selectedCheckId, onViewReplays }: CheckListP
               key={check.id}
               data-state={check.id === selectedCheckId ? "selected" : undefined}
             >
-              <TableCell className="text-muted-foreground tabular-nums">{check.index}</TableCell>
-              <TableCell>
-                <StatusBadge status={CHECK_PHASE[check.phase]} />
+              <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
+                {check.index}
               </TableCell>
-              <TableCell>{savePointText(check.phase, check.save_point)}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {check.passes} of {check.samples}
+              <TableCell>
+                <StatusBadge status={CHECK_PHASE[check.phase]} dot={false} />
+              </TableCell>
+              <TableCell className="text-sm">
+                {savePointText(check.phase, check.save_point)}
+              </TableCell>
+              <TableCell className="text-right font-mono text-xs tabular-nums">
+                {check.passes}/{check.samples}
               </TableCell>
               <TableCell className="text-right">
                 <StatusBadge status={CHECK_RESULT[check.result]} />
@@ -78,7 +82,7 @@ export function CheckList({ checks, selectedCheckId, onViewReplays }: CheckListP
                   aria-pressed={check.id === selectedCheckId}
                   onClick={() => onViewReplays(check)}
                 >
-                  View replays
+                  Replays
                 </Button>
               </TableCell>
             </TableRow>

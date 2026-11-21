@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronRightIcon, InboxIcon } from "lucide-react";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -21,25 +22,28 @@ import { formatInteger, formatRelative } from "@/lib/format";
 import { pageItems } from "@/lib/paging";
 
 import { FAILED_RUNS } from "../inbox-filters";
+import { RunDiagnosisCell, RunVerdictCell } from "./run-diagnosis-cell";
 
 export function FailedRunsTable() {
   const runs = useListRuns(FAILED_RUNS);
   if (runs.isError) {
     return (
-      <QueryError
-        error={runs.error}
-        what="failed runs"
-        source="failures.load_runs"
-        onRetry={runs.refetch}
-      />
+      <div className="p-4">
+        <QueryError
+          error={runs.error}
+          what="failed runs"
+          source="failures.load_runs"
+          onRetry={runs.refetch}
+        />
+      </div>
     );
   }
   if (runs.isPending) {
     return (
-      <div className="flex flex-col gap-2" aria-busy="true">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+      <div className="flex flex-col gap-3 p-4" aria-busy="true">
+        {[0, 1, 2, 3].map((row) => (
+          <Skeleton key={row} className="h-11 w-full" />
+        ))}
       </div>
     );
   }
@@ -47,10 +51,11 @@ export function FailedRunsTable() {
   if (items.length === 0) {
     return (
       <EmptyState
+        icon={InboxIcon}
         title="No failed runs yet"
-        description="Record your agent's calls with the SDK. When your success check marks a call failed, it shows up here and is diagnosed automatically."
+        description="Record your agent's runs with the SDK. When your success check marks a run failed, it lands here and is diagnosed automatically."
         action={
-          <Link href="/settings#connect" className={buttonVariants({ variant: "outline" })}>
+          <Link href="/settings" className={buttonVariants({ variant: "brand" })}>
             Connect your agent
           </Link>
         }
@@ -58,50 +63,76 @@ export function FailedRunsTable() {
     );
   }
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="hover:bg-transparent">
             <TableHead>Run</TableHead>
-            <TableHead>Task</TableHead>
+            <TableHead>First domino</TableHead>
+            <TableHead>Verdict</TableHead>
             <TableHead className="text-right">Steps</TableHead>
-            <TableHead>Diagnosis</TableHead>
-            <TableHead className="text-right">Started</TableHead>
+            <TableHead className="text-right">When</TableHead>
+            <TableHead className="w-8">
+              <span className="sr-only">Open</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.map((run) => (
-            <TableRow key={run.id}>
-              <TableCell>
+            <TableRow key={run.id} className="group">
+              <TableCell className="max-w-[16rem]">
                 <Link
                   href={`/runs/${run.id}`}
-                  className="flex flex-col font-medium underline-offset-4 hover:underline"
+                  className="flex min-w-0 flex-col gap-0.5 rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
-                  {run.agent_name}
-                  <span className="font-mono text-xs text-muted-foreground">{shortId(run.id)}</span>
+                  <span className="flex items-center gap-2 font-medium">
+                    {run.agent_name}
+                    <span className="font-mono text-xs font-normal text-muted-foreground">
+                      {shortId(run.id)}
+                    </span>
+                  </span>
+                  <span
+                    className="truncate text-xs text-muted-foreground"
+                    title={run.task_input.prompt}
+                  >
+                    {run.task_input.prompt}
+                  </span>
                 </Link>
               </TableCell>
-              <TableCell className="max-w-xs truncate text-muted-foreground">
-                {run.task_input.prompt}
+              <TableCell className="max-w-[22rem]">
+                <RunDiagnosisCell diagnosisId={run.latest_diagnosis_id} />
               </TableCell>
-              <TableCell className="text-right tabular-nums">
+              <TableCell>
+                <RunVerdictCell diagnosisId={run.latest_diagnosis_id} />
+              </TableCell>
+              <TableCell className="text-right font-mono text-xs text-muted-foreground tabular-nums">
                 {formatInteger(run.step_count)}
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {run.latest_diagnosis_id ? "Diagnosed" : "Not yet"}
-              </TableCell>
-              <TableCell className="text-right whitespace-nowrap text-muted-foreground">
+              <TableCell className="text-right text-xs whitespace-nowrap text-muted-foreground">
                 {formatRelative(run.started_at)}
+              </TableCell>
+              <TableCell className="pr-3">
+                <Link
+                  href={`/runs/${run.id}`}
+                  aria-label={`Open run ${shortId(run.id)}`}
+                  className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-60 outline-none group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <ChevronRightIcon className="size-4" aria-hidden="true" />
+                </Link>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      <LoadMoreButton
-        hasNextPage={runs.hasNextPage}
-        isFetchingNextPage={runs.isFetchingNextPage}
-        onLoadMore={() => runs.fetchNextPage()}
-      />
+      {runs.hasNextPage && (
+        <div className="border-t p-3">
+          <LoadMoreButton
+            hasNextPage={runs.hasNextPage}
+            isFetchingNextPage={runs.isFetchingNextPage}
+            onLoadMore={() => runs.fetchNextPage()}
+          />
+        </div>
+      )}
     </div>
   );
 }

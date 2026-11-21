@@ -88,7 +88,7 @@ const replays = [
 describe("ReplayComparison", () => {
   it("shows each replay's outcome and marks where it diverges", () => {
     render(<ReplayComparison check={check("bisect")} originalSteps={original} replays={replays} />);
-    expect(screen.getByText("1 of 2 replays passed")).toBeInTheDocument();
+    expect(screen.getByText("1/2 replays passed")).toBeInTheDocument();
     expect(screen.getAllByText("Differs here")).toHaveLength(1);
     const row = screen.getByRole("rowheader", { name: "2" }).closest("tr");
     expect(row).not.toBeNull();

@@ -49,11 +49,11 @@ export function ReplayComparison({ check, originalSteps, replays }: ReplayCompar
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge status={CHECK_PHASE[check.phase]} />
-        <span className="font-medium">{savePointText(check.phase, savePoint)}</span>
+        <StatusBadge status={CHECK_PHASE[check.phase]} dot={false} />
+        <span className="text-sm font-medium">{savePointText(check.phase, savePoint)}</span>
         <StatusBadge status={CHECK_RESULT[check.result]} />
-        <span className="text-sm text-muted-foreground">
-          {passed} of {replays.length} replays passed
+        <span className="font-mono text-xs text-muted-foreground">
+          {passed}/{replays.length} replays passed
         </span>
       </div>
       <p className="text-sm text-muted-foreground">
@@ -63,15 +63,17 @@ export function ReplayComparison({ check, originalSteps, replays }: ReplayCompar
         A highlighted cell is where that replay first does something different.
       </p>
 
-      <div className="rounded-xl border">
+      <div className="overflow-hidden rounded-lg border">
         <Table className="min-w-max">
           <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="w-16 text-xs">Step</TableHead>
               <TableHead className="h-auto w-64 py-3 align-top whitespace-normal">
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-medium">Original run</span>
-                  <span className="text-xs text-muted-foreground">As recorded</span>
+                  <span className="text-sm font-medium tracking-normal text-foreground normal-case">
+                    Original run
+                  </span>
+                  <span className="text-xs tracking-normal normal-case">As recorded</span>
                 </div>
               </TableHead>
               {lanes.map((lane) => (
@@ -80,13 +82,13 @@ export function ReplayComparison({ check, originalSteps, replays }: ReplayCompar
                   className="h-auto w-64 py-3 align-top whitespace-normal"
                 >
                   <div className="flex flex-col items-start gap-1">
-                    <span className="flex items-center gap-2 text-sm font-medium">
+                    <span className="flex items-center gap-2 text-sm font-medium tracking-normal text-foreground normal-case">
                       {lane.label}
                       <StatusBadge status={RUN_STATUS[lane.run.status]} />
                     </span>
                     <Link
                       href={`/runs/${lane.run.id}`}
-                      className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                      className="text-xs tracking-normal normal-case underline-offset-4 hover:text-foreground hover:underline"
                     >
                       Open this replay
                     </Link>
@@ -100,7 +102,7 @@ export function ReplayComparison({ check, originalSteps, replays }: ReplayCompar
               <TableRow key={index} className="hover:bg-transparent">
                 <th
                   scope="row"
-                  className="p-3 align-top text-sm font-medium text-muted-foreground tabular-nums"
+                  className="p-3 align-top font-mono text-xs text-muted-foreground tabular-nums"
                 >
                   {index}
                 </th>
@@ -115,8 +117,8 @@ export function ReplayComparison({ check, originalSteps, replays }: ReplayCompar
                       key={lane.run.id}
                       className={cn(
                         "p-3 align-top whitespace-normal",
-                        isDivergence && "bg-warning/15",
-                        isRewritten && "bg-verified/10"
+                        isDivergence && "bg-warning/8",
+                        isRewritten && "bg-verified/8"
                       )}
                     >
                       {(isRewritten || isDivergence) && (

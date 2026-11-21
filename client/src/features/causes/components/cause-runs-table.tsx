@@ -28,17 +28,23 @@ export function CauseRunsTable({ causeId }: CauseRunsTableProps) {
   const diagnoses = useListDiagnoses({ cause_ids: [causeId] });
 
   if (diagnoses.isPending) {
-    return <Skeleton className="h-40 w-full rounded-xl" />;
+    return (
+      <div className="p-4">
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
   }
 
   if (diagnoses.isError) {
     return (
-      <QueryError
-        error={diagnoses.error}
-        what="the runs of this cause"
-        source="causes.list_runs"
-        onRetry={() => diagnoses.refetch()}
-      />
+      <div className="p-4">
+        <QueryError
+          error={diagnoses.error}
+          what="the runs of this cause"
+          source="causes.list_runs"
+          onRetry={() => diagnoses.refetch()}
+        />
+      </div>
     );
   }
 
@@ -53,8 +59,8 @@ export function CauseRunsTable({ causeId }: CauseRunsTableProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-xl border">
+    <div className="flex flex-col">
+      <div>
         <Table>
           <TableHeader>
             <TableRow>

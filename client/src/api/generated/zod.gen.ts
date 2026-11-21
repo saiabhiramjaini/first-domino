@@ -57,39 +57,6 @@ export const zApiKey = z.object({
 });
 
 /**
- * BenchmarkMethod
- *
- * A way of finding the first domino step that the benchmark scores.
- */
-export const zBenchmarkMethod = z.enum(['first_domino', 'read_trace_judge']);
-
-/**
- * BenchmarkScore
- *
- * How well one method found the labelled first domino step.
- */
-export const zBenchmarkScore = z.object({
-    method: zBenchmarkMethod,
-    runs_scored: z.int().gte(0),
-    exact_accuracy: z.number().gte(0).lte(1),
-    within_one_accuracy: z.number().gte(0).lte(1),
-    verified_rate: z.number().gte(0).lte(1).nullable(),
-    mean_cost_usd: z.number().gte(0),
-    mean_seconds: z.number().gte(0)
-});
-
-/**
- * Benchmark
- *
- * One benchmark run over the labelled dataset.
- */
-export const zBenchmark = z.object({
-    id: z.uuid(),
-    created_at: z.iso.datetime(),
-    scores: z.array(zBenchmarkScore)
-});
-
-/**
  * CauseCategory
  *
  * The kind of mistake a root cause is.
@@ -312,15 +279,6 @@ export const zApiValidationError = z.object({
  */
 export const zGetCauseResponse = z.object({
     cause: zCause
-});
-
-/**
- * GetLatestBenchmarkResponse
- *
- * The newest benchmark, or null when none has run.
- */
-export const zGetLatestBenchmarkResponse = z.object({
-    benchmark: zBenchmark.nullable()
 });
 
 /**
@@ -1106,11 +1064,6 @@ export const zExportCauseBody = zExportCauseRequest;
  * Successful Response
  */
 export const zExportCauseResponse2 = zExportCauseResponse;
-
-/**
- * Successful Response
- */
-export const zGetLatestBenchmarkResponse2 = zGetLatestBenchmarkResponse;
 
 export const zLeaseReplayJobBody = zLeaseReplayJobRequest;
 

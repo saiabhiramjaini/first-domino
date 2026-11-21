@@ -6,7 +6,8 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/app-shell/page-header";
 import { QueryError } from "@/components/feedback/query-error";
-import { StatCard } from "@/components/stats/stat-card";
+import { Panel } from "@/components/layout/panel";
+import { MetricStrip } from "@/components/stats/metric-strip";
 import { StatusBadge } from "@/components/status/status-badge";
 import { CAUSE_CATEGORY } from "@/components/status/status-tones";
 import { buttonVariants } from "@/components/ui/button";
@@ -63,52 +64,54 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
   const data = cause.data;
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <div>
-          <BackToCauses />
-        </div>
-        <PageHeader
-          title={data.title}
-          description={`Step: ${data.step_name}`}
-          actions={<ExportTestsButton causeId={data.id} />}
-        />
-        <div>
-          <StatusBadge status={CAUSE_CATEGORY[data.category]} />
-        </div>
-      </div>
+      <PageHeader
+        eyebrow={
+          <>
+            <StatusBadge status={CAUSE_CATEGORY[data.category]} dot={false} />
+            <span className="font-mono">{data.step_name}</span>
+          </>
+        }
+        title={data.title}
+        description={data.summary}
+        actions={<ExportTestsButton causeId={data.id} />}
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Runs" value={formatInteger(data.run_count)} />
-        <StatCard
-          label="Verified by replay"
-          value={formatInteger(data.verified_count)}
-          hint={`of ${formatCount(data.run_count, RUN_NOUN)}`}
-        />
-        <StatCard label="First seen" value={formatRelative(data.first_seen_at)} />
-        <StatCard
-          label="Last seen"
-          value={formatRelative(data.last_seen_at)}
-          hint={formatDateTime(data.last_seen_at)}
-        />
-      </div>
+      <MetricStrip
+        metrics={[
+          { label: "Runs", value: formatInteger(data.run_count), hint: "Grouped under this cause" },
+          {
+            label: "Proven by a fix",
+            value: formatInteger(data.verified_count),
+            hint: `of ${formatCount(data.run_count, RUN_NOUN)}`,
+            tone: "verified",
+          },
+          {
+            label: "First seen",
+            value: formatRelative(data.first_seen_at),
+            hint: formatDateTime(data.first_seen_at),
+          },
+          {
+            label: "Last seen",
+            value: formatRelative(data.last_seen_at),
+            hint: formatDateTime(data.last_seen_at),
+          },
+        ]}
+      />
 
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
-        <div className="flex flex-col gap-1.5">
-          <h2 className="text-sm font-medium text-muted-foreground">What goes wrong</h2>
-          <p className="text-sm">{data.summary}</p>
-        </div>
-        <div className="flex flex-col gap-1.5 rounded-lg border-l-4 border-verified bg-verified/10 p-4">
-          <h2 className="text-sm font-medium">Suggested fix</h2>
-          <p className="text-sm whitespace-pre-line">{data.suggested_fix}</p>
-        </div>
-      </section>
+      <Panel
+        title="Suggested fix"
+        description="Apply it in your agent, then export the runs as tests."
+      >
+        <p className="p-4 text-sm text-pretty whitespace-pre-line">{data.suggested_fix}</p>
+      </Panel>
 
-      <section className="flex flex-col gap-3" aria-labelledby="cause-runs-title">
-        <h2 id="cause-runs-title" className="text-lg font-semibold">
-          Runs with this cause
-        </h2>
+      <Panel
+        id="cause-runs"
+        title="Runs with this cause"
+        description="Each row is a diagnosis that grouped its run here."
+      >
         <CauseRunsTable causeId={causeId} />
-      </section>
+      </Panel>
     </div>
   );
 }

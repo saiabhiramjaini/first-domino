@@ -6,12 +6,13 @@ import { cn } from "@/lib/utils";
 import { stepState, type StepState, type StripDiagnosis } from "./step-strip-state";
 
 const STATE_CLASSES = {
-  idle: "border-border bg-card text-muted-foreground",
-  in_range: "border-search-range bg-search-range/15 text-search-range",
-  ruled_out: "border-transparent bg-ruled-out text-ruled-out-foreground",
-  first_domino: "border-domino bg-domino text-domino-foreground shadow-sm",
+  idle: "border-border bg-muted/40 text-muted-foreground",
+  in_range: "border-search-range/60 bg-search-range/12 text-search-range",
+  ruled_out: "border-transparent bg-ruled-out/60 text-muted-foreground/70",
+  first_domino:
+    "border-domino bg-domino text-domino-foreground shadow-[0_0_24px_-4px_var(--domino)] -rotate-6",
   verified_domino:
-    "border-domino bg-domino text-domino-foreground shadow-sm ring-2 ring-verified ring-offset-2 ring-offset-background",
+    "border-domino bg-domino text-domino-foreground shadow-[0_0_24px_-4px_var(--domino)] -rotate-6 ring-2 ring-verified ring-offset-2 ring-offset-card",
 } as const satisfies Record<StepState, string>;
 
 const STATE_LABELS = {
@@ -29,7 +30,8 @@ const LEGEND: ReadonlyArray<{ state: StepState; label: string }> = [
   { state: "ruled_out", label: "Ruled out" },
 ];
 
-const TILE_CLASSES = "size-10 rounded-lg border text-sm font-medium tabular-nums";
+const TILE_CLASSES =
+  "h-12 w-9 rounded-md border font-mono text-xs font-medium tabular-nums transition-[transform,background-color,border-color] duration-300 motion-reduce:transition-none";
 
 function stepNumbers(stepCount: number): number[] {
   return Array.from({ length: stepCount }, (_, offset) => offset + 1);
@@ -63,7 +65,7 @@ export function RunStepStrip({
 }: RunStepStripProps) {
   return (
     <div className="flex flex-col gap-3">
-      <ol className="flex flex-wrap gap-1.5" aria-label="Steps of this run">
+      <ol className="flex flex-wrap gap-2" aria-label="Steps of this run">
         {stepNumbers(stepCount).map((step) => {
           const state = stepState(step, diagnosis);
           const isSelected = step === selectedStep;
@@ -78,7 +80,7 @@ export function RunStepStrip({
                 className={cn(
                   TILE_CLASSES,
                   STATE_CLASSES[state],
-                  isSelected && "outline-2 outline-offset-2 outline-foreground"
+                  isSelected && "outline-2 outline-offset-3 outline-foreground"
                 )}
               >
                 {step}
@@ -99,7 +101,7 @@ type StepStripPreviewProps = {
 
 export function StepStripPreview({ stepCount, diagnosis }: StepStripPreviewProps) {
   return (
-    <ol className="flex flex-wrap justify-center gap-1.5" aria-label="Steps of the example run">
+    <ol className="flex flex-wrap justify-center gap-2" aria-label="Steps of the example run">
       {stepNumbers(stepCount).map((step) => {
         const state = stepState(step, diagnosis);
         return (

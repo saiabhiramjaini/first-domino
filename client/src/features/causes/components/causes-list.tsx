@@ -1,10 +1,12 @@
 "use client";
 
+import { TargetIcon } from "lucide-react";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { LoadMoreButton } from "@/components/feedback/load-more-button";
 import { QueryError } from "@/components/feedback/query-error";
+import { Panel } from "@/components/layout/panel";
 import { StatusBadge } from "@/components/status/status-badge";
 import { CAUSE_CATEGORY } from "@/components/status/status-tones";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,20 +16,20 @@ import { formatCount, formatRelative } from "@/lib/format";
 import { RUN_NOUN } from "@/lib/nouns";
 import { pageItems } from "@/lib/paging";
 
-import { verifiedLabel } from "../cause-stats";
-
-const SKELETON_ROWS = ["a", "b", "c"] as const;
+const SKELETON_ROWS = ["a", "b", "c", "d"] as const;
 
 export function CausesList() {
   const causes = useListCauses({});
 
   if (causes.isPending) {
     return (
-      <div className="flex flex-col gap-3" aria-busy="true">
-        {SKELETON_ROWS.map((key) => (
-          <Skeleton key={key} className="h-28 w-full rounded-xl" />
-        ))}
-      </div>
+      <Panel>
+        <div className="flex flex-col gap-3 p-4" aria-busy="true">
+          {SKELETON_ROWS.map((key) => (
+            <Skeleton key={key} className="h-16 w-full" />
+          ))}
+        </div>
+      </Panel>
     );
   }
 
@@ -45,64 +47,76 @@ export function CausesList() {
   const items = pageItems(causes.data);
   if (items.length === 0) {
     return (
-      <EmptyState
-        title="No root causes yet"
-        description="Each finished diagnosis groups its root cause here, so repeated failures show up as one cause with many runs."
-        action={
-          <Link href="/failures" className={buttonVariants({ variant: "outline" })}>
-            See failed runs
-          </Link>
-        }
-      />
+      <Panel>
+        <EmptyState
+          icon={TargetIcon}
+          title="No root causes yet"
+          description="Each finished diagnosis groups its root cause here, so repeated failures show up as one cause with many runs."
+          action={
+            <Link href="/failures" className={buttonVariants({ variant: "outline" })}>
+              See failed runs
+            </Link>
+          }
+        />
+      </Panel>
     );
   }
 
+  const most = Math.max(...items.map((cause) => cause.run_count), 1);
   return (
-    <div className="flex flex-col gap-4">
-      <ul className="flex flex-col gap-3">
+    <Panel
+      title={formatCount(items.length, { one: "cause", other: "causes" })}
+      description="Most runs first. A cause is proven when a fix made its runs pass."
+    >
+      <ul className="flex flex-col divide-y">
         {items.map((cause) => (
           <li key={cause.id}>
             <Link
               href={`/causes/${cause.id}`}
-              className="flex flex-col gap-3 rounded-xl border bg-card p-4 outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 sm:flex-row sm:items-start sm:justify-between"
+              className="grid gap-3 px-4 py-4 outline-none hover:bg-muted/40 focus-visible:bg-muted/40 md:grid-cols-[minmax(0,1fr)_180px_120px] md:items-center md:gap-6"
             >
               <div className="flex min-w-0 flex-col gap-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{cause.title}</span>
-                  <StatusBadge status={CAUSE_CATEGORY[cause.category]} />
+                  <StatusBadge status={CAUSE_CATEGORY[cause.category]} dot={false} />
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {cause.step_name}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground">Step: {cause.step_name}</span>
-                <p className="line-clamp-2 text-sm text-muted-foreground">{cause.summary}</p>
+                <span className="font-medium text-pretty">{cause.title}</span>
+                <p className="line-clamp-1 text-sm text-muted-foreground">{cause.summary}</p>
               </div>
-              <dl className="flex shrink-0 gap-4 text-sm sm:flex-col sm:items-end sm:gap-1">
-                <div className="flex items-center gap-1">
-                  <dt className="sr-only">Runs</dt>
-                  <dd className="font-semibold tabular-nums">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-2 text-xs">
+                  <span className="font-medium text-foreground">
                     {formatCount(cause.run_count, RUN_NOUN)}
-                  </dd>
+                  </span>
+                  <span className="font-mono text-verified">
+                    {cause.verified_count}/{cause.run_count} proven
+                  </span>
                 </div>
-                <div>
-                  <dt className="sr-only">Verified</dt>
-                  <dd className="text-verified">
-                    {verifiedLabel(cause.verified_count, cause.run_count)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="sr-only">Last seen</dt>
-                  <dd className="text-muted-foreground">
-                    Last seen {formatRelative(cause.last_seen_at)}
-                  </dd>
-                </div>
-              </dl>
+                <span className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                  <span
+                    className="block h-full rounded-full bg-domino/70"
+                    style={{ width: `${(cause.run_count / most) * 100}%` }}
+                  />
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground md:text-right">
+                Last seen {formatRelative(cause.last_seen_at)}
+              </span>
             </Link>
           </li>
         ))}
       </ul>
-      <LoadMoreButton
-        hasNextPage={causes.hasNextPage}
-        isFetchingNextPage={causes.isFetchingNextPage}
-        onLoadMore={() => causes.fetchNextPage()}
-      />
-    </div>
+      {causes.hasNextPage && (
+        <div className="border-t p-3">
+          <LoadMoreButton
+            hasNextPage={causes.hasNextPage}
+            isFetchingNextPage={causes.isFetchingNextPage}
+            onLoadMore={() => causes.fetchNextPage()}
+          />
+        </div>
+      )}
+    </Panel>
   );
 }

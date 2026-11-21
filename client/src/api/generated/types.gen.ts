@@ -141,82 +141,6 @@ export type ApiValidationError = {
 };
 
 /**
- * Benchmark
- *
- * One benchmark run over the labelled dataset.
- */
-export type Benchmark = {
-    /**
-     * Id
-     */
-    id: string;
-    /**
-     * Created At
-     *
-     * Time the benchmark finished, in UTC RFC 3339 format.
-     */
-    created_at: string;
-    /**
-     * Scores
-     *
-     * One score per method.
-     */
-    scores: Array<BenchmarkScore>;
-};
-
-/**
- * BenchmarkMethod
- *
- * A way of finding the first domino step that the benchmark scores.
- */
-export type BenchmarkMethod = 'first_domino' | 'read_trace_judge';
-
-/**
- * BenchmarkScore
- *
- * How well one method found the labelled first domino step.
- */
-export type BenchmarkScore = {
-    method: BenchmarkMethod;
-    /**
-     * Runs Scored
-     *
-     * Number of labelled runs the method was scored on.
-     */
-    runs_scored: number;
-    /**
-     * Exact Accuracy
-     *
-     * Share of runs where it named the labelled step exactly.
-     */
-    exact_accuracy: number;
-    /**
-     * Within One Accuracy
-     *
-     * Share of runs where it was at most one step off.
-     */
-    within_one_accuracy: number;
-    /**
-     * Verified Rate
-     *
-     * Share of runs with a fix proven by replay. Null without proof.
-     */
-    verified_rate: number | null;
-    /**
-     * Mean Cost Usd
-     *
-     * Mean model cost per run, in US dollars.
-     */
-    mean_cost_usd: number;
-    /**
-     * Mean Seconds
-     *
-     * Mean wall time per run, in seconds.
-     */
-    mean_seconds: number;
-};
-
-/**
  * Cause
  *
  * A root cause shared by one or more diagnosed runs.
@@ -786,15 +710,6 @@ export type GetCauseResponse = {
  */
 export type GetDiagnosisResponse = {
     diagnosis: Diagnosis;
-};
-
-/**
- * GetLatestBenchmarkResponse
- *
- * The newest benchmark, or null when none has run.
- */
-export type GetLatestBenchmarkResponse = {
-    benchmark: Benchmark | null;
 };
 
 /**
@@ -2685,35 +2600,6 @@ export type ExportCauseResponses = {
 };
 
 export type ExportCauseResponse2 = ExportCauseResponses[keyof ExportCauseResponses];
-
-export type GetLatestBenchmarkData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/benchmarks.latest';
-};
-
-export type GetLatestBenchmarkErrors = {
-    /**
-     * Not authenticated
-     */
-    401: ApiError;
-    /**
-     * Internal error
-     */
-    500: ApiInternalError;
-};
-
-export type GetLatestBenchmarkError = GetLatestBenchmarkErrors[keyof GetLatestBenchmarkErrors];
-
-export type GetLatestBenchmarkResponses = {
-    /**
-     * Successful Response
-     */
-    200: GetLatestBenchmarkResponse;
-};
-
-export type GetLatestBenchmarkResponse2 = GetLatestBenchmarkResponses[keyof GetLatestBenchmarkResponses];
 
 export type LeaseReplayJobData = {
     body: LeaseReplayJobRequest;

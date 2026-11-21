@@ -33,35 +33,37 @@ export function CheckReplays({ check, originalSteps, onClose }: CheckReplaysProp
     <section
       id="check-replays"
       aria-labelledby="check-replays-title"
-      className="flex scroll-mt-20 flex-col gap-4 rounded-xl border bg-card p-4"
+      className="flex scroll-mt-20 flex-col rounded-xl border border-search-range/30 bg-card"
     >
-      <div className="flex items-center justify-between gap-2">
-        <h2 id="check-replays-title" className="font-medium">
-          Replays of check {check.index}
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+        <h2 id="check-replays-title" className="text-sm font-semibold">
+          Replays of check <span className="font-mono">#{check.index}</span>
         </h2>
         <Button variant="ghost" size="icon-sm" aria-label="Close the replays" onClick={onClose}>
           <XIcon />
         </Button>
       </div>
-      {replays.isError || stepsError ? (
-        <QueryError
-          error={replays.error ?? stepsError}
-          what="the replays"
-          source="runs.load_replays"
-          onRetry={() => {
-            void replays.refetch();
-            for (const query of steps) if (query.isError) void query.refetch();
-          }}
-        />
-      ) : isLoading ? (
-        <Skeleton className="h-64 w-full" />
-      ) : runs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No replays recorded for this check yet. They appear once the replay worker runs them.
-        </p>
-      ) : (
-        <ReplayComparison check={check} originalSteps={originalSteps} replays={lanes} />
-      )}
+      <div className="p-4">
+        {replays.isError || stepsError ? (
+          <QueryError
+            error={replays.error ?? stepsError}
+            what="the replays"
+            source="runs.load_replays"
+            onRetry={() => {
+              void replays.refetch();
+              for (const query of steps) if (query.isError) void query.refetch();
+            }}
+          />
+        ) : isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : runs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No replays recorded for this check yet. They appear once the replay worker runs them.
+          </p>
+        ) : (
+          <ReplayComparison check={check} originalSteps={originalSteps} replays={lanes} />
+        )}
+      </div>
     </section>
   );
 }

@@ -10,7 +10,7 @@ export default function FailuresPage() {
     <>
       <PageHeader
         title="Failures"
-        description="Failed agent runs and the first step that doomed each one."
+        description="Every failed run, the first step that doomed it, and whether a fix proved it."
       />
       <FailuresInbox />
     </>

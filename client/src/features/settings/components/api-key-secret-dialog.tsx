@@ -37,7 +37,7 @@ export function ApiKeySecretDialog({ createdKey, onClose }: ApiKeySecretDialogPr
             where your agent runs.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex items-start gap-2 rounded-lg bg-warning/25 p-3 text-sm text-warning-foreground">
+        <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
           <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <p>This is the only time you will see this key. Store it somewhere safe now.</p>
         </div>

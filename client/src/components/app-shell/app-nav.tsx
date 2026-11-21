@@ -12,7 +12,10 @@ type AppNavProps = { onNavigate?: () => void };
 export function AppNav({ onNavigate }: AppNavProps) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="flex flex-col gap-1">
+    <nav aria-label="Main" className="flex flex-col gap-0.5">
+      <span className="px-2.5 pb-1.5 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+        Workspace
+      </span>
       {NAV_ITEMS.map((item) => {
         const isActive = isNavItemActive(item, pathname);
         const Icon = item.icon;
@@ -23,11 +26,23 @@ export function AppNav({ onNavigate }: AppNavProps) {
             onClick={onNavigate}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-              isActive && "bg-muted text-foreground"
+              "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+              isActive && "bg-muted font-medium text-foreground"
             )}
           >
-            <Icon className="size-4" aria-hidden="true" />
+            {isActive && (
+              <span
+                className="absolute inset-y-2 -left-3 w-0.5 rounded-full bg-domino"
+                aria-hidden="true"
+              />
+            )}
+            <Icon
+              className={cn(
+                "size-4",
+                isActive ? "text-domino" : "text-muted-foreground group-hover:text-foreground"
+              )}
+              aria-hidden="true"
+            />
             {item.label}
           </Link>
         );

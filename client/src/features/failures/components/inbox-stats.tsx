@@ -1,6 +1,6 @@
 "use client";
 
-import { StatCard } from "@/components/stats/stat-card";
+import { MetricStrip } from "@/components/stats/metric-strip";
 import { useCountCauses } from "@/hooks/api/use-count-causes";
 import { useCountDiagnoses } from "@/hooks/api/use-count-diagnoses";
 import { useCountRuns } from "@/hooks/api/use-count-runs";
@@ -19,15 +19,31 @@ export function InboxStats() {
   const diagnosed = useCountDiagnoses(DONE_DIAGNOSES);
   const verified = useCountDiagnoses(VERIFIED_DIAGNOSES);
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatCard label="Failed runs" value={countText(failedRuns.data, failedRuns.isError)} />
-      <StatCard label="Root causes" value={countText(causes.data, causes.isError)} />
-      <StatCard label="Diagnoses done" value={countText(diagnosed.data, diagnosed.isError)} />
-      <StatCard
-        label="Verified by a fix"
-        value={countText(verified.data, verified.isError)}
-        hint="The fix flipped the run to passed"
-      />
-    </div>
+    <MetricStrip
+      metrics={[
+        {
+          label: "Failed runs",
+          value: countText(failedRuns.data, failedRuns.isError),
+          hint: "Recorded runs your check failed",
+        },
+        {
+          label: "Diagnosed",
+          value: countText(diagnosed.data, diagnosed.isError),
+          hint: "Searched to the first domino",
+        },
+        {
+          label: "Proven by a fix",
+          value: countText(verified.data, verified.isError),
+          hint: "The fixed step made the run pass",
+          tone: "verified",
+        },
+        {
+          label: "Root causes",
+          value: countText(causes.data, causes.isError),
+          hint: "Distinct causes across runs",
+          tone: "domino",
+        },
+      ]}
+    />
   );
 }

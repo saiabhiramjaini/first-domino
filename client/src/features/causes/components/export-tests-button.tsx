@@ -40,7 +40,7 @@ export function ExportTestsButton({ causeId }: ExportTestsButtonProps) {
   }
 
   return (
-    <Button variant="outline" onClick={handleClick} disabled={exportCause.isPending}>
+    <Button variant="brand" onClick={handleClick} disabled={exportCause.isPending}>
       <DownloadIcon data-icon="inline-start" aria-hidden="true" />
       {exportCause.isPending ? "Exporting..." : "Export as tests"}
     </Button>

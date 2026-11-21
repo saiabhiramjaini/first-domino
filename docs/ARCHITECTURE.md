@@ -59,7 +59,7 @@ During a replay, `fd.serve()` calls the same function again. Model calls up to t
 5. The worker leases the jobs, replays, runs the customer's check and submits the outcomes.
 6. The engine narrows the search range and asks for the next check, until one step is left.
 7. Verify: the engine asks a model to rewrite that step, then replays from the fixed step.
-8. Explain and group: the engine writes what went wrong and files it under a matching root cause.
+8. Explain and group: the engine writes what went wrong and files it under a matching root cause. A cause seen for the first time emails the project owner: fd-api asks the web app to send the mail.
 9. Every check is stored as it runs, so the web app shows the search live.
 
 ### Replay job lifecycle

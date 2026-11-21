@@ -9,3 +9,12 @@ function required(name: string): string {
 export function apiJwtSecret(): string {
   return required("API_JWT_SECRET");
 }
+
+export type MailSender = { user: string; pass: string };
+
+// The Gmail account alerts are sent from (with an app password), or null: alerts are off.
+export function mailSender(): MailSender | null {
+  const user = process.env.SENDER_EMAIL;
+  const pass = process.env.SENDER_PASS;
+  return user && pass ? { user, pass } : null;
+}

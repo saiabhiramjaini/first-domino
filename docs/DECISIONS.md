@@ -31,6 +31,7 @@ Each entry states what was decided and why. Change an entry when a decision chan
 | SDK replay | `fd.serve()` calls the customer's function again and answers model calls from the recording up to the save point; `@fd.tool` keeps side effects from repeating | Customers write no replay code |
 | SDK release | A `sdk-v*` tag runs `sdk-release.yml`, which publishes with PyPI trusted publishing | No PyPI token stored anywhere |
 | Search confidence | A save point with no passing replay gets a second round before it counts as doomed | One round of 3 wrongly blames a step 1 time in 8 when it passes half the time |
+| Alerts | A new root cause emails the project owner. fd-api asks the web app (`/api/alerts/new-cause`), which sends with nodemailer through Gmail; Slack stays optional | One email per new problem, not per failed run, like a new issue in Sentry; the mail account lives with the web app |
 | Restarts | Diagnoses hand themselves back on shutdown; recent ones restart from the beginning, older ones fail as interrupted | Deploys no longer lose diagnoses, and a crashing one cannot loop |
 | UI | Almost monochrome: red only for a failed run, violet only for the first domino. Failures are a tab of the Runs list | Calm and easy to scan; color means something when it appears |
 | Hosted runners | Not built. Later: the customer pushes a container we run in a sandbox | Too large for now |

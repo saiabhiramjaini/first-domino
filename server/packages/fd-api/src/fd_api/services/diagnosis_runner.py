@@ -11,6 +11,7 @@ from fd_api.adapters.check_sink import DatabaseCheckSink
 from fd_api.adapters.check_tracker import CheckTracker
 from fd_api.adapters.replay_runner import QueueReplayRunner
 from fd_api.adapters.run_reader import DatabaseRunReader
+from fd_api.services.email_alerts import alert_token, new_cause_alert, send_new_cause_alert
 from fd_api.services.engine import EngineFactory
 from fd_api.services.slack import new_cause_message, send_slack_message
 from fd_api.services.verdicts import store_verdict
@@ -218,16 +219,27 @@ class DiagnosisRunner:
             await self._announce(project_id, stored.cause)
 
     async def _announce(self, project_id: UUID, cause: tables.Cause) -> None:
+        """Tells the project's owner by email, and its Slack channel when it has one."""
         async with self._database.transaction() as session:
             project = await ProjectsRepository(session).get(project_id=project_id)
-        if project is None or project.slack_webhook_url is None:
+            owner = await session.get(tables.User, project.owner_id) if project else None
+        if project is None:
             return
-        await send_slack_message(
-            self._http,
-            project.slack_webhook_url,
-            new_cause_message(cause, web_app_url=self._settings.web_app_url),
-            timeout_seconds=self._settings.slack_timeout_seconds,
-        )
+        if owner is not None:
+            await send_new_cause_alert(
+                self._http,
+                new_cause_alert(cause, to=owner.email),
+                web_app_url=self._settings.web_app_url,
+                token=alert_token(self._settings.web_jwt_secret.get_secret_value(), now=utc_now()),
+                timeout_seconds=self._settings.email_alert_timeout_seconds,
+            )
+        if project.slack_webhook_url is not None:
+            await send_slack_message(
+                self._http,
+                project.slack_webhook_url,
+                new_cause_message(cause, web_app_url=self._settings.web_app_url),
+                timeout_seconds=self._settings.slack_timeout_seconds,
+            )
 
     async def _fail(
         self, project_id: UUID, diagnosis_id: UUID, error_code: DiagnosisErrorCode

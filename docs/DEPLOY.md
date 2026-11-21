@@ -15,7 +15,7 @@ Non-secret settings are committed; only secrets live in Vercel and GitHub.
 
 | | Committed (change by pushing) | Secret |
 | --- | --- | --- |
-| Web | `client/.env.production` | Vercel: `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `API_JWT_SECRET` |
+| Web | `client/.env.production` | Vercel: `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `API_JWT_SECRET`, and for email alerts `SENDER_EMAIL` and `SENDER_PASS` (a Gmail app password; without them alerts are off) |
 | Server | `server/deploy/config.env` | GitHub `SERVER_ENV`: see `server/deploy/.env.example` |
 
 ## How a change ships

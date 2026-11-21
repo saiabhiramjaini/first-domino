@@ -131,9 +131,9 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `listDiagnoses` | `POST /v1/diagnoses.list` | P | page, `run_ids`, `cause_ids`, `statuses`, `verdict_kinds` (each a list or null) | page of `Diagnosis` |
 | `countDiagnoses` | `POST /v1/diagnoses.count` | P | same filters as `listDiagnoses` | `count` |
 
-- Only failed recorded runs can be diagnosed. One diagnosis may run per run at a time (`409` otherwise).
+- Only failed recorded runs with at least one step can be diagnosed. One diagnosis may run per run at a time (`409` otherwise).
 - `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API process running it stopped heartbeating, for example it restarted), `internal_error` (see the API logs).
-- A new cause posts one message to the project's Slack webhook, when one is set.
+- A new cause emails the project's owner (see [Alerts](#alerts)) and posts one message to the project's Slack webhook, when one is set.
 - The web app polls `getDiagnosis` and `listChecks` every second while `status` is not `done` or `failed`.
 
 ### Check
@@ -189,6 +189,16 @@ The worker loop:
 - When the engine stops waiting for a check (decided early, or timed out), its jobs without a result, queued or leased, are `expired`.
 - A submitted result ends the job: `succeeded` for a `passed` or `failed` outcome (the replay ran), `failed` for `errored`.
 - `submitReplayResult` is idempotent by `replay_job_id`: the first result for a leased job counts, and any later one (a repeat, or a late result from an earlier lease) changes nothing.
+
+## Alerts
+
+The one call that goes from the API to the web app. The web app owns the mail account and the wording.
+
+| Path | Caller | Request | Response |
+| --- | --- | --- | --- |
+| `POST {FD_API_WEB_APP_URL}/api/alerts/new-cause` | fd-api, with a bearer HS256 token signed with `FD_API_WEB_JWT_SECRET` (= `API_JWT_SECRET`), issuer `first-domino-api`, audience `first-domino-web-alerts`, 5 minutes | `to` (the owner's email), `cause_id`, `title`, `category` (`CauseCategory`), `step_name`, `summary`, `suggested_fix`, `proven` (bool) | `204` sent, `400` bad body, `401` bad token, `502` mail failed, `503` no `SENDER_EMAIL`/`SENDER_PASS` |
+
+- Sent once per new root cause, never for a repeat of a known one. A failure is logged and never stops the diagnosis.
 
 ## Engine ports
 

@@ -1,0 +1,132 @@
+"""Writes a corrected model output for the suspected step, for verify and fallback to replay."""
+
+import json
+from uuid import uuid4
+
+from pydantic import BaseModel, Field, field_validator
+
+from fd_engine.llm import Llm, ReplyQuality
+from fd_engine.transcript import render_steps, render_task, tools_seen
+from fd_engine.verify import FixedStep
+from fd_shared.enums import MessageRole
+from fd_shared.models import Message, RunView, StepView, ToolCall
+
+_SYSTEM = """\
+You repair one turn of a failed AI agent run.
+Replays show the run can still succeed before step {step} and is doomed once step {step} is kept,
+so step {step} is where it went wrong. Rewrite only the assistant turn at step {step} so the agent
+can still complete the task.
+- Change only what is wrong. Keep the same tool and every correct argument unless the wrong tool
+  was the mistake. Copy the exact argument names and value formats (dates, times, ids) the run
+  already uses.
+- Call only the tools the agent has, listed with the task. When only the tools the run used are
+  listed, prefer those and name any other tool in the same style.
+- Do not finish the task in this one turn unless the original turn was the last one.
+- Check the facts the turn depends on against the task and the tool results before it:
+  - Relative dates and times ("tomorrow", "this Friday", "day after tomorrow, evening", "after
+    6") resolve from the "today" in the task. Keep AM and PM as the caller said them.
+  - The person, contact, number or event acted on is the one the caller and the lookups point to,
+    not a similar name.
+  - Saved user preferences and instructions from memory (reminder lead times, notes to carry,
+    who to block) are followed.
+  - Callers who are spam or scams are blocked, not called back, and never get OTPs, bank details
+    or other private data.
+- Return JSON: "content" (text or null) and "tool_calls" (a list of objects with "name" and
+  "arguments", where "arguments" is a JSON object written as a string).
+"""
+
+_TOOL_CALL_ID_PREFIX = "call_fd_"
+
+
+class ToolCallDraft(BaseModel):
+    """A tool call in the rewritten turn, before it gets an id."""
+
+    name: str = Field(min_length=1)
+    arguments: str
+
+    @field_validator("arguments")
+    @classmethod
+    def _is_json_object(cls, value: str) -> str:
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as error:
+            msg = "arguments must be JSON text"
+            raise ValueError(msg) from error
+        if not isinstance(parsed, dict):
+            msg = "arguments must be a JSON object"
+            raise ValueError(msg)
+        return value
+
+
+class FixReply(BaseModel):
+    """The model's rewritten assistant turn."""
+
+    content: str | None = None
+    tool_calls: list[ToolCallDraft] = Field(default_factory=list)
+
+
+class LlmStepFixer:
+    """A `StepFixer` that asks the strong model for the corrected turn."""
+
+    def __init__(self, llm: Llm) -> None:
+        self._llm = llm
+
+    async def fix(self, run: RunView, steps: list[StepView], step_index: int) -> FixedStep:
+        """Return the rewritten turn, or no output when the reply was not fully usable."""
+        reply = await self._llm.structured(
+            system=_SYSTEM.format(step=step_index),
+            user=_prompt(run, steps, step_index),
+            schema=FixReply,
+            fallback=FixReply(),
+        )
+        cost = reply.usage.cost_usd
+        if reply.quality is not ReplyQuality.PARSED or not _usable(reply.value, run):
+            return FixedStep(output=None, cost_usd=cost)
+        return FixedStep(output=_to_message(reply.value), cost_usd=cost)
+
+
+def _usable(fix: FixReply, run: RunView) -> bool:
+    """A fix says or calls something, and calls only tools the agent has when they are known."""
+    if not (fix.content or fix.tool_calls):
+        return False
+    known = set(run.tool_names)
+    return not known or all(call.name in known for call in fix.tool_calls)
+
+
+def _tools_line(run: RunView, steps: list[StepView]) -> str:
+    if run.tool_names:
+        return f"Tools the agent has: {', '.join(run.tool_names)}"
+    return f"Tools the run used: {', '.join(tools_seen(steps)) or '(none)'}"
+
+
+def _prompt(run: RunView, steps: list[StepView], step_index: int) -> str:
+    before = [step for step in steps if step.index < step_index]
+    target = [step for step in steps if step.index == step_index]
+    after = [step for step in steps if step.index > step_index]
+    return "\n\n".join(
+        [
+            render_task(run),
+            _tools_line(run, steps),
+            "# Steps before the mistake",
+            render_steps(before) or "(none)",
+            "# The turn to rewrite",
+            render_steps(target),
+            "# What happened after it (the run failed)",
+            render_steps(after) or "(none)",
+        ]
+    )
+
+
+def _to_message(fix: FixReply) -> Message:
+    return Message(
+        role=MessageRole.ASSISTANT,
+        content=fix.content,
+        tool_calls=[
+            ToolCall(
+                id=f"{_TOOL_CALL_ID_PREFIX}{uuid4().hex[:24]}",
+                name=call.name,
+                arguments=call.arguments,
+            )
+            for call in fix.tool_calls
+        ],
+    )

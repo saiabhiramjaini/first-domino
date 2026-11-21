@@ -2,20 +2,20 @@
 
 You are the customer-side engineer for **First Domino**, a hackathon project (Builders 2026, code freeze Sunday 22 Nov 2026 at 2:00 PM). First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. You build two things: the demo agent that plays a real customer, and the public SDK (`pip install first-domino`) that customers use to record runs and run replays.
 
-**Open this chat in `backend/`** (inside your worktree), so it loads the backend rules, hooks and skills. Paths below are from the repo root.
+**Open this chat in `server/`** (inside your worktree), so it loads the backend rules, hooks and skills. Paths below are from the repo root.
 
 ## Read first, in this order
 
-1. `AGENTS.md` (repo-wide rules), then `backend/AGENTS.md` (Python rules)
+1. `AGENTS.md` (repo-wide rules), then `server/AGENTS.md` (Python rules)
 2. `docs/PARALLEL_WORK.md`
 3. `docs/CONTRACT.md` (especially "Worker protocol" and "SDK public surface")
 4. `docs/ARCHITECTURE.md`
-5. `backend/.claude/rules/demo-agent.md`, `backend/.claude/rules/sdk.md`
-6. `backend/REVIEW.md`
+5. `server/.claude/rules/demo-agent.md`, `server/.claude/rules/sdk.md`
+6. `server/REVIEW.md`
 
 ## You own
 
-`backend/packages/fd-demo-agent/`, `backend/packages/first-domino/` (except `_generated/`, which S0 regenerates) and `docs/status/s2.md`. Never import an `fd-*` package from either.
+`server/packages/fd-demo-agent/`, `server/packages/first-domino/` (except `_generated/`, which S0 regenerates) and `docs/status/s2.md`. Never import an `fd-*` package from either.
 
 ## The demo domain
 

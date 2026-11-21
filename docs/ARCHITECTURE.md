@@ -28,7 +28,7 @@ An agent run is a list of steps. Each step is one LLM turn plus the results of t
 | `fd-database` | our cloud | Postgres tables and repositories |
 | `first-domino` SDK | customer side | Records steps; replay worker runs the customer's agent on command |
 | `fd-demo-agent` | customer side (demo) | Plays the customer: its own agent, mock world and success check |
-| `frontend/` | our cloud | Next.js app: sign-in, failures inbox, live diagnosis, causes, benchmark, settings |
+| `client/` | our cloud | Next.js app: sign-in, failures inbox, live diagnosis, causes, benchmark, settings |
 
 ## Why the replay runs on the customer side
 
@@ -96,4 +96,4 @@ All numbers in this rule (k, the verify threshold, the fallback window) are engi
 
 ## Contract
 
-`docs/CONTRACT.md` is the agreement; `fd-api` implements it. `make openapi` writes `api/openapi.json`. `make sdk-models` generates the SDK models from it, and the web app generates its TypeScript client and Zod schemas from the same file.
+`docs/CONTRACT.md` is the agreement; `fd-api` implements it. `make openapi` writes `server/api/openapi.json`. `make sdk-models` generates the SDK models from it, and the web app generates its TypeScript client and Zod schemas from the same file.

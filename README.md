@@ -4,7 +4,7 @@ Find the first domino: the step where your AI agent's run started to fall. Prove
 
 First Domino takes a failed agent run, re-runs the agent from its own save points, binary-searches for the step where the run became doomed, then fixes that one step and replays to prove it.
 
-> Status: skeleton. Layout, rules, contract and work plan only. No product code yet.
+> Status: built for Builders 2026 and running locally (web on :3000, API on :8000).
 
 ## Repository layout
 
@@ -18,24 +18,23 @@ first-domino/
     status/              one status file per workstream
     ARCHITECTURE.md      how the pieces fit
     DECISIONS.md         what is decided and what is open
-  api/openapi.json       the generated HTTP contract, shared by both halves
-  backend/               Python: API, engine, database, SDK, demo agent, scripts
-  frontend/              Next.js web app (not scaffolded yet)
-  .github/workflows/     backend.yml and frontend.yml
+  server/               Python: API, engine, database, SDK, demo agent, scripts
+  client/              Next.js web app
+  .github/workflows/     server.yml and client.yml
 ```
 
 The backend and the frontend are fully separate: each has its own tooling, dependencies, rules, environment file and CI. They meet only at the HTTP contract.
 
 ## Getting started
 
-- Backend: see [`backend/README.md`](./backend/README.md).
-- Frontend: see [`frontend/AGENTS.md`](./frontend/AGENTS.md).
+- Backend: see [`server/README.md`](./backend/README.md).
+- Frontend: see [`client/AGENTS.md`](./frontend/AGENTS.md).
 
-After `git init`, run `uv run --project backend pre-commit install` once, so the git hooks for both halves run.
+Git hooks are Husky scripts in `client/.husky/`. Running `bun install` in `client/` turns them on (its `prepare` script points git at them). The pre-commit hook runs ruff on staged backend files and Prettier on staged frontend files; the commit-msg hook checks `type: subject`.
 
 ## Working in parallel
 
-Start each workstream by opening a new agent chat in `backend/` or `frontend/` and pasting its brief from [`docs/briefs/`](./docs/briefs/README.md). [`docs/PARALLEL_WORK.md`](./docs/PARALLEL_WORK.md) explains ownership, milestones and merging.
+Start each workstream by opening a new agent chat in `server/` or `client/` and pasting its brief from [`docs/briefs/`](./docs/briefs/README.md). [`docs/PARALLEL_WORK.md`](./docs/PARALLEL_WORK.md) explains ownership, milestones and merging.
 
 ## Read next
 

@@ -27,9 +27,9 @@ Mark the function that runs your agent. Each call becomes one run, and every mod
 ```python
 import first_domino as fd
 
+
 @fd.entrypoint("support-bot", check=lambda question, answer: "refund" in answer)
-def answer(question: str) -> str:
-    ...  # your agent, unchanged
+def answer(question: str) -> str: ...  # your agent, unchanged
 ```
 
 - `check(output)` or `check(input, output)` says whether the run passed. A run that raises is recorded as `errored`, and your exception continues.
@@ -44,8 +44,7 @@ During a replay, the steps before the one being tested come from the recording. 
 
 ```python
 @fd.tool
-def send_refund(order_id: str, amount: float) -> str:
-    ...
+def send_refund(order_id: str, amount: float) -> str: ...
 ```
 
 Put it under your framework's own decorator (`@function_tool`, `@tool`). Read-only tools need no marking.

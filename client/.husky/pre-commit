@@ -3,7 +3,7 @@
 set -e
 export PATH="$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 
-staged=$(git diff --cached --name-only --diff-filter=ACM)
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
 backend_files=$(printf '%s\n' "$staged" | grep -E '^server/.*\.py$' | sed 's#^server/##' || true)
 if [ -n "$backend_files" ]; then

@@ -2,22 +2,30 @@
 
 import { useQueries, useQuery } from "@tanstack/react-query";
 
-import { listSteps } from "@/api/generated";
+import { listSteps, type ListStepsResponse, type Step } from "@/api/generated";
 import { zListStepsResponse } from "@/api/generated/zod.gen";
 import { callApi } from "@/lib/api-client";
 
 import { LIVE_REFRESH_MS } from "./diagnosis-activity";
 import { useApiAuth } from "./use-api-auth";
 
-const MAX_STEPS = 100;
+const STEPS_PER_PAGE = 100;
 
 export const listStepsKey = (runId: string) => ["steps", "list", runId] as const;
 
-function fetchSteps(auth: string | undefined, runId: string) {
-  return callApi(
-    listSteps({ auth, body: { run_id: runId, limit: MAX_STEPS } }),
-    zListStepsResponse
-  );
+// Every step of a run, page by page: the trace, the step strip and the verdict need them all.
+async function fetchSteps(auth: string | undefined, runId: string): Promise<Step[]> {
+  const steps: Step[] = [];
+  let cursor: string | null = null;
+  do {
+    const page: ListStepsResponse = await callApi(
+      listSteps({ auth, body: { run_id: runId, limit: STEPS_PER_PAGE, cursor } }),
+      zListStepsResponse
+    );
+    steps.push(...page.items);
+    cursor = page.next_cursor;
+  } while (cursor);
+  return steps;
 }
 
 type ListStepsOptions = { isLive?: boolean };
@@ -29,20 +37,19 @@ export function useListSteps(runId: string, { isLive = false }: ListStepsOptions
     queryKey: listStepsKey(runId),
     queryFn: () => fetchSteps(auth, runId),
     enabled: isReady,
-    select: (data) => data.items,
     refetchInterval: isLive ? LIVE_REFRESH_MS : false,
   });
 }
 
 /** The steps of several runs at once, sharing the cache with `useListSteps`. */
-export function useListStepsOfRuns(runIds: string[]) {
+export function useListStepsOfRuns(runIds: string[], { isLive = false }: ListStepsOptions = {}) {
   const { auth, isReady } = useApiAuth();
   return useQueries({
     queries: runIds.map((runId) => ({
       queryKey: listStepsKey(runId),
       queryFn: () => fetchSteps(auth, runId),
       enabled: isReady,
-      select: (data: Awaited<ReturnType<typeof fetchSteps>>) => data.items,
+      refetchInterval: isLive ? LIVE_REFRESH_MS : false,
     })),
   });
 }

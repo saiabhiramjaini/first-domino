@@ -56,7 +56,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
   const diagnosisQuery = useGetDiagnosis(diagnosisId);
   const diagnosis = diagnosisQuery.data;
   const isLive = isDiagnosisActive(diagnosis?.status);
-  const checks = useListChecks(diagnosisId, { isLive: isLive || diagnosis === undefined });
+  const checks = useListChecks(diagnosisId, { isLive: isLive || diagnosisQuery.isPending });
 
   useEffect(() => {
     if (replayCheckId === null) return;
@@ -67,7 +67,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
 
   if (isApiError(run.error, "not_found")) notFound();
 
-  if (run.isError) {
+  if (run.isLoadingError) {
     return (
       <QueryError error={run.error} what="this run" source="runs.load" onRetry={run.refetch} />
     );
@@ -100,7 +100,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
     document.getElementById(`step-${step}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const stepStrip = steps.isError ? (
+  const stepStrip = steps.isLoadingError ? (
     <QueryError
       error={steps.error}
       what="the steps"
@@ -158,9 +158,9 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
             icon={SearchIcon}
             title="Not diagnosed yet"
             description={
-              run.data.status === "failed"
-                ? "Diagnose this run to replay it from its save points and find the first domino."
-                : "Only failed recorded runs can be diagnosed."
+              run.data.source === "replay"
+                ? "This is a replay made while diagnosing another run. Replays are not diagnosed themselves."
+                : "Diagnose this run to replay it from its save points and find the first domino."
             }
             action={
               canDiagnose && (
@@ -169,7 +169,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
             }
           />
         </Panel>
-      ) : diagnosisQuery.isError ? (
+      ) : diagnosisQuery.isLoadingError ? (
         <QueryError
           error={diagnosisQuery.error}
           what="the diagnosis"
@@ -202,7 +202,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
           )
         }
       >
-        {steps.isError ? (
+        {steps.isLoadingError ? (
           <div className="p-4">
             <QueryError
               error={steps.error}
@@ -232,7 +232,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
           title="Checks"
           description="Each check keeps the first steps as recorded and replays the rest"
         >
-          {checks.isError ? (
+          {checks.isLoadingError ? (
             <div className="p-4">
               <QueryError
                 error={checks.error}
@@ -258,6 +258,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         <CheckReplays
           key={replayCheck.id}
           check={replayCheck}
+          isLive={isLive}
           originalSteps={steps.data ?? []}
           onClose={() => setReplayCheckId(null)}
         />

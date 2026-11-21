@@ -21,7 +21,7 @@ export function RunDiagnosisCell({ diagnosisId }: RunDiagnosisCellProps) {
     return <span className="text-muted-foreground">Not diagnosed</span>;
   }
   if (!diagnosis.data) {
-    return diagnosis.isError ? (
+    return diagnosis.isLoadingError ? (
       <span className="text-muted-foreground">Unavailable</span>
     ) : (
       <Skeleton className="h-4 w-40" />

@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
 import type { CountRunsRequest } from "@/api/generated";
+import { QueryError } from "@/components/feedback/query-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useCountRuns } from "@/hooks/api/use-count-runs";
 import { useListApiKeys } from "@/hooks/api/use-list-api-keys";
@@ -159,19 +160,27 @@ export function useSetupProgress() {
   const apiKeys = useListApiKeys();
   const recordedRuns = useCountRuns(RECORDED_RUNS, { refreshMs: REFRESH_MS });
   const replayRuns = useCountRuns(REPLAY_RUNS, { refreshMs: REFRESH_MS });
-  return onboardingItems({
-    hasActiveKey: apiKeys.data
-      ? pageItems(apiKeys.data).some((apiKey) => apiKeyState(apiKey) === "active")
-      : undefined,
-    recordedRuns: recordedRuns.data,
-    replayRuns: replayRuns.data,
-  });
+  const queries = [apiKeys, recordedRuns, replayRuns];
+  return {
+    items: onboardingItems({
+      hasActiveKey: apiKeys.data
+        ? pageItems(apiKeys.data).some((apiKey) => apiKeyState(apiKey) === "active")
+        : undefined,
+      recordedRuns: recordedRuns.data,
+      replayRuns: replayRuns.data,
+    }),
+    // A step whose check could not load stays "loading"; this says why and retries.
+    error: queries.find((query) => query.isLoadingError)?.error,
+    retry: () => {
+      for (const query of queries) if (query.isLoadingError) void query.refetch();
+    },
+  };
 }
 
 // Setup as a 1-2-3 stepper. The picked step's instructions open below it. Each step ticks
 // itself as soon as First Domino sees it working.
 export function SetupSteps() {
-  const items = useSetupProgress();
+  const { items, error, retry } = useSetupProgress();
   const states = stepStates(items);
   const isLoading = items.some((item) => item.status === "loading");
   const isComplete = doneCount(items) === items.length;
@@ -198,6 +207,16 @@ export function SetupSteps() {
 
   return (
     <div className="overflow-hidden rounded-lg border">
+      {error !== undefined && (
+        <div className="border-b p-3">
+          <QueryError
+            error={error}
+            what="your setup"
+            source="settings.load_setup"
+            onRetry={retry}
+          />
+        </div>
+      )}
       <ol className="grid grid-cols-3 border-b" aria-label="Setup steps">
         {items.map((step, index) => {
           const stepState = states[index] ?? "todo";
@@ -292,7 +311,7 @@ export function SetupSteps() {
 }
 
 export function SetupProgress() {
-  const items = useSetupProgress();
+  const { items } = useSetupProgress();
   if (items.some((item) => item.status === "loading")) return null;
   return (
     <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground tabular-nums">

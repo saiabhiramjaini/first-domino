@@ -837,7 +837,8 @@ export const zCountDiagnosesRequest = z.object({
     run_ids: z.array(z.uuid()).nullish(),
     cause_ids: z.array(z.uuid()).nullish(),
     statuses: z.array(zDiagnosisStatus).nullish(),
-    verdict_kinds: z.array(zVerdictKind).nullish()
+    verdict_kinds: z.array(zVerdictKind).nullish(),
+    latest_only: z.boolean().optional().default(false)
 });
 
 /**
@@ -897,6 +898,7 @@ export const zListDiagnosesRequest = z.object({
     cause_ids: z.array(z.uuid()).nullish(),
     statuses: z.array(zDiagnosisStatus).nullish(),
     verdict_kinds: z.array(zVerdictKind).nullish(),
+    latest_only: z.boolean().optional().default(false),
     limit: z.int().gte(1).lte(100).optional().default(50),
     cursor: z.string().nullish()
 });

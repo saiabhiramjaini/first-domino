@@ -39,7 +39,7 @@ export function CausesList() {
     );
   }
 
-  if (causes.isError) {
+  if (causes.isLoadingError) {
     return (
       <QueryError
         error={causes.error}

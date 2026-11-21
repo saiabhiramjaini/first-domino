@@ -35,7 +35,7 @@ export function CauseRunsTable({ causeId }: CauseRunsTableProps) {
     );
   }
 
-  if (diagnoses.isError) {
+  if (diagnoses.isLoadingError) {
     return (
       <div className="p-4">
         <QueryError

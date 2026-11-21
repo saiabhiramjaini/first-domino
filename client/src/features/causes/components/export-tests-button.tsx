@@ -18,7 +18,8 @@ function download(fileName: string, body: string) {
   link.href = url;
   link.download = fileName;
   link.click();
-  URL.revokeObjectURL(url);
+  // Revoked a moment later: Safari can cancel a download whose URL is revoked at once.
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
 type ExportTestsButtonProps = { causeId: string };

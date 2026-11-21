@@ -12,5 +12,6 @@ describe("safeCallbackUrl", () => {
     expect(safeCallbackUrl(["/a", "/b"])).toBe("/runs");
     expect(safeCallbackUrl("https://evil.example")).toBe("/runs");
     expect(safeCallbackUrl("//evil.example")).toBe("/runs");
+    expect(safeCallbackUrl("/\\evil.example")).toBe("/runs");
   });
 });

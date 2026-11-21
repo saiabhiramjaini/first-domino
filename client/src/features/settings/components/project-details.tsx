@@ -2,6 +2,7 @@
 
 import { ArrowUpRightIcon } from "lucide-react";
 
+import { QueryError } from "@/components/feedback/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetProjectSelf } from "@/hooks/api/use-get-project-self";
 import { formatDateTime } from "@/lib/format";
@@ -29,6 +30,14 @@ export function ProjectDetails() {
   const data = project.data;
   return (
     <div className="flex flex-col gap-3">
+      {project.isLoadingError && (
+        <QueryError
+          error={project.error}
+          what="the project"
+          source="settings.load_project"
+          onRetry={() => void project.refetch()}
+        />
+      )}
       <dl className="flex flex-col divide-y overflow-hidden rounded-lg border">
         <Row label="Name">
           {data ? <span className="truncate">{data.name}</span> : <Skeleton className="h-4 w-32" />}

@@ -7,7 +7,7 @@ import { RunsList, runFilterFrom } from "@/features/runs";
 export const metadata: Metadata = { title: "Runs" };
 
 export default async function RunsPage({ searchParams }: PageProps<"/runs">) {
-  const { status } = await searchParams;
+  const filter = runFilterFrom((await searchParams).status);
   return (
     <>
       <PageHeader
@@ -15,7 +15,8 @@ export default async function RunsPage({ searchParams }: PageProps<"/runs">) {
         description="Every run your agent records, live. Failed runs are diagnosed on their own."
       />
       <InboxStats />
-      <RunsList initialFilter={runFilterFrom(status)} />
+      {/* Keyed so a link to /runs (sidebar, logo) resets the tab, not only the URL. */}
+      <RunsList key={filter} initialFilter={filter} />
     </>
   );
 }

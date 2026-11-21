@@ -14,17 +14,25 @@ import { ReplayComparison, type ReplayLane } from "./replay-comparison";
 
 type CheckReplaysProps = {
   check: CheckRow;
+  // While the diagnosis runs, new replays and their steps keep arriving.
+  isLive: boolean;
   originalSteps: Step[];
   onClose: () => void;
 };
 
-export function CheckReplays({ check, originalSteps, onClose }: CheckReplaysProps) {
+export function CheckReplays({ check, isLive, originalSteps, onClose }: CheckReplaysProps) {
   // Every round of the row: a rechecked save point shows all its replays together.
-  const replays = useListReplaysOfChecks(check.rounds.map((round) => round.id));
-  const replaysError = replays.find((query) => query.isError)?.error;
+  const replays = useListReplaysOfChecks(
+    check.rounds.map((round) => round.id),
+    { isLive }
+  );
+  const replaysError = replays.find((query) => query.isLoadingError)?.error;
   const runs = replays.flatMap((query) => query.data ?? []);
-  const steps = useListStepsOfRuns(runs.map((run) => run.id));
-  const stepsError = steps.find((query) => query.isError)?.error;
+  const steps = useListStepsOfRuns(
+    runs.map((run) => run.id),
+    { isLive: isLive || runs.some((run) => run.status === "running") }
+  );
+  const stepsError = steps.find((query) => query.isLoadingError)?.error;
   const lanes: ReplayLane[] = runs.flatMap((run, position) => {
     const runSteps = steps[position]?.data;
     return runSteps ? [{ run, steps: runSteps }] : [];

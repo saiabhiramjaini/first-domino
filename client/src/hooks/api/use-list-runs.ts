@@ -7,6 +7,7 @@ import { zListRunsResponse } from "@/api/generated/zod.gen";
 import { callApi } from "@/lib/api-client";
 import { FIRST_PAGE_CURSOR, nextPageCursor } from "@/lib/paging";
 
+import { LIVE_REFRESH_MS } from "./diagnosis-activity";
 import { useApiAuth } from "./use-api-auth";
 
 export type RunFilters = Omit<ListRunsRequest, "cursor" | "limit">;
@@ -42,13 +43,14 @@ function fetchReplays(auth: string | undefined, checkId: string) {
 }
 
 /** The replay runs of each check, one query per check, in the order given. */
-export function useListReplaysOfChecks(checkIds: string[]) {
+export function useListReplaysOfChecks(checkIds: string[], { isLive = false } = {}) {
   const { auth, isReady } = useApiAuth();
   return useQueries({
     queries: checkIds.map((checkId) => ({
       queryKey: listReplaysKey(checkId),
       queryFn: () => fetchReplays(auth, checkId),
       enabled: isReady,
+      refetchInterval: isLive ? LIVE_REFRESH_MS : false,
       select: (data: Awaited<ReturnType<typeof fetchReplays>>) => data.items,
     })),
   });

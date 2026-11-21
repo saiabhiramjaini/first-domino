@@ -11,12 +11,18 @@ import { useApiAuth } from "./use-api-auth";
 export const countCausesKey = (filters: CountCausesRequest) =>
   ["causes", "count", filters] as const;
 
-export function useCountCauses(filters: CountCausesRequest) {
+type CountOptions = { refreshMs?: number | false };
+
+export function useCountCauses(
+  filters: CountCausesRequest,
+  { refreshMs = false }: CountOptions = {}
+) {
   const { auth, isReady } = useApiAuth();
   return useQuery({
     queryKey: countCausesKey(filters),
     queryFn: () => callApi(countCauses({ auth, body: filters }), zCountCausesResponse),
     enabled: isReady,
     select: (data) => data.count,
+    refetchInterval: refreshMs,
   });
 }

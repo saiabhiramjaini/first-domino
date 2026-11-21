@@ -18,7 +18,7 @@ function ApiKeyList() {
   const apiKeys = useListApiKeys();
   const items = pageItems(apiKeys.data);
 
-  if (apiKeys.isError) {
+  if (apiKeys.isLoadingError) {
     return (
       <div className="border-t p-4">
         <QueryError

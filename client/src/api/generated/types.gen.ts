@@ -358,6 +358,12 @@ export type CountDiagnosesRequest = {
      * Only diagnoses with one of these verdicts.
      */
     verdict_kinds?: Array<VerdictKind> | null;
+    /**
+     * Latest Only
+     *
+     * Only each run's latest diagnosis, so a run diagnosed again counts once.
+     */
+    latest_only?: boolean;
 };
 
 /**
@@ -961,6 +967,12 @@ export type ListDiagnosesRequest = {
      * Only diagnoses with one of these verdicts.
      */
     verdict_kinds?: Array<VerdictKind> | null;
+    /**
+     * Latest Only
+     *
+     * Only each run's latest diagnosis, so a run diagnosed again counts once.
+     */
+    latest_only?: boolean;
     /**
      * Limit
      *

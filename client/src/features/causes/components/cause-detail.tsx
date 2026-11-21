@@ -46,7 +46,7 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
     );
   }
 
-  if (cause.isError) {
+  if (cause.isLoadingError) {
     return (
       <div className="flex flex-col gap-6">
         <BackToCauses />

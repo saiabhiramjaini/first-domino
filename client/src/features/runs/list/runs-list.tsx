@@ -90,7 +90,7 @@ export function RunsList({ initialFilter }: RunsListProps) {
         </span>
       </div>
 
-      {runs.isError ? (
+      {runs.isLoadingError ? (
         <QueryError
           error={runs.error}
           what="runs"

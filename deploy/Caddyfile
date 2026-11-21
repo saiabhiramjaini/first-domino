@@ -1,0 +1,17 @@
+# One HTTPS name for everything. The API owns /v1 and /health; the web app gets the rest,
+# so the browser calls the API on its own origin.
+# A public name (such as 1.2.3.4.sslip.io) gets a Let's Encrypt certificate;
+# `localhost` gets Caddy's own local certificate.
+
+{$FD_DOMAIN} {
+	encode zstd gzip
+
+	@api path /v1/* /health
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

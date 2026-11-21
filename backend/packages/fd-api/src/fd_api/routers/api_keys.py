@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from fd_api.auth.api_keys import mint_api_key
+from fd_api.auth.api_keys import create_api_key
 from fd_api.auth.callers import PersonCaller
 from fd_api.database import DbSession
 from fd_api.errors import error_responses
@@ -36,20 +36,17 @@ router = APIRouter(prefix="/v1", tags=["api-keys"])
         ApiErrorCode.BAD_REQUEST, ApiErrorCode.UNAUTHENTICATED, ApiErrorCode.VALIDATION_FAILED
     ),
 )
-async def create_api_key(
+async def create_api_key_route(
     body: CreateApiKeyRequest, caller: PersonCaller, session: DbSession
 ) -> CreateApiKeyResponse:
     """Creates a project API key. The full key is in `secret` and is never shown again."""
-    new_key = mint_api_key()
-    api_key = await ApiKeysRepository(session).create(
-        project_id=caller.project_id,
-        name=body.name,
-        prefix=new_key.prefix,
-        key_hash=new_key.key_hash,
-        created_by_id=caller.actor_id,
+    created = await create_api_key(
+        session, project_id=caller.project_id, name=body.name, created_by_id=caller.actor_id
     )
-    log.info("api_keys.created", project_id=str(caller.project_id), api_key_id=str(api_key.id))
-    return CreateApiKeyResponse(api_key=ApiKey.from_row(api_key), secret=new_key.secret)
+    log.info(
+        "api_keys.created", project_id=str(caller.project_id), api_key_id=str(created.api_key.id)
+    )
+    return CreateApiKeyResponse(api_key=ApiKey.from_row(created.api_key), secret=created.secret)
 
 
 @router.post(

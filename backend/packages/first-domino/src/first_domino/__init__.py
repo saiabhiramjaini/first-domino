@@ -20,7 +20,7 @@ from first_domino.client import FirstDominoClient
 from first_domino.diagnose import diagnose, wait_for_diagnosis
 from first_domino.errors import ApiRequestError, ConfigurationError, FirstDominoError
 from first_domino.openai_format import message_from_openai, message_to_openai, messages_to_openai
-from first_domino.recorder import RecordedRun, record
+from first_domino.recorder import RecordedRun, record, start_recording
 from first_domino.settings import SdkSettings
 from first_domino.worker import ReplayContext, Worker
 from first_domino.wrap import wrap
@@ -46,6 +46,7 @@ __all__ = [
     "message_to_openai",
     "messages_to_openai",
     "record",
+    "start_recording",
     "wait_for_diagnosis",
     "wrap",
 ]

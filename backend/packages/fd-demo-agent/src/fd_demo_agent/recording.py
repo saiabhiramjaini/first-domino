@@ -11,6 +11,7 @@ from fd_demo_agent.bugs import PlantedBug
 from fd_demo_agent.prompts import opening_messages
 from fd_demo_agent.runner import TaskRun, run_task
 from fd_demo_agent.tasks import CallTask
+from fd_demo_agent.toolbox import ToolName
 from fd_demo_agent.world import load_world
 
 AGENT_NAME = "call-assistant"
@@ -84,7 +85,9 @@ async def run_recorded(
 
     Recording is dark without `FIRST_DOMINO_API_KEY`; the run itself is the same.
     """
-    async with fd.record(AGENT_NAME, task_input_for(task, bug), client=client) as run:
+    task_input = task_input_for(task, bug)
+    tool_names = [name.value for name in ToolName]
+    async with fd.record(AGENT_NAME, task_input, tool_names=tool_names, client=client) as run:
         save = record_steps(run)
 
         async def each_step(step: AgentStep) -> None:

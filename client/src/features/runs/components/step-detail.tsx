@@ -4,14 +4,20 @@ import { formatInteger } from "@/lib/format";
 
 type StepDetailProps = { step: Step };
 
+// A step replayed with a fixed output never called the model, so it records no tokens.
+export function isModelCall(step: Pick<Step, "tokens_in" | "tokens_out">): boolean {
+  return step.tokens_in + step.tokens_out > 0;
+}
+
 export function StepDetail({ step }: StepDetailProps) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-medium">Step {step.index}</h3>
         <span className="text-xs text-muted-foreground">
-          {step.model} · {formatInteger(step.tokens_in)} in / {formatInteger(step.tokens_out)} out ·{" "}
-          {formatInteger(step.latency_ms)} ms
+          {isModelCall(step)
+            ? `${step.model} · ${formatInteger(step.tokens_in)} in / ${formatInteger(step.tokens_out)} out · ${formatInteger(step.latency_ms)} ms`
+            : "Output set by replay"}
         </span>
       </div>
       <MessageView message={step.output} />

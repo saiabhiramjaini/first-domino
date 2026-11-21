@@ -62,7 +62,9 @@ class Bisector:
                 save_point=save_point,
                 samples=self._settings.samples_per_check,
                 required_passes=CAN_SUCCEED_PASSES,
-                model_override=self._settings.strong_model,
+                model_override=(
+                    self._settings.strong_model if self._settings.bisect_with_strong_model else None
+                ),
             )
         )
         return check.result is CheckResult.CAN_SUCCEED

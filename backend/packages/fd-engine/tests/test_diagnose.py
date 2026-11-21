@@ -178,14 +178,17 @@ async def test_sink_sees_each_check_pending_then_finished() -> None:
     assert result.replay_count == sum(c.samples for c in sink.finished)
 
 
-async def test_bisect_uses_strong_model_and_verify_uses_agent_model() -> None:
+@pytest.mark.parametrize(("with_strong", "bisect_model"), [(False, None), (True, TEST_MODEL)])
+async def test_bisect_model_follows_settings_and_verify_uses_agent_model(
+    with_strong: bool, bisect_model: str | None
+) -> None:
     runner = FakeRunner(plain=break_at(3), fixed={3: [P] * 5})
 
-    await run_diagnosis(runner, step_count=8)
+    await run_diagnosis(runner, step_count=8, config=settings(bisect_with_strong_model=with_strong))
 
     plain = [c for c in runner.calls if c.replacement_output is None]
     fixed = [c for c in runner.calls if c.replacement_output is not None]
-    assert all(c.model_override == TEST_MODEL for c in plain)
+    assert all(c.model_override == bisect_model for c in plain)
     assert [(c.from_step, c.model_override) for c in fixed] == [(2, None)]
 
 

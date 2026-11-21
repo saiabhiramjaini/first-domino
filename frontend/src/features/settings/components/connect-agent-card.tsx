@@ -34,7 +34,7 @@ worker.run()   # polls for replay jobs; only connects outward`;
 
 export function ConnectAgentCard() {
   return (
-    <Card>
+    <Card id="connect" className="scroll-mt-20">
       <CardHeader>
         <CardTitle>Connect your agent</CardTitle>
         <CardDescription>

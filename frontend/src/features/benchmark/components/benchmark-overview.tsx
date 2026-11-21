@@ -44,7 +44,7 @@ export function BenchmarkOverview() {
     return (
       <EmptyState
         title="No benchmark yet"
-        description="Run the benchmark script to compare methods here."
+        description="The benchmark replays labelled failed runs with First Domino and with an LLM judge reading the trace. Its latest results appear here once it has run."
       />
     );
   }

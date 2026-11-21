@@ -579,6 +579,7 @@ export const zRun = z.object({
     replay_job_id: z.uuid().nullable(),
     replay_from_step: z.int().nullable(),
     task_input: zTaskInput,
+    tool_names: z.array(z.string()),
     status: zRunStatus,
     step_count: z.int().gte(0),
     final_output: z.string().nullable(),
@@ -624,6 +625,7 @@ export const zListRunsResponse = z.object({
 export const zStartRunRequest = z.object({
     agent_name: z.string().min(1).max(128),
     task_input: zTaskInput,
+    tool_names: z.array(z.string()).max(128).optional(),
     replay_job_id: z.uuid().nullish()
 });
 

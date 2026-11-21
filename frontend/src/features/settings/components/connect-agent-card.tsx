@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const ENVIRONMENT_SNIPPET = `pip install first-domino
 
-export FIRST_DOMINO_API_KEY=fd_live_...   # a key from the list above
+export FIRST_DOMINO_API_KEY=fd_live_...   # create one under API keys below
 export FIRST_DOMINO_BASE_URL=${API_URL}`;
 
 const RECORD_SNIPPET = `import first_domino as fd

@@ -1366,6 +1366,12 @@ export type Run = {
      */
     replay_from_step: number | null;
     task_input: TaskInput;
+    /**
+     * Tool Names
+     *
+     * Names of the tools the agent was given.
+     */
+    tool_names: Array<string>;
     status: RunStatus;
     /**
      * Step Count
@@ -1462,6 +1468,12 @@ export type StartRunRequest = {
      */
     agent_name: string;
     task_input: TaskInput;
+    /**
+     * Tool Names
+     *
+     * Names of the tools the agent was given, for explaining its mistakes.
+     */
+    tool_names?: Array<string>;
     /**
      * Replay Job Id
      *

@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { stepState, type StepState, type StripDiagnosis } from "../step-strip-state";
+import { stepState, type StepState, type StripDiagnosis } from "./step-strip-state";
 
 const STATE_CLASSES = {
   idle: "border-border bg-card text-muted-foreground",
@@ -29,6 +29,25 @@ const LEGEND: ReadonlyArray<{ state: StepState; label: string }> = [
   { state: "ruled_out", label: "Ruled out" },
 ];
 
+const TILE_CLASSES = "size-10 rounded-lg border text-sm font-medium tabular-nums";
+
+function stepNumbers(stepCount: number): number[] {
+  return Array.from({ length: stepCount }, (_, offset) => offset + 1);
+}
+
+export function StepStripLegend() {
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      {LEGEND.map((item) => (
+        <li key={item.state} className="flex items-center gap-1.5">
+          <span className={cn("size-3 rounded-sm border", STATE_CLASSES[item.state])} />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 type RunStepStripProps = {
   stepCount: number;
   diagnosis: StripDiagnosis | undefined;
@@ -42,11 +61,10 @@ export function RunStepStrip({
   selectedStep,
   onSelectStep,
 }: RunStepStripProps) {
-  const steps = Array.from({ length: stepCount }, (_, offset) => offset + 1);
   return (
     <div className="flex flex-col gap-3">
       <ol className="flex flex-wrap gap-1.5" aria-label="Steps of this run">
-        {steps.map((step) => {
+        {stepNumbers(stepCount).map((step) => {
           const state = stepState(step, diagnosis);
           const isSelected = step === selectedStep;
           return (
@@ -58,7 +76,7 @@ export function RunStepStrip({
                 aria-pressed={isSelected}
                 aria-label={`Step ${step}, ${STATE_LABELS[state]}`}
                 className={cn(
-                  "size-10 tabular-nums",
+                  TILE_CLASSES,
                   STATE_CLASSES[state],
                   isSelected && "outline-2 outline-offset-2 outline-foreground"
                 )}
@@ -69,14 +87,35 @@ export function RunStepStrip({
           );
         })}
       </ol>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {LEGEND.map((item) => (
-          <li key={item.state} className="flex items-center gap-1.5">
-            <span className={cn("size-3 rounded-sm border", STATE_CLASSES[item.state])} />
-            {item.label}
-          </li>
-        ))}
-      </ul>
+      <StepStripLegend />
     </div>
+  );
+}
+
+type StepStripPreviewProps = {
+  stepCount: number;
+  diagnosis: StripDiagnosis | undefined;
+};
+
+export function StepStripPreview({ stepCount, diagnosis }: StepStripPreviewProps) {
+  return (
+    <ol className="flex flex-wrap justify-center gap-1.5" aria-label="Steps of the example run">
+      {stepNumbers(stepCount).map((step) => {
+        const state = stepState(step, diagnosis);
+        return (
+          <li
+            key={step}
+            aria-label={`Step ${step}, ${STATE_LABELS[state]}`}
+            className={cn(
+              TILE_CLASSES,
+              "flex items-center justify-center transition-colors duration-500 motion-reduce:transition-none",
+              STATE_CLASSES[state]
+            )}
+          >
+            {step}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

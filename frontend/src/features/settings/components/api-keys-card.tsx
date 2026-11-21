@@ -114,7 +114,7 @@ function ApiKeyList() {
 export function ApiKeysCard() {
   const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null);
   return (
-    <Card>
+    <Card id="api-keys" className="scroll-mt-20">
       <CardHeader>
         <CardTitle>API keys</CardTitle>
         <CardDescription>

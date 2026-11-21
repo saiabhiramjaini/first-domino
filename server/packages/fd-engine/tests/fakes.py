@@ -55,12 +55,17 @@ class ReplayCall:
 
 @dataclass
 class FakeRunner:
-    """Scripted outcomes: `plain` for unfixed replays, `fixed[step]` for a fix of `step`."""
+    """Scripted outcomes: `plain` for unfixed replays, `fixed[step]` for a fix of `step`.
+
+    Successive replays from the same save point get the script's outcomes in order, so a check
+    made of one-replay calls sees the same outcomes as one call for all its samples.
+    """
 
     plain: Script
     fixed: dict[int, list[ReplayOutcome]] = field(default_factory=dict)
     delay_seconds: float = 0.0
     calls: list[ReplayCall] = field(default_factory=list)
+    served: dict[tuple[int, bool], int] = field(default_factory=dict)
 
     async def replay(
         self,
@@ -74,9 +79,11 @@ class FakeRunner:
         self.calls.append(ReplayCall(from_step, samples, model_override, replacement_output))
         if self.delay_seconds:
             await asyncio.sleep(self.delay_seconds)
-        if replacement_output is None:
-            return self.plain(from_step)[:samples]
-        return self.fixed.get(from_step + 1, [F] * samples)[:samples]
+        fixed = replacement_output is not None
+        script = self.fixed.get(from_step + 1, [F]) if fixed else self.plain(from_step)
+        start = self.served.get((from_step, fixed), 0)
+        self.served[(from_step, fixed)] = start + samples
+        return [script[(start + offset) % len(script)] for offset in range(samples)]
 
 
 @dataclass

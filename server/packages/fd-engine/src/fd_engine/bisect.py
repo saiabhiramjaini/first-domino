@@ -30,30 +30,41 @@ class Bisector:
     async def find_first_domino(self, step_count: int) -> int | None:
         """Return the first doomed step, or None when even a fresh run cannot succeed.
 
-        A fresh run that never succeeds is a task or tool problem, so no step is blamed.
+        A fresh run that never succeeds is a task or tool problem, so no step is blamed. The
+        fresh-run check at save point 0 runs only when the first bisect check is doomed: a pass
+        at any save point already shows a fresh run can succeed.
         """
         await self._progress(0, step_count)
-        if step_count == 0 or not await self._can_succeed(0, CheckPhase.PRECHECK):
+        if step_count == 0:
             return None
-        return await self._search(step_count)
+        lo, hi = 1, step_count
+        if lo < hi:
+            lo, hi = await self._halve(lo, hi)
+        if lo == 1 and not await self._can_succeed(0, CheckPhase.PRECHECK):
+            return None
+        return await self._search(lo, hi)
 
-    async def _search(self, step_count: int) -> int:
+    async def _search(self, lo: int, hi: int) -> int:
         """Halve the range [lo, hi] until one step is left.
 
         Invariant: the run can succeed from save point `lo - 1` and is doomed at `hi`. It holds
-        at the start because the precheck passed at 0 and the recorded run failed with all
-        `step_count` steps kept. On exit `lo == hi`: keeping steps 1..lo-1 can succeed and
-        keeping 1..lo cannot, so step `lo` is the first domino.
+        at the start because save point `lo - 1` passed a check (the fresh-run check when it is
+        0) and the recorded run failed with all its steps kept. On exit `lo == hi`: keeping
+        steps 1..lo-1 can succeed and keeping 1..lo cannot, so step `lo` is the first domino.
         """
-        lo, hi = 1, step_count
         while lo < hi:
-            mid = (lo + hi) // 2
-            if await self._can_succeed(mid, CheckPhase.BISECT):
-                lo = mid + 1
-            else:
-                hi = mid
-            await self._progress(lo, hi)
+            lo, hi = await self._halve(lo, hi)
         return lo
+
+    async def _halve(self, lo: int, hi: int) -> tuple[int, int]:
+        """Check the middle save point and keep the half that holds the first domino."""
+        mid = (lo + hi) // 2
+        if await self._can_succeed(mid, CheckPhase.BISECT):
+            lo = mid + 1
+        else:
+            hi = mid
+        await self._progress(lo, hi)
+        return lo, hi
 
     async def _can_succeed(self, save_point: int, phase: CheckPhase) -> bool:
         check = await self._checks.run(

@@ -209,22 +209,22 @@ import first_domino as fd
 
 # Recording: a no-op without FIRST_DOMINO_API_KEY, and never raises into the agent.
 task = fd.TaskInput(prompt=..., metadata={"task_id": "t1"})
-with fd.record(agent_name="clinic-booker", task_input=task) as run:
+with fd.record(agent_name="call-assistant", task_input=task) as run:
     # Each chat completion through the wrapped client becomes a step (or call run.step).
     client = fd.wrap(OpenAI(), run)
     ...
     run.finish(status="failed", final_output=...)
 
 # Replays, on the customer side.
-worker = fd.Worker(agent_names=["clinic-booker"])
+worker = fd.Worker(agent_names=["call-assistant"])
 
 
 # ctx carries messages, replacement_output, model_override and the replay run.
-@worker.agent("clinic-booker")
+@worker.agent("call-assistant")
 def replay(ctx: fd.ReplayContext) -> AgentResult: ...
 
 
-@worker.success_check("clinic-booker")
+@worker.success_check("call-assistant")
 def check(task_input: fd.TaskInput, result: AgentResult) -> bool: ...
 
 

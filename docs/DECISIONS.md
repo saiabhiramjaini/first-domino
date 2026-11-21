@@ -21,7 +21,8 @@ Each entry states what was decided and why. Change an entry when a decision chan
 | Repositories | Return ORM rows; response models map them once; no authorization inside queries | Two shapes, not three; access decisions stay in the API |
 | Tooling | ruff, pyright (standard), pytest with pytest-asyncio | Strict enough to keep quality, fast enough for one day |
 | Hosting | One AWS EC2 instance with Docker Compose and Caddy | Same shape as local development |
-| Demo domain | Doctor appointment booking for Indian clinics | Fits the Equal AI jury's own product; change only in the S2 brief |
+| First customer | Equal AI. The demo shows First Domino diagnosing a replica of their call assistant, in a workspace named "Equal AI (demo)". Pitch it as "built for teams like Equal AI", never as an existing customer or partnership | The jury builds this exact kind of agent, so the value is obvious to them |
+| Demo agent | Our replica of Equal AI's AI call assistant: answers calls for the user, talks to a scripted caller, then adds events, reminders and callbacks, blocks spam and sends a summary, using the user's personal context. No Equal AI logos, no real people; callers and businesses are fictional | It is the kind of agent the jury builds, so they recognise the failures at once; scripted callers keep replays deterministic |
 | Projects | One project per person, created on first sign-in | No project screens needed for the demo |
 | Live progress | The web app polls every second while a diagnosis runs | Simple and reliable behind a proxy |
 | Parallel build | Five workstreams on their own branches and worktrees; contract first; API answers with example data until real handlers land | Agents can integrate from the first hour without waiting |

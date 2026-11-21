@@ -56,6 +56,7 @@ async def store_verdict(
         diagnosis = await diagnoses.get(project_id=project_id, diagnosis_id=diagnosis_id)
         if diagnosis is None:
             raise NotFoundError
+        await _detach_earlier(session, diagnosis)
         stored = StoredVerdict(cause=None, cause_is_new=False)
         if explanation is not None and grouped:
             stored = await _file_cause(session, diagnosis, result, explanation, match)
@@ -74,6 +75,19 @@ async def store_verdict(
             finished_at=utc_now(),
         )
     return stored
+
+
+async def _detach_earlier(session: AsyncSession, diagnosis: tables.Diagnosis) -> None:
+    causes = CausesRepository(session)
+    detached = await DiagnosesRepository(session).detach_earlier(
+        project_id=diagnosis.project_id, run_id=diagnosis.run_id, keep_diagnosis_id=diagnosis.id
+    )
+    for earlier in detached:
+        cause = await causes.get(
+            project_id=diagnosis.project_id, cause_id=earlier.cause_id, for_update=True
+        )
+        if cause is not None:
+            await causes.remove_run(cause=cause, verified=earlier.verified)
 
 
 async def _candidates(database: Database, project_id: UUID) -> list[CauseCandidate]:

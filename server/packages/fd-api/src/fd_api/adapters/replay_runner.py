@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fd_api.settings import ApiSettings
 from fd_database import tables
-from fd_database.repositories import ReplayJobsRepository, RunsRepository, StepsRepository
+from fd_database.repositories import (
+    DiagnosesRepository,
+    ReplayJobsRepository,
+    RunsRepository,
+    StepsRepository,
+)
 from fd_database.session import Database
 from fd_database.tables.base import utc_now
 from fd_shared.enums import MessageRole, ReplayJobStatus, ReplayOutcome
@@ -99,6 +104,12 @@ class QueueReplayRunner:
                 replacement_output=replacement_output,
                 model_override=model_override,
                 samples=samples,
+            )
+            await DiagnosesRepository(session).count_progress(
+                project_id=self._project_id,
+                diagnosis_id=self._diagnosis_id,
+                checks_at_least=0,
+                replays_added=samples,
             )
         return [job.id for job in jobs]
 

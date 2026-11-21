@@ -111,7 +111,8 @@ async def test_failed_run_is_diagnosed_and_proven_by_replay(
     run_id = await _record_failed_run(client, api_key)
     run = (await client.get("/v1/runs.get", params={"run_id": run_id}, headers=person)).json()
 
-    diagnosis = await _work_until_done(client, api_key, person, run["run"]["latest_diagnosis_id"])
+    diagnosis_id = run["run"]["latest_diagnosis_id"]
+    diagnosis = await _work_until_done(client, api_key, person, diagnosis_id)
 
     assert diagnosis["status"] == "done", diagnosis
     assert diagnosis["verdict_kind"] == "step_verified"

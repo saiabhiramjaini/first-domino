@@ -1,0 +1,15 @@
+[project]
+name = "fd-database"
+version = "0.1.0"
+description = "Postgres tables and repositories for the control plane, on async SQLAlchemy 2."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fd-shared",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

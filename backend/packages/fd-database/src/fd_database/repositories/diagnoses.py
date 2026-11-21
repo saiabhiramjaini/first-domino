@@ -1,0 +1,1 @@
+"""Diagnoses and checks repository."""

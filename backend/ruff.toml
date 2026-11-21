@@ -1,0 +1,47 @@
+fix = true
+line-length = 100
+target-version = "py312"
+extend-exclude = ["packages/first-domino/src/first_domino/_generated"]
+
+[lint]
+select = [
+  "F",       # pyflakes: likely errors
+  "E", "W",  # pycodestyle
+  "I",       # import order
+  "UP",      # modern Python syntax
+  "B",       # likely bugs and design problems
+  "SIM",     # simpler forms
+  "C4",      # comprehensions
+  "RUF",     # ruff-specific
+  "ASYNC",   # async pitfalls, such as blocking calls in async functions
+  "T10",     # no debugger calls
+  "T20",     # no print outside fd-scripts
+  "C901",    # complexity cap
+  "FBT",     # no positional boolean parameters
+  "N818",    # exception names end in Error
+  "ERA001",  # no commented-out code
+  "PLR0915", # at most 50 statements per function
+  "TID",     # import bans below
+]
+ignore = [
+  "B008", # function calls in defaults are how FastAPI dependencies work
+]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[lint.isort]
+known-first-party = [
+  "fd_shared", "fd_database", "fd_engine", "fd_api",
+  "first_domino", "fd_demo_agent", "fd_scripts",
+]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["FBT", "PLR0915", "ERA001"]
+"packages/fd-scripts/**" = ["T20"]
+
+[format]
+quote-style = "double"

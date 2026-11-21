@@ -1,0 +1,68 @@
+# Agent Instructions
+
+Repo-wide rules for every coding agent and for people. `CLAUDE.md` only imports this file. Each half of the repo adds its own rules: `backend/AGENTS.md` for Python and `frontend/AGENTS.md` for the web app.
+
+First Domino finds the step where a failed AI agent run became doomed, and proves it by replay.
+
+## Repository layout
+
+```
+first-domino/
+  AGENTS.md, CLAUDE.md, README.md    repo-wide rules and overview
+  docs/                              shared: contract, work plan, briefs, status, architecture, decisions
+  api/openapi.json                   the generated HTTP contract, shared by both halves
+  backend/                           Python: API, engine, database, SDK, demo agent, scripts
+  frontend/                          Next.js web app
+  .github/workflows/                 backend.yml and frontend.yml, one per half
+  .pre-commit-config.yaml            git hooks for both halves (git needs them at the root)
+```
+
+## Backend and frontend are separate
+
+- Each half has its own tooling, dependencies, rules, environment file, `.gitignore` and CI workflow. Neither imports, reads or builds files from the other.
+- They meet only at the HTTP contract: `docs/CONTRACT.md` is the agreement and `api/openapi.json` is generated from the backend. The frontend generates its client from that file.
+- Open an agent chat inside the half you work on (`backend/` or `frontend/`), so it loads that half's rules, hooks and skills.
+
+## Working in parallel
+
+Several agents build this repo at once. Before any work, read `docs/PARALLEL_WORK.md` (who owns which files, milestones, git) and `docs/CONTRACT.md` (the API every workstream builds against).
+
+- Edit only the files your workstream owns. Ask for anything else in your `docs/status/<id>.md`.
+- The contract changes only through `docs/CONTRACT.md` and its owner, never by editing generated files.
+- Keep your status file current at the end of every work block.
+
+## Hackathon constraints
+
+- Code freeze is **Sunday 22 Nov 2026, 2:00 PM**. Scope decisions favor a working end-to-end demo over completeness.
+- Solo build. Every line of code is written during the event. Open-source libraries are fine.
+- Never copy code, prompts, configuration or text from another company's repository. Write it fresh.
+- Never name an employer or its customers in code, docs, commits or slides. Reference products by public names only (LangSmith, Braintrust, Sentry).
+
+## Principles for both halves
+
+- Follow YAGNI and KISS. Build the smallest thing that makes the demo work, then stop.
+- Code quality is the default. A judge will read this code.
+- Never branch on an error message or any human-readable string. Use enums, error codes and typed fields.
+- Never edit a generated file. Change the source and regenerate.
+- **Follow precedent.** Reuse the pattern that already exists. Deviate only for a concrete reason.
+- **Do not restate.** Do not write a rule or comment that a type, a linter, a test or configuration already carries.
+- **Document the non-obvious.** Write down exceptions, constraints and decisions, with the reason.
+- **Ask when precedent is unclear.** When examples are missing or conflict, ask. Do not invent a convention.
+- A comment states the rule or the non-obvious reason. It never narrates the code and never tells a debugging story.
+- No secret in code, ever.
+
+## Git
+
+- Never commit, push, branch or open a pull request unless asked.
+- Never pass `--no-verify`. Never force-push.
+- Commit messages are one line: `type: subject` (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`). A commit-msg hook checks it.
+
+## Where to read more
+
+- `docs/PARALLEL_WORK.md`: workstreams, file ownership, milestones, git and status files.
+- `docs/CONTRACT.md`: the API, worker protocol, engine ports and SDK surface.
+- `docs/briefs/`: the starting prompt for each workstream's agent.
+- `docs/ARCHITECTURE.md`: components, data flow, the replay job lifecycle and the bisect rule.
+- `docs/DECISIONS.md`: what is decided, what is still open, and why.
+- `backend/AGENTS.md`: Python rules.
+- `frontend/AGENTS.md`: web app rules.

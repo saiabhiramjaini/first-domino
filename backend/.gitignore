@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Generated data
+data/datasets/
+data/benchmarks/

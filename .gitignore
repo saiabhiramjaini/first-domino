@@ -1,0 +1,14 @@
+# Repo-wide only. backend/ and frontend/ keep their own .gitignore.
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Personal agent settings
+**/.claude/settings.local.json
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/

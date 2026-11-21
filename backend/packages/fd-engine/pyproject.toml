@@ -1,0 +1,14 @@
+[project]
+name = "fd-engine"
+version = "0.1.0"
+description = "The core: bisect over save points, verify by replay, fallback, explain, group and the baseline judge."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fd-shared",
+    "openai>=1.55",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

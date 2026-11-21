@@ -5,6 +5,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
+from pydantic import BaseModel
+
+from fd_engine.explain import ExplainedStep, unexplained
+from fd_engine.llm import LlmCallError, RawCompletion
 from fd_engine.models import (
     Check,
     DiagnosisStatus,
@@ -148,3 +152,34 @@ class FakeFixer:
             return FixedStep(output=None, cost_usd=self.cost_usd)
         output = Message(role=MessageRole.ASSISTANT, content=f"fixed step {step_index}")
         return FixedStep(output=output, cost_usd=self.cost_usd)
+
+
+@dataclass
+class FakeExplainer:
+    cost_usd: float = 0.02
+    explained: list[int] = field(default_factory=list)
+
+    async def explain(
+        self, run: RunView, steps: list[StepView], step: int, fixed_output: Message | None
+    ) -> ExplainedStep:
+        self.explained.append(step)
+        return ExplainedStep(explanation=unexplained(step), cost_usd=self.cost_usd)
+
+
+@dataclass
+class FakeTransport:
+    """Returns scripted reply texts in order; None in the script means the call failed."""
+
+    replies: list[str | None]
+    tokens_in: int = 1000
+    tokens_out: int = 100
+    prompts: list[str] = field(default_factory=list)
+
+    async def complete(
+        self, *, system: str, user: str, schema: type[BaseModel], timeout_seconds: float
+    ) -> RawCompletion:
+        self.prompts.append(user)
+        reply = self.replies.pop(0)
+        if reply is None:
+            raise LlmCallError
+        return RawCompletion(content=reply, tokens_in=self.tokens_in, tokens_out=self.tokens_out)

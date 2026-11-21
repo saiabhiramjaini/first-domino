@@ -17,6 +17,7 @@ from .fakes import (
     TEST_MODEL,
     E,
     F,
+    FakeExplainer,
     FakeFixer,
     FakeReader,
     FakeRunner,
@@ -34,6 +35,7 @@ async def run_diagnosis(
     *,
     fixer: FakeFixer | None = None,
     sink: FakeSink | None = None,
+    explainer: FakeExplainer | None = None,
     config: EngineSettings | None = None,
 ) -> DiagnosisResult:
     reader = FakeReader(step_count)
@@ -42,6 +44,7 @@ async def run_diagnosis(
         runner=runner,
         sink=sink or FakeSink(),
         fixer=fixer or FakeFixer(),
+        explainer=explainer or FakeExplainer(),
         settings=config or settings(),
     )
     return await diagnoser.diagnose(reader.run_id, uuid4())
@@ -57,6 +60,17 @@ async def test_clean_break_is_found_and_verified() -> None:
     assert (result.verify_passes, result.verify_samples) == (4, 5)
     assert result.fixed_output is not None
     assert result.fixed_output.content == "fixed step 4"
+
+
+async def test_found_step_is_explained_and_costed() -> None:
+    runner = FakeRunner(plain=break_at(4), fixed={4: [P] * 5})
+    explainer = FakeExplainer()
+
+    result = await run_diagnosis(runner, step_count=8, explainer=explainer)
+
+    assert explainer.explained == [4]
+    assert result.explanation is not None
+    assert result.cost_usd == pytest.approx(FakeFixer().cost_usd + explainer.cost_usd)
 
 
 async def test_break_at_step_one() -> None:
@@ -75,6 +89,7 @@ async def test_task_that_always_fails_blames_no_step() -> None:
 
     assert result.verdict_kind is VerdictKind.TASK_OR_TOOL_ISSUE
     assert result.first_domino_step is None
+    assert result.explanation is None
     assert result.check_count == 1
     assert [call.from_step for call in runner.calls] == [0]
 
@@ -124,7 +139,7 @@ async def test_no_usable_fix_is_unverified_without_a_verify_replay() -> None:
     assert result.first_domino_step == 4
     assert result.verify_passes is None
     assert all(call.replacement_output is None for call in runner.calls)
-    assert result.cost_usd == pytest.approx(5 * fixer.cost_usd)
+    assert result.cost_usd == pytest.approx(5 * fixer.cost_usd + FakeExplainer().cost_usd)
 
 
 async def test_all_errored_check_stops_the_diagnosis() -> None:

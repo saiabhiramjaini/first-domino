@@ -177,7 +177,8 @@ export const countRuns = <ThrowOnError extends boolean = false>(options: Options
  *
  * Records one step of a running run (`409` when the run is finished).
  *
- * Idempotent on (`run_id`, `index`): a repeat returns the stored step and changes nothing.
+ * Idempotent on (`run_id`, `index`): a repeat returns the stored step and changes nothing,
+ * even after the run finished.
  */
 export const recordStep = <ThrowOnError extends boolean = false>(options: Options<RecordStepData, ThrowOnError>): RequestResult<RecordStepResponses, RecordStepErrors, ThrowOnError> => (options.client ?? client).post<RecordStepResponses, RecordStepErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -362,7 +363,8 @@ export const leaseReplayJob = <ThrowOnError extends boolean = false>(options: Op
  *
  * Reports how a replay ended.
  *
- * Idempotent by `replay_job_id`. A late result for a job that was leased again is ignored.
+ * Idempotent by `replay_job_id`: the first result for a leased job counts, and any later
+ * one (a repeat, or a late result from an earlier lease) changes nothing.
  */
 export const submitReplayResult = <ThrowOnError extends boolean = false>(options: Options<SubmitReplayResultData, ThrowOnError>): RequestResult<SubmitReplayResultResponses, SubmitReplayResultErrors, ThrowOnError> => (options.client ?? client).post<SubmitReplayResultResponses, SubmitReplayResultErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

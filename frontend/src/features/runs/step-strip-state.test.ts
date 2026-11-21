@@ -79,3 +79,22 @@ describe("defaultSelectedStep", () => {
     expect(defaultSelectedStep(0, undefined)).toBeNull();
   });
 });
+
+describe("stepState for a finished diagnosis with several causes", () => {
+  it("keeps the suspect range visible when no single step was named", () => {
+    const value = diagnosis({
+      status: "done",
+      verdict_kind: "multiple_causes",
+      search_low: 2,
+      search_high: 3,
+    });
+    expect(strip(4, value)).toEqual(["ruled_out", "in_range", "in_range", "ruled_out"]);
+  });
+});
+
+describe("stepState for a failed diagnosis", () => {
+  it("leaves every step neutral, because nothing was concluded", () => {
+    const value = diagnosis({ status: "failed", search_low: 1, search_high: 3 });
+    expect(strip(3, value)).toEqual(["idle", "idle", "idle"]);
+  });
+});

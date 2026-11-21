@@ -7,16 +7,19 @@ import { CAUSE_CATEGORY, VERDICT_KIND } from "@/components/status/status-tones";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { verdictCopy } from "../verdict-copy";
+
 type VerdictCardProps = { diagnosis: Diagnosis; originalStep: Step | undefined };
 
 function verifyText(diagnosis: Diagnosis): string | null {
   if (diagnosis.verify_passes === null || diagnosis.verify_samples === null) return null;
-  return `${diagnosis.verify_passes} of ${diagnosis.verify_samples} replays passed with the fix`;
+  return `${diagnosis.verify_passes} of ${diagnosis.verify_samples} replays passed with the fixed step`;
 }
 
 export function VerdictCard({ diagnosis, originalStep }: VerdictCardProps) {
   const verdict = diagnosis.verdict_kind;
   const explanation = diagnosis.explanation;
+  const copy = verdictCopy(diagnosis);
   const verify = verifyText(diagnosis);
   const domino = diagnosis.first_domino_step;
   return (
@@ -25,17 +28,27 @@ export function VerdictCard({ diagnosis, originalStep }: VerdictCardProps) {
         <div className="flex flex-wrap items-center gap-2">
           {verdict && <StatusBadge status={VERDICT_KIND[verdict]} />}
           {explanation && <StatusBadge status={CAUSE_CATEGORY[explanation.category]} />}
-          {domino !== null && (
-            <span className="text-sm text-muted-foreground">First domino: step {domino}</span>
-          )}
         </div>
-        <CardTitle className="text-lg">{explanation?.title ?? "No single step to blame"}</CardTitle>
-        {explanation && <CardDescription>{explanation.summary}</CardDescription>}
+        <CardTitle className="text-lg">
+          {explanation?.title ?? copy?.headline ?? "Diagnosis finished"}
+        </CardTitle>
+        {copy && (
+          <CardDescription>
+            {explanation && <span className="font-medium text-foreground">{copy.headline}. </span>}
+            {copy.body}
+          </CardDescription>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
+        {explanation && (
+          <section className="flex flex-col gap-1">
+            <h3 className="text-xs font-medium text-muted-foreground">What went wrong</h3>
+            <p className="text-sm whitespace-pre-wrap">{explanation.summary}</p>
+          </section>
+        )}
         {domino !== null && (
           <div className="grid gap-3 md:grid-cols-2">
-            <section className="flex flex-col gap-2 rounded-lg border border-domino/40 bg-domino/5 p-3">
+            <section className="flex min-w-0 flex-col gap-2 rounded-lg border border-domino/40 bg-domino/5 p-3">
               <h3 className="text-xs font-medium text-domino">Original step {domino}</h3>
               {originalStep ? (
                 <MessageView message={originalStep.output} />
@@ -43,7 +56,7 @@ export function VerdictCard({ diagnosis, originalStep }: VerdictCardProps) {
                 <p className="text-sm text-muted-foreground">Loading the original step...</p>
               )}
             </section>
-            <section className="flex flex-col gap-2 rounded-lg border border-verified/40 bg-verified/5 p-3">
+            <section className="flex min-w-0 flex-col gap-2 rounded-lg border border-verified/40 bg-verified/5 p-3">
               <h3 className="text-xs font-medium text-verified">Fixed step {domino}</h3>
               {diagnosis.fixed_output ? (
                 <MessageView message={diagnosis.fixed_output} />

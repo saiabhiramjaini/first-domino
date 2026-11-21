@@ -20,7 +20,7 @@ Non-secret settings are committed; only secrets live in Vercel and GitHub.
 ## How a change ships
 
 - **Server:** push to `main` touching `server/**` runs `.github/workflows/server.yml`: `check` (lint, types, tests) → `publish` (build the image, push `:<sha>` and `:latest`) → `deploy` (write `~/first-domino/.env` from `config.env` + `SERVER_ENV`, run `deploy/run-api.sh` over SSH to replace the `first-domino-api` container, then call `/health` over HTTPS). Pull requests run `check` only.
-- **Web:** Vercel builds every push that touches `client/` (`client/vercel.json`). Pull requests get preview links.
+- **Web:** Vercel builds every push to `main` (`client/vercel.json`). Pull requests get preview links.
 
 ## One-time setup
 

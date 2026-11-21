@@ -78,7 +78,6 @@ jobs:
       EC2_USER: ${{ vars.EC2_USER }}
       EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
       SERVER_ENV: ${{ secrets.SERVER_ENV }}
-      API_DOMAIN: ${{ vars.API_DOMAIN }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up SSH
@@ -91,7 +90,8 @@ jobs:
           remote="$EC2_USER@$EC2_HOST"
           ssh -i ~/.ssh/ec2 "$remote" 'mkdir -p ~/first-domino'
           scp -i ~/.ssh/ec2 deploy/compose.yaml deploy/Caddyfile "$remote:first-domino/"
-          { printf '%s\n' "$SERVER_ENV"; printf 'IMAGE=%s\nIMAGE_TAG=%s\n' "$IMAGE" "$GITHUB_SHA"; } \
+          # Committed settings first, then the secrets (later values win), then the image.
+          { cat deploy/config.env; printf '\n%s\n' "$SERVER_ENV"; printf 'IMAGE=%s\nIMAGE_TAG=%s\n' "$IMAGE" "$GITHUB_SHA"; } \
             | ssh -i ~/.ssh/ec2 "$remote" 'umask 077 && cat > ~/first-domino/.env'
       - name: Roll out the new image
         run: |
@@ -99,6 +99,7 @@ jobs:
             'cd ~/first-domino && docker compose pull && docker compose up -d --remove-orphans --wait && docker image prune -f'
       - name: Check the live API
         run: |
+          API_DOMAIN=$(sed -n 's/^API_DOMAIN=//p' deploy/config.env)
           for _ in $(seq 1 30); do
             curl -fsS "https://$API_DOMAIN/health" && exit 0
             sleep 5

@@ -4,6 +4,7 @@
 .env
 .env.*
 !.env.example
+!/client/.env.production
 
 # Personal agent settings
 **/.claude/settings.local.json

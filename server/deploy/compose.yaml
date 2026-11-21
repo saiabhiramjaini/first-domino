@@ -1,6 +1,6 @@
 # Production stack on the EC2 server: the API, the demo customer's replay worker, and Caddy
 # for HTTPS. The deploy workflow copies this file and the Caddyfile to ~/first-domino and
-# writes ~/first-domino/.env from the SERVER_ENV secret (see deploy/.env.example).
+# writes ~/first-domino/.env from config.env plus the SERVER_ENV secret (see .env.example).
 name: first-domino
 
 x-server-image: &server-image "${IMAGE:?set IMAGE in .env}:${IMAGE_TAG:-latest}"

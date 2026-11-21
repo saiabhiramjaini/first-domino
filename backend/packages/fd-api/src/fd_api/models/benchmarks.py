@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from fd_database import tables
+from fd_database.repositories import BenchmarkScoreRow
 from fd_shared.enums import BenchmarkMethod
 
 
@@ -25,6 +27,11 @@ class BenchmarkScore(BaseModel):
     mean_cost_usd: float = Field(ge=0, description="Mean model cost per run, in US dollars.")
     mean_seconds: float = Field(ge=0, description="Mean wall time per run, in seconds.")
 
+    @classmethod
+    def from_row(cls, row: BenchmarkScoreRow) -> "BenchmarkScore":
+        """Maps an aggregated score to the contract."""
+        return cls.model_validate(row.model_dump())
+
 
 class Benchmark(BaseModel):
     """One benchmark run over the labelled dataset."""
@@ -32,6 +39,15 @@ class Benchmark(BaseModel):
     id: UUID
     created_at: datetime = Field(description="Time the benchmark finished, in UTC RFC 3339 format.")
     scores: list[BenchmarkScore] = Field(description="One score per method.")
+
+    @classmethod
+    def from_row(cls, row: tables.Benchmark, scores: list[BenchmarkScoreRow]) -> "Benchmark":
+        """Maps a stored benchmark and its aggregated scores to the contract."""
+        return cls(
+            id=row.id,
+            created_at=row.created_at,
+            scores=[BenchmarkScore.from_row(score) for score in scores],
+        )
 
 
 class GetLatestBenchmarkResponse(BaseModel):

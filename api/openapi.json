@@ -1863,7 +1863,7 @@
           "replay-jobs"
         ],
         "summary": "Submit a replay result",
-        "description": "Reports how a replay ended.\n\nIdempotent by `replay_job_id`. A late result for a job that was leased again is ignored.",
+        "description": "Reports how a replay ended.\n\nIdempotent by `replay_job_id`: the first result for a leased job counts, and any later\none (a repeat, or a late result from an earlier lease) changes nothing.",
         "operationId": "submitReplayResult",
         "requestBody": {
           "content": {

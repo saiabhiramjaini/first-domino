@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import secrets
+from datetime import timedelta
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,7 @@ from fd_shared.errors import UnauthenticatedError
 
 API_KEY_PREFIX = "fd_live_"
 API_KEY_RANDOM_BYTES = 32
+LAST_USED_RESOLUTION = timedelta(minutes=1)
 
 
 class NewApiKey(BaseModel):
@@ -41,7 +43,7 @@ def mint_api_key() -> NewApiKey:
 
 
 async def verify_api_key(session: AsyncSession, secret: str) -> ApiKey:
-    """Finds the key by hash and records its use.
+    """Finds the key by hash and records its use, to the minute.
 
     Raises:
         UnauthenticatedError: No such key, or it is revoked.
@@ -53,5 +55,7 @@ async def verify_api_key(session: AsyncSession, secret: str) -> ApiKey:
         raise UnauthenticatedError
     if api_key.revoked_at is not None:
         raise UnauthenticatedError
-    await api_keys.touch(project_id=api_key.project_id, api_key_id=api_key.id, used_at=utc_now())
+    now = utc_now()
+    if api_key.last_used_at is None or now - api_key.last_used_at > LAST_USED_RESOLUTION:
+        await api_keys.touch(project_id=api_key.project_id, api_key_id=api_key.id, used_at=now)
     return api_key

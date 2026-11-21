@@ -23,6 +23,7 @@ from fd_api.models.runs import (
     StartRunResponse,
 )
 from fd_api.pagination import decode_cursor, paginate
+from fd_api.services.diagnoses import can_diagnose, create_diagnosis
 from fd_database import tables
 from fd_database.pages import TimeKey
 from fd_database.repositories import ReplayJobsRepository, RunsRepository
@@ -125,6 +126,8 @@ async def finish_run(
         finished_at=utc_now(),
     )
     log.info("runs.finished", run_id=str(run.id), status=run.status)
+    if can_diagnose(run):
+        await create_diagnosis(session, run=run, created_by_id=None)
     return FinishRunResponse(run=Run.from_row(run))
 
 

@@ -18,6 +18,7 @@ class ApiSettings(SettingsBase):
     log_json: bool = False
     lease_seconds: int = Field(default=120, ge=1)
     max_job_attempts: int = Field(default=3, ge=1)
+    lease_poll_interval_seconds: float = Field(default=0.5, gt=0)
     web_jwt_secret: SecretStr = Field(
         default=SecretStr(""),
         description="HS256 secret shared with the web app for its session tokens.",

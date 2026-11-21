@@ -37,8 +37,13 @@ async def bare_client(settings: ApiSettings) -> AsyncIterator[AsyncClient]:
 
 
 @pytest.fixture
-async def client(settings: ApiSettings) -> AsyncIterator[AsyncClient]:
-    app = create_app(settings, Database())
+def database() -> Database:
+    return Database()
+
+
+@pytest.fixture
+async def client(settings: ApiSettings, database: Database) -> AsyncIterator[AsyncClient]:
+    app = create_app(settings, database)
     try:
         lifespan = app.router.lifespan_context(app)
         await lifespan.__aenter__()

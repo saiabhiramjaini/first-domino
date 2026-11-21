@@ -10,8 +10,9 @@ from pydantic import BaseModel, ConfigDict
 
 from fd_api.auth.api_keys import API_KEY_PREFIX, verify_api_key
 from fd_api.auth.users import sign_in, verify_web_token
-from fd_api.database import DbSession
+from fd_api.database import get_database
 from fd_api.settings import ApiSettings
+from fd_database.session import Database
 from fd_shared.errors import UnauthenticatedError
 
 _bearer = HTTPBearer(auto_error=False, description="A web session token or a project API key.")
@@ -50,42 +51,49 @@ async def _bearer_token(
     return credentials.credentials
 
 
-async def _person(token: str, session: DbSession, settings: ApiSettings) -> Caller:
+# Auth commits in its own short transaction, so a slow handler (a long-polling lease) never
+# holds the person's or the key's row.
+
+
+async def _person(token: str, database: Database, settings: ApiSettings) -> Caller:
     claims = verify_web_token(token, settings)
-    person = await sign_in(session, claims)
+    async with database.transaction() as session:
+        person = await sign_in(session, claims)
     return Caller(kind=CallerKind.PERSON, project_id=person.project_id, actor_id=person.user_id)
 
 
-async def _api_key(token: str, session: DbSession) -> Caller:
-    api_key = await verify_api_key(session, token)
+async def _api_key(token: str, database: Database) -> Caller:
+    async with database.transaction() as session:
+        api_key = await verify_api_key(session, token)
     return Caller(kind=CallerKind.API_KEY, project_id=api_key.project_id, actor_id=api_key.id)
 
 
 async def any_caller(
     token: Annotated[str, Depends(_bearer_token)],
-    session: DbSession,
+    database: Annotated[Database, Depends(get_database)],
     settings: Annotated[ApiSettings, Depends(get_settings)],
 ) -> Caller:
     """Accepts a person or an API key (`P/K` in the contract)."""
     if token.startswith(API_KEY_PREFIX):
-        return await _api_key(token, session)
-    return await _person(token, session, settings)
+        return await _api_key(token, database)
+    return await _person(token, database, settings)
 
 
 async def person_caller(
     token: Annotated[str, Depends(_bearer_token)],
-    session: DbSession,
+    database: Annotated[Database, Depends(get_database)],
     settings: Annotated[ApiSettings, Depends(get_settings)],
 ) -> Caller:
     """Accepts a person only (`P` in the contract)."""
-    return await _person(token, session, settings)
+    return await _person(token, database, settings)
 
 
 async def api_key_caller(
-    token: Annotated[str, Depends(_bearer_token)], session: DbSession
+    token: Annotated[str, Depends(_bearer_token)],
+    database: Annotated[Database, Depends(get_database)],
 ) -> Caller:
     """Accepts a project API key only (`K` in the contract)."""
-    return await _api_key(token, session)
+    return await _api_key(token, database)
 
 
 AnyCaller = Annotated[Caller, Depends(any_caller)]

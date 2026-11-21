@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from fd_database import tables
 from fd_shared.enums import ReplayJobStatus, ReplayOutcome
 from fd_shared.models import Message, TaskInput
 
@@ -36,6 +37,23 @@ class ReplayJob(BaseModel):
         description="Time the current lease ends, in UTC RFC 3339 format. Null unless leased."
     )
     attempt: int = Field(ge=0, description="Number of times the job has been leased.")
+
+    @classmethod
+    def from_row(cls, row: tables.ReplayJob) -> "ReplayJob":
+        """Maps a stored job to the contract."""
+        return cls(
+            id=row.id,
+            run_id=row.run_id,
+            agent_name=row.agent_name,
+            task_input=row.task_input,
+            from_step=row.from_step,
+            messages=row.messages,
+            replacement_output=row.replacement_output,
+            model_override=row.model_override,
+            status=row.status,
+            lease_expires_at=row.lease_expires_at,
+            attempt=row.attempt,
+        )
 
 
 class LeaseReplayJobRequest(BaseModel):

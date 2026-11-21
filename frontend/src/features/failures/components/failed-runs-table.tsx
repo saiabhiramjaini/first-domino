@@ -47,7 +47,7 @@ export function FailedRunsTable() {
     return (
       <EmptyState
         title="No failed runs yet"
-        description="Record a run with the SDK. When your success check marks it failed, it shows up here and is diagnosed automatically."
+        description="Record your agent's calls with the SDK. When your success check marks a call failed, it shows up here and is diagnosed automatically."
       />
     );
   }

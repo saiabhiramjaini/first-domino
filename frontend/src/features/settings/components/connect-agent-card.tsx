@@ -12,21 +12,21 @@ export FIRST_DOMINO_BASE_URL=${API_URL}`;
 const RECORD_SNIPPET = `import first_domino as fd
 from openai import OpenAI
 
-task = fd.TaskInput(prompt="Book a check-up for Sam on Friday", metadata={"task_id": "t1"})
+task = fd.TaskInput(prompt="Handle the incoming call from the dentist's office", metadata={"task_id": "t1"})
 
-with fd.record(agent_name="clinic-booker", task_input=task) as run:
+with fd.record(agent_name="call-assistant", task_input=task) as run:
     client = fd.wrap(OpenAI(), run)   # every chat completion becomes a step
     result = run_agent(client, task)
     run.finish(status="passed" if result.ok else "failed", final_output=result.text)`;
 
-const WORKER_SNIPPET = `worker = fd.Worker(agent_names=["clinic-booker"])
+const WORKER_SNIPPET = `worker = fd.Worker(agent_names=["call-assistant"])
 
-@worker.agent("clinic-booker")
+@worker.agent("call-assistant")
 def replay(ctx: fd.ReplayContext):
     # ctx carries the saved messages, the fixed step to use, and the replay run
     return run_agent_from(ctx)
 
-@worker.success_check("clinic-booker")
+@worker.success_check("call-assistant")
 def check(task_input: fd.TaskInput, result) -> bool:
     return result.ok
 

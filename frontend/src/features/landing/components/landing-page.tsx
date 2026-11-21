@@ -38,14 +38,15 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-16 px-4 py-12 sm:py-20">
         <section className="flex flex-col items-center gap-6 text-center">
           <p className="rounded-full border px-3 py-1 text-xs text-muted-foreground">
-            Root causes for failed AI agent runs
+            Built for teams like Equal AI that run AI call assistants
           </p>
           <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
             Find the step where your agent&apos;s run was lost.
           </h1>
           <p className="max-w-2xl text-lg text-pretty text-muted-foreground">
-            First Domino re-runs a failed agent from its own save points, finds the first step that
-            doomed it, then proves it by fixing that step and replaying.
+            Your call assistant booked the callback for the wrong day. First Domino re-runs the
+            failed call from its own save points, finds the first step that doomed it, then proves
+            it by fixing that step and replaying.
           </p>
           <Link
             href={isSignedIn ? "/failures" : "/sign-in"}

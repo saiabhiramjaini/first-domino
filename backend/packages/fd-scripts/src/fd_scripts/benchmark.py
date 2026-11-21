@@ -7,11 +7,13 @@ tokens. Results go to `data/benchmarks/` and to the database for `getLatestBench
 Usage, from `backend/`:
     uv run python -m fd_scripts.benchmark --limit 3 --no-db
     uv run python -m fd_scripts.benchmark
+    uv run python -m fd_scripts.benchmark --from-report data/benchmarks/<file>.json
 """
 
 import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 from time import perf_counter
 from uuid import UUID, uuid4
 
@@ -221,9 +223,20 @@ async def _main(dataset_name: str, limit: int | None, *, store: bool) -> None:
 @click.option("--dataset", "dataset_name", default="call-assistant", help="Dataset name.")
 @click.option("--limit", type=int, default=None, help="Score only the first N runs.")
 @click.option("--db/--no-db", "store", default=True, help="Also store the results.")
-def main(dataset_name: str, limit: int | None, *, store: bool) -> None:
+@click.option(
+    "--from-report",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Store this saved report in the database instead of running the benchmark.",
+)
+def main(dataset_name: str, limit: int | None, *, store: bool, from_report: Path | None) -> None:
     """Score First Domino and the read-the-trace judge on the labelled runs."""
     configure_logging()
+    if from_report is not None:
+        report = BenchmarkReport.model_validate_json(from_report.read_text())
+        asyncio.run(_store(report.results))
+        print(f"Stored {len(report.results)} results from {from_report} in the database.")
+        return
     asyncio.run(_main(dataset_name, limit, store=store))
 
 

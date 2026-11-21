@@ -33,6 +33,8 @@ class DatabaseRunReader:
             status=run.status,
             step_count=run.step_count,
             final_output=run.final_output,
+            failure_reason=run.failure_reason,
+            flagged=run.flagged_at is not None,
         )
 
     async def get_steps(self, run_id: UUID) -> list[StepView]:

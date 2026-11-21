@@ -79,7 +79,7 @@ class CostSink(Protocol):
     """Receives the cost of each engine model call while a diagnosis runs, for a live total."""
 
     async def cost_added(self, diagnosis_id: UUID, cost_usd: float) -> None:
-        """Add one model call's cost (a fix or an explanation) to the diagnosis's running total.
+        """Add one model call's cost (a fix, an explanation or a judged replay) to the total.
 
         The final `DiagnosisResult.cost_usd` is still the whole total. Grouping runs after the
         diagnosis, in the API, which adds its cost itself.

@@ -1,7 +1,7 @@
 """What the engine reads from a replay job, and how unfinished jobs end when it stops waiting."""
 
 import asyncio
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from httpx import AsyncClient
 from pydantic import SecretStr
@@ -105,3 +105,14 @@ def test_a_job_that_ended_without_a_result_is_errored_without_drift() -> None:
 
 def test_an_open_job_has_no_result_yet() -> None:
     assert result_of(_job(ReplayJobStatus.LEASED, None, None)) is None
+
+
+def test_a_finished_job_names_the_run_its_replay_recorded() -> None:
+    replay_run_id = uuid4()
+    job = _job(ReplayJobStatus.SUCCEEDED, ReplayOutcome.PASSED, None)
+    job.replay_run_id = replay_run_id
+
+    result = result_of(job)
+
+    assert result is not None
+    assert result.replay_run_id == replay_run_id

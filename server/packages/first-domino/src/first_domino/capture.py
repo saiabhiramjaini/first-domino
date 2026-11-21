@@ -25,6 +25,7 @@ from datetime import timedelta
 from time import perf_counter
 from types import ModuleType
 from typing import Any
+from uuid import UUID
 
 from first_domino._generated.models import (
     Message,
@@ -175,6 +176,7 @@ class Session:
         self._pending: list[_Pending] = []
         self._tools_used: dict[str, int] = {}
         self._started = replay is not None
+        self._start_sent: concurrent.futures.Future[None] | None = None
         self._tail: concurrent.futures.Future[None] | None = None
 
     # --- model calls -------------------------------------------------------------------
@@ -277,24 +279,40 @@ class Session:
 
     # --- sending -----------------------------------------------------------------------
 
+    def run_id(self, timeout: float) -> UUID | None:
+        """The run's id, starting the run first if no model call has yet.
+
+        Waits up to `timeout` seconds for the start. Never waits on the background
+        thread, which is the one that sends the start.
+        """
+        started = self._start()
+        if started is not None and threading.current_thread().name != _THREAD_NAME:
+            concurrent.futures.wait([started], timeout=timeout)
+        return self.run.run_id
+
     def close(
         self, outcome: RunOutcome | None, final_output: str | None
     ) -> concurrent.futures.Future[None]:
-        """Record what is still held, then finish the run (unless `outcome` is None)."""
+        """Record what is still held, then finish the run (unless `outcome` is None).
+
+        The reason given to `fd.set_outcome` goes with a failed run.
+        """
         with self._lock:
             pending, self._pending = self._pending, []
         for step in sorted(pending, key=lambda p: p.index):
             self._record(step, [])
         if outcome is not None:
-            self._submit(lambda: self.run.finish(outcome, final_output))
+            reason = self.verdict.reason if self.verdict is not None else None
+            self._submit(lambda: self.run.finish(outcome, final_output, failure_reason=reason))
         return self._submit(_nothing)
 
-    def _start(self) -> None:
+    def _start(self) -> concurrent.futures.Future[None] | None:
+        """Send the run's start once; return the future that ends with it, or None in a replay."""
         with self._lock:
-            if self._started:
-                return
-            self._started = True
-        self._submit(self.run.start)
+            if not self._started:
+                self._started = True
+                self._start_sent = self._chain(self.run.start)
+            return self._start_sent
 
     def _record(self, pending: _Pending, tool_results: list[Message]) -> None:
         async def send() -> None:
@@ -316,9 +334,14 @@ class Session:
     ) -> concurrent.futures.Future[None]:
         """Send API calls one after another, in the order they were made."""
         with self._lock:
-            previous = self._tail
-            self._tail = self._background.submit(_after(previous, call))
-            return self._tail
+            return self._chain(call)
+
+    def _chain(
+        self, call: Callable[[], Coroutine[Any, Any, None]]
+    ) -> concurrent.futures.Future[None]:
+        """`_submit` for a caller that holds the lock."""
+        self._tail = self._background.submit(_after(self._tail, call))
+        return self._tail
 
 
 def _answered(pending: _Pending, results: Mapping[str | None, Message]) -> bool:

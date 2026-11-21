@@ -25,6 +25,8 @@ import my_agent
 fd.serve()
 ```
 
+A failure your check cannot see (a user complaint, a thumbs down) can be flagged later with `await fd.flag(run_id, "what went wrong")` or the web app's Mark as failed button; its replays are then judged by a model against that report.
+
 Set `FIRST_DOMINO_API_KEY` from the web app's Settings page. Every model call made through the OpenAI or Anthropic SDKs, or a framework built on them, is recorded. The SDK guide is [`server/packages/first-domino/README.md`](./server/packages/first-domino/README.md).
 
 ## How it works

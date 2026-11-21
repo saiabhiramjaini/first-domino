@@ -22,13 +22,17 @@ const CLOCK_MS = 1_000;
 type VerdictHeroProps = {
   diagnosis: Diagnosis;
   checks: readonly Check[];
+  isModelJudged: boolean;
   children: React.ReactNode;
 };
 
-function liveText(diagnosis: Diagnosis, checks: readonly Check[]): string {
+function liveText(diagnosis: Diagnosis, checks: readonly Check[], isModelJudged: boolean): string {
   const { search_low: low, search_high: high, status } = diagnosis;
   if (status === "queued") return "Waiting for your replay worker to pick up the first check.";
   if (isCalibrating(checks)) {
+    if (isModelJudged) {
+      return "Confirming the judge sees the recorded run as failed against your report before the search starts.";
+    }
     return "Confirming your success check fails the recorded run. These replays answer every model call from the recording, so they cost nothing.";
   }
   if (status === "verifying") return "Rewriting the found step and replaying to prove it.";
@@ -70,7 +74,7 @@ function DriftNote({ drift }: DriftNoteProps) {
 }
 
 // The answer first: where the run fell, how sure we are, and what it cost. The step strip sits below.
-export function VerdictHero({ diagnosis, checks, children }: VerdictHeroProps) {
+export function VerdictHero({ diagnosis, checks, isModelJudged, children }: VerdictHeroProps) {
   const isActive = isDiagnosisActive(diagnosis.status);
   const now = useNow(isActive ? CLOCK_MS : false);
   const isWaiting = isWaitingForWorker(diagnosis, now);
@@ -126,7 +130,7 @@ export function VerdictHero({ diagnosis, checks, children }: VerdictHeroProps) {
           <p className="max-w-3xl text-sm text-pretty text-muted-foreground" aria-live="polite">
             {isWaiting
               ? `${diagnosis.replays_waiting ?? 0} replays have waited ${waitedText(waited)} and no worker has picked them up. Replays run on your side, so start the replay worker next to your agent. The search carries on as soon as it connects.`
-              : (copy?.body ?? (isActive ? liveText(diagnosis, checks) : ""))}
+              : (copy?.body ?? (isActive ? liveText(diagnosis, checks, isModelJudged) : ""))}
           </p>
           {drift && <DriftNote drift={drift} />}
         </div>

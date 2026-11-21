@@ -20,6 +20,7 @@ from .fakes import (
     F,
     FakeExplainer,
     FakeFixer,
+    FakeJudge,
     FakeReader,
     FakeRunner,
     FakeSink,
@@ -47,6 +48,7 @@ async def run_diagnosis(
         sink=sink or FakeSink(),
         fixer=fixer or FakeFixer(),
         explainer=explainer or FakeExplainer(),
+        judge=FakeJudge(),
         settings=config or settings(),
     )
     return await diagnoser.diagnose(reader.run_id, uuid4())
@@ -251,6 +253,7 @@ async def test_each_model_call_cost_is_reported_as_it_happens(
         sink=sink,
         fixer=FakeFixer(cost_usd=0.01),
         explainer=FakeExplainer(cost_usd=0.02),
+        judge=FakeJudge(),
         settings=settings(),
         cost_sink=sink,
     )

@@ -32,13 +32,13 @@ def result_of(job: tables.ReplayJob) -> ReplayResult | None:
     if job.status not in _FINAL_STATUSES:
         return None
     if job.outcome is None:
-        return ReplayResult(outcome=ReplayOutcome.ERRORED)
+        return ReplayResult(outcome=ReplayOutcome.ERRORED, replay_run_id=job.replay_run_id)
     drift = (
         ReplayDrift(step=job.drift_step, tool_name=job.drift_tool_name)
         if job.drift_step is not None
         else None
     )
-    return ReplayResult(outcome=job.outcome, drift=drift)
+    return ReplayResult(outcome=job.outcome, drift=drift, replay_run_id=job.replay_run_id)
 
 
 class QueueReplayRunner:

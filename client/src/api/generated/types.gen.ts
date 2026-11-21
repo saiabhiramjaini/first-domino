@@ -720,6 +720,12 @@ export type FinishRunRequest = {
      * The agent's final answer.
      */
     final_output?: string | null;
+    /**
+     * Failure Reason
+     *
+     * Why the run failed, in words, when the customer's code knows. Stored only on a `failed` run; the diagnosis uses it.
+     */
+    failure_reason?: string | null;
 };
 
 /**
@@ -728,6 +734,33 @@ export type FinishRunRequest = {
  * The finished run.
  */
 export type FinishRunResponse = {
+    run: Run;
+};
+
+/**
+ * FlagRunRequest
+ *
+ * Flags a run that passed its success check as failed, saying what went wrong.
+ */
+export type FlagRunRequest = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+    /**
+     * Reason
+     *
+     * What went wrong, as a person would report it: a user complaint, a review note, a support ticket. Each replay is judged against it.
+     */
+    reason: string;
+};
+
+/**
+ * FlagRunResponse
+ *
+ * The flagged run, now `failed` and being diagnosed.
+ */
+export type FlagRunResponse = {
     run: Run;
 };
 
@@ -1512,6 +1545,24 @@ export type Run = {
      */
     final_output: string | null;
     /**
+     * Failure Reason
+     *
+     * Why the run failed, in words: from the customer's code when it finished, or from whoever flagged it. Null when none was given.
+     */
+    failure_reason: string | null;
+    /**
+     * Flagged At
+     *
+     * Time the run was flagged as failed after it passed, in UTC RFC 3339 format. Null unless flagged. Replays of a flagged run are judged against `failure_reason` by a model instead of the customer's success check.
+     */
+    flagged_at: string | null;
+    /**
+     * Flagged By Id
+     *
+     * Id of the person or API key that flagged the run. Null unless flagged.
+     */
+    flagged_by_id: string | null;
+    /**
      * Latest Diagnosis Id
      *
      * The newest diagnosis of this run.
@@ -2081,6 +2132,51 @@ export type FinishRunResponses = {
 };
 
 export type FinishRunResponse2 = FinishRunResponses[keyof FinishRunResponses];
+
+export type FlagRunData = {
+    body: FlagRunRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/runs.flag';
+};
+
+export type FlagRunErrors = {
+    /**
+     * Bad request
+     */
+    400: ApiError;
+    /**
+     * Not authenticated
+     */
+    401: ApiError;
+    /**
+     * Not found
+     */
+    404: ApiError;
+    /**
+     * Conflict
+     */
+    409: ApiError;
+    /**
+     * Validation failed
+     */
+    422: ApiValidationError;
+    /**
+     * Internal error
+     */
+    500: ApiInternalError;
+};
+
+export type FlagRunError = FlagRunErrors[keyof FlagRunErrors];
+
+export type FlagRunResponses = {
+    /**
+     * Successful Response
+     */
+    200: FlagRunResponse;
+};
+
+export type FlagRunResponse2 = FlagRunResponses[keyof FlagRunResponses];
 
 export type GetRunData = {
     body?: never;

@@ -6,9 +6,13 @@ import type { Run } from "@/api/generated";
 import { formatCount, formatDateTime } from "@/lib/format";
 import { STEP_NOUN } from "@/lib/nouns";
 
+import { failureReason } from "../run-flag";
+import { FailureReasonText } from "./failure-reason-text";
+
 type RunHeaderProps = { run: Run; title?: string; actions: React.ReactNode };
 
 export function RunHeader({ run, title, actions }: RunHeaderProps) {
+  const failure = failureReason(run);
   return (
     <PageHeader
       eyebrow={
@@ -19,6 +23,7 @@ export function RunHeader({ run, title, actions }: RunHeaderProps) {
         </>
       }
       title={title ?? run.task_input.prompt}
+      description={failure && <FailureReasonText failure={failure} />}
       meta={
         <>
           <span className="font-mono">{shortId(run.id)}</span>

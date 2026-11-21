@@ -20,11 +20,13 @@ import { listStepsKey, useListSteps } from "@/hooks/api/use-list-steps";
 import { isApiError } from "@/lib/api-error";
 
 import { latestDriftToolName } from "../replay-drift";
+import { canFlagRun, isJudgedByModel } from "../run-flag";
 import { CheckReplays } from "../replays/check-replays";
 import { CheckList } from "./check-list";
 import { checkRows } from "./check-rows";
 import { DiagnoseRunButton } from "./diagnose-run-button";
 import { DiagnosisFailed } from "./diagnosis-failed";
+import { FlagRunButton } from "./flag-run-button";
 import { RunHeader } from "./run-header";
 import { RunInputPanel } from "./run-input-panel";
 import { RunTrace } from "./run-trace";
@@ -89,6 +91,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
   const hasNoSteps = !isRecording && stepCount === 0;
   const canDiagnose =
     run.data.status === "failed" && run.data.source === "recorded" && !isLive && !hasNoSteps;
+  const isModelJudged = isJudgedByModel(run.data, diagnosisId);
 
   function handleCreated(created: Diagnosis) {
     setCreatedDiagnosisId(created.id);
@@ -131,12 +134,14 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         run={run.data}
         title={diagnosis?.explanation?.title}
         actions={
-          canDiagnose && (
+          canDiagnose ? (
             <DiagnoseRunButton
               runId={runId}
               hasDiagnosis={diagnosisId !== null}
               onCreated={handleCreated}
             />
+          ) : (
+            canFlagRun(run.data) && <FlagRunButton runId={runId} />
           )
         }
       />
@@ -178,7 +183,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
           onRetry={diagnosisQuery.refetch}
         />
       ) : diagnosis ? (
-        <VerdictHero diagnosis={diagnosis} checks={checks.data ?? []}>
+        <VerdictHero diagnosis={diagnosis} checks={checks.data ?? []} isModelJudged={isModelJudged}>
           {stepStrip}
         </VerdictHero>
       ) : (
@@ -240,6 +245,11 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
           title="Checks"
           description="Each check keeps the first steps as recorded and replays the rest"
         >
+          {isModelJudged && (
+            <p className="border-b px-4 py-2 text-xs text-muted-foreground">
+              Replays are judged by a model against this report, not by your success check.
+            </p>
+          )}
           {checks.isLoadingError ? (
             <div className="p-4">
               <QueryError
@@ -301,7 +311,7 @@ const STATUS_NOTE = {
   passed: {
     icon: CircleCheckIcon,
     title: "This run passed",
-    body: "Your success check passed it, so there is nothing to diagnose. Its full trace is below.",
+    body: "Your success check passed it, so there is nothing to diagnose. If it still went wrong, mark it as failed to diagnose it. Its full trace is below.",
   },
   errored: {
     icon: TriangleAlertIcon,

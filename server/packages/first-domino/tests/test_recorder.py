@@ -7,7 +7,12 @@ import pytest
 from pydantic import SecretStr
 
 import first_domino as fd
-from first_domino._generated.models import ApiErrorCode, DiagnosisStatus
+from first_domino._generated.models import (
+    ApiErrorCode,
+    DiagnosisStatus,
+    FailureReason,
+    RunStatus,
+)
 from first_domino.client import FirstDominoClient
 from first_domino.errors import ApiRequestError
 from first_domino.settings import SdkSettings
@@ -197,3 +202,85 @@ async def test_record_sends_tool_names_and_starts_at_the_first_step(
 
     assert run.run_id is not None
     assert api.runs[run.run_id].tool_names == ["a", "b", "c"]
+
+
+@pytest.mark.parametrize(
+    ("status", "reason", "sent"),
+    [
+        (fd.RunOutcome.failed, "Booked Tuesday, the caller said Thursday", True),
+        (fd.RunOutcome.passed, "Booked Tuesday, the caller said Thursday", False),
+        (fd.RunOutcome.errored, "Booked Tuesday, the caller said Thursday", False),
+    ],
+)
+async def test_finish_sends_the_failure_reason_only_for_a_failed_run(
+    api: FakeApi, client: FirstDominoClient, status: fd.RunOutcome, reason: str, sent: bool
+) -> None:
+    async with fd.record("call-assistant", TASK, client=client) as run:
+        await run.finish(status, failure_reason=reason)
+
+    (finished,) = api.finished
+    assert finished.failure_reason == (FailureReason(reason) if sent else None)
+
+
+async def test_a_long_failure_reason_is_cut_to_the_api_limit(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    async with fd.record("call-assistant", TASK, client=client) as run:
+        await run.finish(fd.RunOutcome.failed, failure_reason="x" * 2500)
+
+    assert api.finished[0].failure_reason == FailureReason("x" * 2000)
+
+
+async def test_current_run_id_inside_record_once_the_run_started(client: FirstDominoClient) -> None:
+    async with fd.record("call-assistant", TASK, client=client) as run:
+        before = fd.current_run_id()
+        await run.start()
+        after = fd.current_run_id()
+
+    assert before is None
+    assert after is not None
+    assert after == run.run_id
+    assert fd.current_run_id() is None
+
+
+async def finished_run(client: FirstDominoClient, outcome: fd.RunOutcome) -> UUID:
+    async with fd.record("call-assistant", TASK, client=client) as run:
+        await run.step(model="m", output=REPLY, messages=[USER, REPLY])
+        await run.finish(outcome, final_output="Handled.")
+    assert run.run_id is not None
+    return run.run_id
+
+
+async def test_flag_marks_a_passed_run_failed_with_the_reason(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    run_id = await finished_run(client, fd.RunOutcome.passed)
+    reason = "The user said the visit was booked on the wrong day"
+
+    run = await fd.flag(run_id, reason, client=client)
+
+    assert run.id == run_id
+    assert run.status == RunStatus.failed
+    assert run.failure_reason == reason
+    assert run.flagged_at is not None
+    assert [(f.run_id, f.reason) for f in api.flagged] == [(run_id, reason)]
+
+
+async def test_flag_refuses_a_run_that_did_not_pass(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    run_id = await finished_run(client, fd.RunOutcome.failed)
+
+    with pytest.raises(ApiRequestError) as caught:
+        await fd.flag(run_id, "The user complained", client=client)
+
+    assert caught.value.status_code == 409
+    assert caught.value.code == ApiErrorCode.conflict
+    assert api.flagged == []
+
+
+async def test_flag_of_an_unknown_run_is_not_found(client: FirstDominoClient) -> None:
+    with pytest.raises(ApiRequestError) as caught:
+        await fd.flag(RUN_ID, "The user complained", client=client)
+
+    assert caught.value.code == ApiErrorCode.not_found

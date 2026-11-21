@@ -47,6 +47,9 @@ class Run(IdMixin, TimestampMixin, Base):
     status: Mapped[RunStatus] = mapped_column(RUN_STATUS)
     step_count: Mapped[int]
     final_output: Mapped[str | None] = mapped_column(Text)
+    failure_reason: Mapped[str | None] = mapped_column(String(2000))
+    flagged_at: Mapped[datetime | None] = optional_timestamp()
+    flagged_by_id: Mapped[UUID | None]
     latest_diagnosis_id: Mapped[UUID | None]
     created_by_id: Mapped[UUID]
     started_at: Mapped[datetime] = timestamp()

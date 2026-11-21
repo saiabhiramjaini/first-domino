@@ -1,6 +1,6 @@
 # Contract
 
-**Contract version: 5** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`; 4 added `check_id` to runs and the `check_id` run filter, and `exportCause`; 5 added the `calibrate` check phase, replay drift (`ReplayDrift` on submitted results and jobs, `drifted` and `drift_tool_name` on checks) and the `check_inconsistent` and `replay_not_faithful` error codes)
+**Contract version: 6** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`; 4 added `check_id` to runs and the `check_id` run filter, and `exportCause`; 5 added the `calibrate` check phase, replay drift (`ReplayDrift` on submitted results and jobs, `drifted` and `drift_tool_name` on checks) and the `check_inconsistent` and `replay_not_faithful` error codes; 6 added `flagRun`, `failure_reason` on `finishRun`, and `failure_reason`, `flagged_at` and `flagged_by_id` on runs)
 
 The agreement between the server, the web app and the SDK: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth; `server/api/openapi.json` is generated from it and must match this file.
 
@@ -95,18 +95,20 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 
 ### Run
 
-`id`, `agent_name`, `source` (`RunSource`), `parent_run_id` (or null; the run a replay came from), `replay_job_id` (or null), `replay_from_step` (or null), `check_id` (or null; for a replay run, the check it was replayed for), `task_input` (`TaskInput`), `tool_names` (list of string; the tools the agent was given), `status` (`RunStatus`), `step_count`, `final_output` (string or null), `latest_diagnosis_id` (or null), `created_by_id` (the API key), `started_at`, `finished_at` (or null).
+`id`, `agent_name`, `source` (`RunSource`), `parent_run_id` (or null; the run a replay came from), `replay_job_id` (or null), `replay_from_step` (or null), `check_id` (or null; for a replay run, the check it was replayed for), `task_input` (`TaskInput`), `tool_names` (list of string; the tools the agent was given), `status` (`RunStatus`), `step_count`, `final_output` (string or null), `failure_reason` (string or null; why it failed, in words), `flagged_at` (or null; set when a passed run was flagged as failed), `flagged_by_id` (or null; the person or API key that flagged it), `latest_diagnosis_id` (or null), `created_by_id` (the API key), `started_at`, `finished_at` (or null).
 
 | Operation | Path | Caller | Request | Response |
 | --- | --- | --- | --- | --- |
 | `startRun` | `POST /v1/runs.start` | K | `agent_name`, `task_input`, `tool_names` (default empty), `replay_job_id` (or null) | `run` |
-| `finishRun` | `POST /v1/runs.finish` | K | `run_id`, `status` (`RunOutcome`), `final_output` (or null) | `run` |
+| `finishRun` | `POST /v1/runs.finish` | K | `run_id`, `status` (`RunOutcome`), `final_output` (or null), `failure_reason` (or null, up to 2000 characters; stored only when `failed`) | `run` |
+| `flagRun` | `POST /v1/runs.flag` | P/K | `run_id`, `reason` (1 to 2000 characters) | `run` |
 | `getRun` | `GET /v1/runs.get` | P/K | `run_id` | `run` |
 | `listRuns` | `POST /v1/runs.list` | P | page, `statuses` (list or null), `sources` (list, default `["recorded"]`, or `["replay"]` when `check_id` is set; null means every source), `agent_name` (or null), `check_id` (or null; the replay runs of one check, oldest first) | page of `Run` |
 | `countRuns` | `POST /v1/runs.count` | P | same filters as `listRuns` | `count` |
 
 - `startRun` with a `replay_job_id` creates a `replay` run linked to the job's original run.
 - `finishRun` on a `failed` recorded run triggers auto-diagnosis when the project has it on (always on for now).
+- `flagRun` is for failures no code check catches (a user complaint, a thumbs down). Only a finished recorded run that `passed` can be flagged (`409` otherwise). It becomes `failed` with `failure_reason` set to `reason`, and is diagnosed. The replays of a flagged run are judged by a model against `failure_reason`; the worker's own outcome counts only when it is `errored`.
 
 ### Step
 
@@ -221,10 +223,10 @@ Defined in `fd_engine/ports.py` and implemented in `fd_api/adapters/`. All metho
 
 These are `fd-shared` models (`fd_shared.models`), frozen Pydantic models:
 
-- **RunView**: `id`, `agent_name`, `task_input`, `tool_names`, `status`, `step_count`, `final_output`.
+- **RunView**: `id`, `agent_name`, `task_input`, `tool_names`, `status`, `step_count`, `final_output`, `failure_reason`, `flagged`.
 - **StepView**: `index`, `model`, `output` (`Message`), `tool_results` (list of `Message`).
 - **CheckView**: `diagnosis_id`, `index`, `phase`, `save_point`, `samples`, `passes`, `result`, `drifted`, `drift_tool_name`.
-- **ReplayResult**: `outcome` (`ReplayOutcome`), `drift` (`ReplayDrift` or null). Only a result that ran (not `errored`) and did not drift is evidence. A check is identified by (`diagnosis_id`, `index`); reporting the same pair again updates it.
+- **ReplayResult**: `outcome` (`ReplayOutcome`), `drift` (`ReplayDrift` or null), `replay_run_id` (or null; the replay's recorded run, which the judge reads for a flagged run). Only a result that ran (not `errored`) and did not drift is evidence. A check is identified by (`diagnosis_id`, `index`); reporting the same pair again updates it.
 - **DiagnosisResult**: `verdict_kind`, `first_domino_step`, `verify_passes`, `verify_samples`, `fixed_output`, `explanation` (`Explanation`), `check_count`, `replay_count`, `cost_usd`. The API stores it on the diagnosis.
 
 Errors the engine raises derive from `fd_shared.errors` (`RetryableError` or `UnretryableError`); a diagnosis that stops on one stores its `code` in `error_code`.
@@ -253,6 +255,12 @@ fd.serve()
 
 # Ask for a diagnosis from code.
 await fd.diagnose(run_id)
+
+# Inside a run: its id, to store next to the conversation.
+run_id = fd.current_run_id()
+
+# Later, from a thumbs down or a complaint: flag a passed run as failed and diagnose it.
+await fd.flag(run_id, "The user said the refund was $100; policy allows $20")
 ```
 
 Lower-level APIs for full control: `fd.record(agent_name, task_input)` with `run.step(...)` and `run.finish(...)`, `fd.wrap(openai_client, run)`, and `fd.Worker(agent_names=[...])` with `@worker.agent(name)` (receives a `ReplayContext`: `messages`, `from_step`, `replacement_output`, `model_override`) and `@worker.success_check(name)`.

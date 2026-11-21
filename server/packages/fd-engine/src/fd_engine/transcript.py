@@ -1,4 +1,4 @@
-"""Renders a run's steps as plain text for the fixer and the explainer."""
+"""Renders a run's steps as plain text for the fixer, the explainer and the judge."""
 
 from fd_shared.models import Message, RunView, StepView
 
@@ -19,9 +19,11 @@ def render_step(step: StepView) -> str:
 
 
 def render_task(run: RunView) -> str:
-    """The task the agent was given, with its metadata."""
+    """The task the agent was given, with its metadata and the reported failure when known."""
     lines = [f"# Task for agent {run.agent_name}", run.task_input.prompt]
     lines.extend(f"{key}: {value}" for key, value in sorted(run.task_input.metadata.items()))
+    if run.failure_reason:
+        lines.append(f"Reported failure: {run.failure_reason}")
     return "\n".join(lines)
 
 

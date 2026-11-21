@@ -13,6 +13,7 @@ from fd_shared.models import TaskInput
 
 AGENT_NAME_MAX_LENGTH = 128
 MAX_TOOL_NAMES = 128
+FAILURE_REASON_MAX_LENGTH = 2000
 
 
 class Run(BaseModel):
@@ -37,6 +38,22 @@ class Run(BaseModel):
     status: RunStatus
     step_count: int = Field(ge=0, description="Number of steps recorded so far.")
     final_output: str | None = Field(description="The agent's final answer, if it gave one.")
+    failure_reason: str | None = Field(
+        description=(
+            "Why the run failed, in words: from the customer's code when it finished, or from "
+            "whoever flagged it. Null when none was given."
+        )
+    )
+    flagged_at: datetime | None = Field(
+        description=(
+            "Time the run was flagged as failed after it passed, in UTC RFC 3339 format. Null "
+            "unless flagged. Replays of a flagged run are judged against `failure_reason` by a "
+            "model instead of the customer's success check."
+        )
+    )
+    flagged_by_id: UUID | None = Field(
+        description="Id of the person or API key that flagged the run. Null unless flagged."
+    )
     latest_diagnosis_id: UUID | None = Field(description="The newest diagnosis of this run.")
     created_by_id: UUID = Field(description="Id of the API key that recorded the run.")
     started_at: datetime = Field(description="Time the run started, in UTC RFC 3339 format.")
@@ -60,6 +77,9 @@ class Run(BaseModel):
             status=row.status,
             step_count=row.step_count,
             final_output=row.final_output,
+            failure_reason=row.failure_reason,
+            flagged_at=row.flagged_at,
+            flagged_by_id=row.flagged_by_id,
             latest_diagnosis_id=row.latest_diagnosis_id,
             created_by_id=row.created_by_id,
             started_at=row.started_at,
@@ -126,10 +146,38 @@ class FinishRunRequest(BaseModel):
     run_id: UUID
     status: RunOutcome
     final_output: str | None = Field(default=None, description="The agent's final answer.")
+    failure_reason: str | None = Field(
+        default=None,
+        max_length=FAILURE_REASON_MAX_LENGTH,
+        description=(
+            "Why the run failed, in words, when the customer's code knows. Stored only on a "
+            "`failed` run; the diagnosis uses it."
+        ),
+    )
 
 
 class FinishRunResponse(BaseModel):
     """The finished run."""
+
+    run: Run
+
+
+class FlagRunRequest(BaseModel):
+    """Flags a run that passed its success check as failed, saying what went wrong."""
+
+    run_id: UUID
+    reason: str = Field(
+        min_length=1,
+        max_length=FAILURE_REASON_MAX_LENGTH,
+        description=(
+            "What went wrong, as a person would report it: a user complaint, a review note, a "
+            "support ticket. Each replay is judged against it."
+        ),
+    )
+
+
+class FlagRunResponse(BaseModel):
+    """The flagged run, now `failed` and being diagnosed."""
 
     run: Run
 

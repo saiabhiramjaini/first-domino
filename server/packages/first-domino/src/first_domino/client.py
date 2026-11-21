@@ -13,6 +13,8 @@ from first_domino._generated.models import (
     Diagnosis,
     FinishRunRequest,
     FinishRunResponse,
+    FlagRunRequest,
+    FlagRunResponse,
     GetDiagnosisResponse,
     GetReplayJobResponse,
     GetRunResponse,
@@ -34,6 +36,8 @@ from first_domino.errors import ApiRequestError, ConfigurationError
 from first_domino.settings import SdkSettings
 
 _API_PREFIX = "/v1"
+MAX_REASON_CHARS = 2000
+"""The API's limit on a run's `failure_reason` and on a flag's `reason`."""
 
 
 def _error_from(response: httpx.Response) -> ApiRequestError:
@@ -87,6 +91,10 @@ class FirstDominoClient:
     async def finish_run(self, request: FinishRunRequest) -> Run:
         """Finish a run as passed, failed or errored."""
         return (await self._post("runs.finish", request, FinishRunResponse)).run
+
+    async def flag_run(self, request: FlagRunRequest) -> Run:
+        """Mark a finished recorded run that passed as failed, with the reason, and diagnose it."""
+        return (await self._post("runs.flag", request, FlagRunResponse)).run
 
     async def get_run(self, run_id: UUID) -> Run:
         """Return one run."""

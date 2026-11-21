@@ -14,6 +14,8 @@ from fd_api.models.runs import (
     CountRunsResponse,
     FinishRunRequest,
     FinishRunResponse,
+    FlagRunRequest,
+    FlagRunResponse,
     GetRunRequest,
     GetRunResponse,
     ListRunsRequest,
@@ -98,6 +100,18 @@ async def start_run(
     return StartRunResponse(run=Run.from_row(run))
 
 
+async def _diagnose_if_failed(
+    session: AsyncSession, background: BackgroundTasks, runner: DiagnosisRunner, run: tables.Run
+) -> None:
+    """Creates a diagnosis of `run` when it can be diagnosed; it starts after the commit."""
+    if not can_diagnose(run):
+        return
+    diagnosis = await create_diagnosis(session, run=run, created_by_id=None)
+    background.add_task(
+        runner.start, project_id=run.project_id, run_id=run.id, diagnosis_id=diagnosis.id
+    )
+
+
 @router.post(
     "/runs.finish",
     operation_id="finishRun",
@@ -127,19 +141,56 @@ async def finish_run(
         raise NotFoundError
     if run.status is not RunStatus.RUNNING:
         raise ConflictError
+    status = RunStatus(body.status)
     run = await runs.finish(
         run=run,
-        status=RunStatus(body.status),
+        status=status,
         final_output=body.final_output,
         finished_at=utc_now(),
+        failure_reason=body.failure_reason if status is RunStatus.FAILED else None,
     )
     log.info("runs.finished", run_id=str(run.id), status=run.status)
-    if can_diagnose(run):
-        diagnosis = await create_diagnosis(session, run=run, created_by_id=None)
-        background.add_task(
-            runner.start, project_id=caller.project_id, run_id=run.id, diagnosis_id=diagnosis.id
-        )
+    await _diagnose_if_failed(session, background, runner, run)
     return FinishRunResponse(run=Run.from_row(run))
+
+
+@router.post(
+    "/runs.flag",
+    operation_id="flagRun",
+    summary="Flag a run as failed",
+    responses=error_responses(
+        ApiErrorCode.BAD_REQUEST,
+        ApiErrorCode.UNAUTHENTICATED,
+        ApiErrorCode.NOT_FOUND,
+        ApiErrorCode.CONFLICT,
+        ApiErrorCode.VALIDATION_FAILED,
+    ),
+)
+async def flag_run(
+    body: FlagRunRequest,
+    caller: AnyCaller,
+    session: DbSession,
+    background: BackgroundTasks,
+    runner: Annotated[DiagnosisRunner, Depends(get_diagnosis_runner)],
+) -> FlagRunResponse:
+    """Flags a recorded run that passed its success check as failed, with what went wrong.
+
+    Use it for failures no code check catches: a user complaint, a thumbs down, a review. The
+    run becomes `failed` and is diagnosed; its replays are judged against `reason` by a model.
+    Only a finished recorded run that `passed` can be flagged (`409` otherwise).
+    """
+    runs = RunsRepository(session)
+    run = await runs.get(project_id=caller.project_id, run_id=body.run_id, for_update=True)
+    if run is None:
+        raise NotFoundError
+    if run.source is not RunSource.RECORDED or run.status is not RunStatus.PASSED:
+        raise ConflictError
+    run = await runs.flag(
+        run=run, reason=body.reason, flagged_by_id=caller.actor_id, flagged_at=utc_now()
+    )
+    log.info("runs.flagged", run_id=str(run.id), caller_kind=caller.kind)
+    await _diagnose_if_failed(session, background, runner, run)
+    return FlagRunResponse(run=Run.from_row(run))
 
 
 @router.get(

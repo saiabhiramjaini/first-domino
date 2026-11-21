@@ -2,7 +2,10 @@
 
 The worker is a stand-in for the SDK's: it talks to the real API over HTTP. Its "agent" is
 doomed when it keeps the recorded step 2 (the wrong calendar date) and succeeds otherwise,
-or when it is handed the fixed step.
+or when it is handed the fixed step. A doomed replay ends with a different final output.
+
+A flagged run passed its check, so the worker passes every replay of it; the fake engine's
+judge decides them from the replay run's final output instead.
 """
 
 import asyncio
@@ -11,12 +14,14 @@ from typing import Any
 from httpx import AsyncClient
 
 from .conftest import Headers
+from .fake_engine import GOOD_FINAL_OUTPUT
 
 AGENT = "call-assistant"
 DOOMED_STEP = 2
 TASK = {"prompt": "Clinic call: book tomorrow at 10", "metadata": {"task_id": "e2e"}}
 TOOLS = ["get_caller_details", "add_calendar_event", "send_confirmation"]
 DEADLINE_SECONDS = 30.0
+BAD_FINAL_OUTPUT = "Booked the wrong day"
 
 
 def _step(run_id: str, index: int, tool: str) -> dict[str, Any]:
@@ -40,7 +45,7 @@ def _step(run_id: str, index: int, tool: str) -> dict[str, Any]:
     }
 
 
-async def _record_failed_run(client: AsyncClient, api_key: Headers) -> str:
+async def _record_run(client: AsyncClient, api_key: Headers, status: str = "failed") -> str:
     started = await client.post(
         "/v1/runs.start",
         json={"agent_name": AGENT, "task_input": TASK, "tool_names": TOOLS},
@@ -51,7 +56,7 @@ async def _record_failed_run(client: AsyncClient, api_key: Headers) -> str:
         await client.post("/v1/steps.record", json=_step(run_id, index, tool), headers=api_key)
     await client.post(
         "/v1/runs.finish",
-        json={"run_id": run_id, "status": "failed", "final_output": "Booked the wrong day"},
+        json={"run_id": run_id, "status": status, "final_output": BAD_FINAL_OUTPUT},
         headers=api_key,
     )
     return run_id
@@ -63,7 +68,9 @@ def _replay_outcome(job: dict[str, Any]) -> str:
     return "failed" if job["from_step"] >= DOOMED_STEP else "passed"
 
 
-async def _work_one(client: AsyncClient, api_key: Headers, job: dict[str, Any]) -> None:
+async def _work_one(
+    client: AsyncClient, api_key: Headers, job: dict[str, Any], *, flagged: bool
+) -> None:
     started = await client.post(
         "/v1/runs.start",
         json={"agent_name": AGENT, "task_input": job["task_input"], "replay_job_id": job["id"]},
@@ -71,8 +78,13 @@ async def _work_one(client: AsyncClient, api_key: Headers, job: dict[str, Any]) 
     )
     replay_run_id = started.json()["run"]["id"]
     outcome = _replay_outcome(job)
+    final_output = GOOD_FINAL_OUTPUT if outcome == "passed" else BAD_FINAL_OUTPUT
+    if flagged:
+        outcome = "passed"
     await client.post(
-        "/v1/runs.finish", json={"run_id": replay_run_id, "status": outcome}, headers=api_key
+        "/v1/runs.finish",
+        json={"run_id": replay_run_id, "status": outcome, "final_output": final_output},
+        headers=api_key,
     )
     await client.post(
         "/v1/replay-jobs.submit",
@@ -82,7 +94,12 @@ async def _work_one(client: AsyncClient, api_key: Headers, job: dict[str, Any]) 
 
 
 async def _work_until_done(
-    client: AsyncClient, api_key: Headers, person: Headers, diagnosis_id: str
+    client: AsyncClient,
+    api_key: Headers,
+    person: Headers,
+    diagnosis_id: str,
+    *,
+    flagged: bool = False,
 ) -> dict[str, Any]:
     async with asyncio.timeout(DEADLINE_SECONDS):
         while True:
@@ -102,13 +119,13 @@ async def _work_until_done(
             if job is None:
                 await asyncio.sleep(0.05)
             else:
-                await _work_one(client, api_key, job)
+                await _work_one(client, api_key, job, flagged=flagged)
 
 
 async def test_failed_run_is_diagnosed_and_proven_by_replay(
     client: AsyncClient, person: Headers, api_key: Headers
 ) -> None:
-    run_id = await _record_failed_run(client, api_key)
+    run_id = await _record_run(client, api_key)
     run = (await client.get("/v1/runs.get", params={"run_id": run_id}, headers=person)).json()
 
     diagnosis_id = run["run"]["latest_diagnosis_id"]
@@ -142,7 +159,7 @@ async def test_failed_run_is_diagnosed_and_proven_by_replay(
 async def test_each_check_lists_its_replays_and_the_cause_exports_as_tests(
     client: AsyncClient, person: Headers, api_key: Headers
 ) -> None:
-    run_id = await _record_failed_run(client, api_key)
+    run_id = await _record_run(client, api_key)
     run = (await client.get("/v1/runs.get", params={"run_id": run_id}, headers=person)).json()
     diagnosis = await _work_until_done(client, api_key, person, run["run"]["latest_diagnosis_id"])
     checks = (
@@ -171,3 +188,24 @@ async def test_each_check_lists_its_replays_and_the_cause_exports_as_tests(
     assert [m["role"] for m in case["messages"]] == ["system", "user", "assistant", "tool"]
     assert case["fixed_output"]["content"] == "fixed"
     assert case["verified"] is True
+
+
+async def test_a_flagged_run_is_diagnosed_by_judging_its_replays(
+    client: AsyncClient, person: Headers, api_key: Headers
+) -> None:
+    run_id = await _record_run(client, api_key, status="passed")
+    flagged = await client.post(
+        "/v1/runs.flag",
+        json={"run_id": run_id, "reason": "The caller asked for tomorrow, not the day after."},
+        headers=person,
+    )
+
+    diagnosis_id = flagged.json()["run"]["latest_diagnosis_id"]
+    diagnosis = await _work_until_done(client, api_key, person, diagnosis_id, flagged=True)
+
+    assert diagnosis["status"] == "done", diagnosis
+    assert diagnosis["verdict_kind"] == "step_verified"
+    assert diagnosis["first_domino_step"] == DOOMED_STEP
+    assert diagnosis["verify_passes"] == diagnosis["verify_samples"] == 2
+    unjudged_cost = 0.001 + 0.002
+    assert diagnosis["cost_usd"] > unjudged_cost, "each judged replay adds its cost"

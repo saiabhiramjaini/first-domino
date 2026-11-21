@@ -587,6 +587,103 @@
         ]
       }
     },
+    "/v1/runs.flag": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Flag a run as failed",
+        "description": "Flags a recorded run that passed its success check as failed, with what went wrong.\n\nUse it for failures no code check catches: a user complaint, a thumbs down, a review. The\nrun becomes `failed` and is diagnosed; its replays are judged against `reason` by a model.\nOnly a finished recorded run that `passed` can be flagged (`409` otherwise).",
+        "operationId": "flagRun",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlagRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlagRunResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/v1/runs.get": {
       "get": {
         "tags": [
@@ -3122,6 +3219,19 @@
             ],
             "title": "Final Output",
             "description": "The agent's final answer."
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason",
+            "description": "Why the run failed, in words, when the customer's code knows. Stored only on a `failed` run; the diagnosis uses it."
           }
         },
         "type": "object",
@@ -3144,6 +3254,42 @@
         ],
         "title": "FinishRunResponse",
         "description": "The finished run."
+      },
+      "FlagRunRequest": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "description": "What went wrong, as a person would report it: a user complaint, a review note, a support ticket. Each replay is judged against it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "reason"
+        ],
+        "title": "FlagRunRequest",
+        "description": "Flags a run that passed its success check as failed, saying what went wrong."
+      },
+      "FlagRunResponse": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "title": "FlagRunResponse",
+        "description": "The flagged run, now `failed` and being diagnosed."
       },
       "GetCauseResponse": {
         "properties": {
@@ -4331,6 +4477,44 @@
             "title": "Final Output",
             "description": "The agent's final answer, if it gave one."
           },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason",
+            "description": "Why the run failed, in words: from the customer's code when it finished, or from whoever flagged it. Null when none was given."
+          },
+          "flagged_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged At",
+            "description": "Time the run was flagged as failed after it passed, in UTC RFC 3339 format. Null unless flagged. Replays of a flagged run are judged against `failure_reason` by a model instead of the customer's success check."
+          },
+          "flagged_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged By Id",
+            "description": "Id of the person or API key that flagged the run. Null unless flagged."
+          },
           "latest_diagnosis_id": {
             "anyOf": [
               {
@@ -4383,6 +4567,9 @@
           "status",
           "step_count",
           "final_output",
+          "failure_reason",
+          "flagged_at",
+          "flagged_by_id",
           "latest_diagnosis_id",
           "created_by_id",
           "started_at",

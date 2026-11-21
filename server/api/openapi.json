@@ -3,7 +3,7 @@
   "info": {
     "title": "First Domino API",
     "summary": "Finds the step where a failed AI agent run became doomed, and proves it.",
-    "version": "3"
+    "version": "4"
   },
   "paths": {
     "/health": {
@@ -672,7 +672,7 @@
           "runs"
         ],
         "summary": "List runs",
-        "description": "Lists runs, newest first. Recorded runs only unless `sources` says otherwise.",
+        "description": "Lists runs, newest first, or a check's replay runs oldest first when `check_id` is set.",
         "operationId": "listRuns",
         "requestBody": {
           "content": {
@@ -1733,6 +1733,93 @@
         ]
       }
     },
+    "/v1/causes.export": {
+      "post": {
+        "tags": [
+          "causes"
+        ],
+        "summary": "Export a cause as regression tests",
+        "description": "Returns the cause's diagnosed runs, newest first, as regression test cases.\n\nEach case is a run that failed and should pass once the agent is fixed: feed `messages` to\nthe agent and check it no longer repeats `original_output`, then run the success check.",
+        "operationId": "exportCause",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportCauseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportCauseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/v1/benchmarks.latest": {
       "get": {
         "tags": [
@@ -2327,6 +2414,37 @@
         "title": "CauseCategory",
         "description": "The kind of mistake a root cause is."
       },
+      "CauseExport": {
+        "properties": {
+          "cause_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cause Id"
+          },
+          "exported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Exported At",
+            "description": "Time of the export, in UTC RFC 3339 format."
+          },
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/RegressionCase"
+            },
+            "type": "array",
+            "title": "Cases",
+            "description": "Newest first, at most one per run."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cause_id",
+          "exported_at",
+          "cases"
+        ],
+        "title": "CauseExport",
+        "description": "A cause's failed runs as regression tests for the customer's eval suite."
+      },
       "Check": {
         "properties": {
           "id": {
@@ -2579,7 +2697,7 @@
               }
             ],
             "title": "Sources",
-            "description": "Only runs from one of these sources. Recorded runs only unless set."
+            "description": "Only runs from one of these sources. Unless set: recorded runs only, or replay runs only when `check_id` is set."
           },
           "agent_name": {
             "anyOf": [
@@ -2593,6 +2711,19 @@
             ],
             "title": "Agent Name",
             "description": "Only runs of this agent."
+          },
+          "check_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Id",
+            "description": "Only the replay runs made for this check, oldest first."
           }
         },
         "type": "object",
@@ -2944,6 +3075,34 @@
         ],
         "title": "Explanation",
         "description": "A plain-language account of a root cause."
+      },
+      "ExportCauseRequest": {
+        "properties": {
+          "cause_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cause Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cause_id"
+        ],
+        "title": "ExportCauseRequest",
+        "description": "Exports a cause's diagnosed runs as regression test cases."
+      },
+      "ExportCauseResponse": {
+        "properties": {
+          "export": {
+            "$ref": "#/components/schemas/CauseExport"
+          }
+        },
+        "type": "object",
+        "required": [
+          "export"
+        ],
+        "title": "ExportCauseResponse",
+        "description": "The export."
       },
       "FieldError": {
         "properties": {
@@ -3503,7 +3662,7 @@
               }
             ],
             "title": "Sources",
-            "description": "Only runs from one of these sources. Recorded runs only unless set."
+            "description": "Only runs from one of these sources. Unless set: recorded runs only, or replay runs only when `check_id` is set."
           },
           "agent_name": {
             "anyOf": [
@@ -3517,6 +3676,19 @@
             ],
             "title": "Agent Name",
             "description": "Only runs of this agent."
+          },
+          "check_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Id",
+            "description": "Only the replay runs made for this check, oldest first."
           },
           "limit": {
             "type": "integer",
@@ -3825,6 +3997,78 @@
         "title": "RecordStepResponse",
         "description": "The stored step."
       },
+      "RegressionCase": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id",
+            "description": "The failed recorded run."
+          },
+          "diagnosis_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Diagnosis Id",
+            "description": "The diagnosis that proved the cause on this run."
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name",
+            "description": "The agent the case is for."
+          },
+          "task_input": {
+            "$ref": "#/components/schemas/TaskInput"
+          },
+          "first_domino_step": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "First Domino Step",
+            "description": "The step where the run became doomed."
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "The conversation just before the first domino step: the test's input."
+          },
+          "original_output": {
+            "$ref": "#/components/schemas/Message",
+            "description": "What the agent did at that step and failed."
+          },
+          "fixed_output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The corrected step that replays passed with, when one was found."
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified",
+            "description": "Whether replays proved the fix flips the run to passing."
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "diagnosis_id",
+          "agent_name",
+          "task_input",
+          "first_domino_step",
+          "messages",
+          "original_output",
+          "fixed_output",
+          "verified"
+        ],
+        "title": "RegressionCase",
+        "description": "One failed run of a cause, as a test the fixed agent must pass.\n\nReplay the agent from `messages`: the original run failed after `original_output`, and\npassed in replays that used `fixed_output` instead."
+      },
       "ReplayJob": {
         "properties": {
           "id": {
@@ -4025,6 +4269,19 @@
             ],
             "title": "Replay From Step",
             "description": "For a replay, the last step kept from the parent run (0 means none)."
+          },
+          "check_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Id",
+            "description": "For a replay run for a diagnosis, the check it was replayed for."
           },
           "task_input": {
             "$ref": "#/components/schemas/TaskInput"

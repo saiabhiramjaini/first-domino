@@ -266,6 +266,10 @@ class Explanation(BaseModel):
     category: CauseCategory
 
 
+class ExportCauseRequest(BaseModel):
+    cause_id: Annotated[UUID, Field(title="Cause Id")]
+
+
 class FieldError(BaseModel):
     field: Annotated[
         str,
@@ -735,13 +739,20 @@ class CountRunsRequest(BaseModel):
     sources: Annotated[
         list[RunSource] | None,
         Field(
-            description="Only runs from one of these sources. Recorded runs only unless set.",
+            description="Only runs from one of these sources. Unless set: recorded runs only, or replay runs only when `check_id` is set.",
             title="Sources",
         ),
     ] = None
     agent_name: Annotated[
         AgentName | None,
         Field(description="Only runs of this agent.", title="Agent Name"),
+    ] = None
+    check_id: Annotated[
+        UUID | None,
+        Field(
+            description="Only the replay runs made for this check, oldest first.",
+            title="Check Id",
+        ),
     ] = None
 
 
@@ -833,13 +844,20 @@ class ListRunsRequest(BaseModel):
     sources: Annotated[
         list[RunSource] | None,
         Field(
-            description="Only runs from one of these sources. Recorded runs only unless set.",
+            description="Only runs from one of these sources. Unless set: recorded runs only, or replay runs only when `check_id` is set.",
             title="Sources",
         ),
     ] = None
     agent_name: Annotated[
         AgentName | None,
         Field(description="Only runs of this agent.", title="Agent Name"),
+    ] = None
+    check_id: Annotated[
+        UUID | None,
+        Field(
+            description="Only the replay runs made for this check, oldest first.",
+            title="Check Id",
+        ),
     ] = None
     limit: Annotated[
         int | None,
@@ -929,6 +947,48 @@ class RecordStepRequest(BaseModel):
     ]
 
 
+class RegressionCase(BaseModel):
+    run_id: Annotated[UUID, Field(description="The failed recorded run.", title="Run Id")]
+    diagnosis_id: Annotated[
+        UUID,
+        Field(
+            description="The diagnosis that proved the cause on this run.",
+            title="Diagnosis Id",
+        ),
+    ]
+    agent_name: Annotated[str, Field(description="The agent the case is for.", title="Agent Name")]
+    task_input: TaskInput
+    first_domino_step: Annotated[
+        int,
+        Field(
+            description="The step where the run became doomed.",
+            ge=1,
+            title="First Domino Step",
+        ),
+    ]
+    messages: Annotated[
+        list[Message],
+        Field(
+            description="The conversation just before the first domino step: the test's input.",
+            title="Messages",
+        ),
+    ]
+    original_output: Annotated[
+        Message, Field(description="What the agent did at that step and failed.")
+    ]
+    fixed_output: Annotated[
+        Message | None,
+        Field(description="The corrected step that replays passed with, when one was found."),
+    ]
+    verified: Annotated[
+        bool,
+        Field(
+            description="Whether replays proved the fix flips the run to passing.",
+            title="Verified",
+        ),
+    ]
+
+
 class ReplayJob(BaseModel):
     id: Annotated[UUID, Field(title="Id")]
     run_id: Annotated[UUID, Field(description="The recorded run to replay.", title="Run Id")]
@@ -1013,6 +1073,13 @@ class Run(BaseModel):
             title="Replay From Step",
         ),
     ]
+    check_id: Annotated[
+        UUID | None,
+        Field(
+            description="For a replay run for a diagnosis, the check it was replayed for.",
+            title="Check Id",
+        ),
+    ] = None
     task_input: TaskInput
     tool_names: Annotated[
         list[str],
@@ -1148,6 +1215,21 @@ class SubmitReplayResultResponse(BaseModel):
     replay_job: ReplayJob
 
 
+class CauseExport(BaseModel):
+    cause_id: Annotated[UUID, Field(title="Cause Id")]
+    exported_at: Annotated[
+        AwareDatetime,
+        Field(
+            description="Time of the export, in UTC RFC 3339 format.",
+            title="Exported At",
+        ),
+    ]
+    cases: Annotated[
+        list[RegressionCase],
+        Field(description="Newest first, at most one per run.", title="Cases"),
+    ]
+
+
 class Diagnosis(BaseModel):
     id: Annotated[UUID, Field(title="Id")]
     run_id: Annotated[
@@ -1242,6 +1324,10 @@ class Diagnosis(BaseModel):
             title="Finished At",
         ),
     ]
+
+
+class ExportCauseResponse(BaseModel):
+    export: CauseExport
 
 
 class FinishRunResponse(BaseModel):

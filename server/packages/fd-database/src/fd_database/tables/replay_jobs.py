@@ -26,6 +26,7 @@ class ReplayJob(IdMixin, TimestampMixin, Base):
         UniqueConstraint("project_id", "id"),
         project_foreign_key("run_id", "runs"),
         project_foreign_key("diagnosis_id", "diagnoses"),
+        project_foreign_key("check_id", "checks"),
         project_foreign_key("replay_run_id", "runs"),
         project_foreign_key("leased_by_id", "api_keys"),
         Index("ix_replay_jobs_queue", "project_id", "status", "agent_name", "created_at"),
@@ -35,6 +36,7 @@ class ReplayJob(IdMixin, TimestampMixin, Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
     run_id: Mapped[UUID]
     diagnosis_id: Mapped[UUID | None]
+    check_id: Mapped[UUID | None]
     agent_name: Mapped[str] = mapped_column(String(128))
     task_input: Mapped[TaskInput] = mapped_column(PydanticJson(TaskInput))
     from_step: Mapped[int]

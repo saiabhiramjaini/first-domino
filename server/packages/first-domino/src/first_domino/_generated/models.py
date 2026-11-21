@@ -214,6 +214,30 @@ class FieldError(BaseModel):
     message: Annotated[str, Field(description="Why the value was rejected.", title="Message")]
 
 
+class FailureReason(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="Why the run failed, in words, when the customer's code knows. Stored only on a `failed` run; the diagnosis uses it.",
+            max_length=2000,
+            title="Failure Reason",
+        ),
+    ]
+
+
+class FlagRunRequest(BaseModel):
+    run_id: Annotated[UUID, Field(title="Run Id")]
+    reason: Annotated[
+        str,
+        Field(
+            description="What went wrong, as a person would report it: a user complaint, a review note, a support ticket. Each replay is judged against it.",
+            max_length=2000,
+            min_length=1,
+            title="Reason",
+        ),
+    ]
+
+
 class HealthResponse(BaseModel):
     ok: Annotated[bool, Field(title="Ok")]
 
@@ -738,6 +762,13 @@ class FinishRunRequest(BaseModel):
     final_output: Annotated[
         str | None, Field(description="The agent's final answer.", title="Final Output")
     ] = None
+    failure_reason: Annotated[
+        FailureReason | None,
+        Field(
+            description="Why the run failed, in words, when the customer's code knows. Stored only on a `failed` run; the diagnosis uses it.",
+            title="Failure Reason",
+        ),
+    ] = None
 
 
 class GetCauseResponse(BaseModel):
@@ -1082,6 +1113,27 @@ class Run(BaseModel):
             title="Final Output",
         ),
     ]
+    failure_reason: Annotated[
+        str | None,
+        Field(
+            description="Why the run failed, in words: from the customer's code when it finished, or from whoever flagged it. Null when none was given.",
+            title="Failure Reason",
+        ),
+    ]
+    flagged_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description="Time the run was flagged as failed after it passed, in UTC RFC 3339 format. Null unless flagged. Replays of a flagged run are judged against `failure_reason` by a model instead of the customer's success check.",
+            title="Flagged At",
+        ),
+    ]
+    flagged_by_id: Annotated[
+        UUID | None,
+        Field(
+            description="Id of the person or API key that flagged the run. Null unless flagged.",
+            title="Flagged By Id",
+        ),
+    ]
     latest_diagnosis_id: Annotated[
         UUID | None,
         Field(description="The newest diagnosis of this run.", title="Latest Diagnosis Id"),
@@ -1335,6 +1387,10 @@ class ExportCauseResponse(BaseModel):
 
 
 class FinishRunResponse(BaseModel):
+    run: Run
+
+
+class FlagRunResponse(BaseModel):
     run: Run
 
 

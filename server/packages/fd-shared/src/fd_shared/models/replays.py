@@ -1,5 +1,7 @@
 """How one replay ended, and where it stopped matching the recording."""
 
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from fd_shared.enums import ReplayOutcome
@@ -30,6 +32,8 @@ class ReplayResult(BaseModel):
 
     outcome: ReplayOutcome
     drift: ReplayDrift | None = None
+    replay_run_id: UUID | None = None
+    """The run the worker recorded for this replay, which a judge reads to decide the outcome."""
 
     @property
     def is_evidence(self) -> bool:

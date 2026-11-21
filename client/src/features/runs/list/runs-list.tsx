@@ -158,6 +158,12 @@ export function RunsList({ initialFilter }: RunsListProps) {
                         {run.agent_name}
                         <span aria-hidden="true">·</span>
                         {shortId(run.id)}
+                        {run.flagged_at !== null && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="font-sans">Flagged</span>
+                          </>
+                        )}
                       </span>
                     </Link>
                   </TableCell>

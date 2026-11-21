@@ -63,12 +63,30 @@ class RunsRepository:
         return await self._session.scalar(statement)
 
     async def finish(
-        self, *, run: Run, status: RunStatus, final_output: str | None, finished_at: datetime
+        self,
+        *,
+        run: Run,
+        status: RunStatus,
+        final_output: str | None,
+        finished_at: datetime,
+        failure_reason: str | None = None,
     ) -> Run:
         """Moves a running run to its final status."""
         run.status = status
         run.final_output = final_output
         run.finished_at = finished_at
+        run.failure_reason = failure_reason
+        await self._session.flush()
+        return run
+
+    async def flag(
+        self, *, run: Run, reason: str, flagged_by_id: UUID, flagged_at: datetime
+    ) -> Run:
+        """Marks a run that passed as failed, with the reason given."""
+        run.status = RunStatus.FAILED
+        run.failure_reason = reason
+        run.flagged_at = flagged_at
+        run.flagged_by_id = flagged_by_id
         await self._session.flush()
         return run
 

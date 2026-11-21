@@ -3,9 +3,11 @@
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Sequence
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 from uuid import UUID
 
 from first_domino._generated.models import (
+    FailureReason,
     FinishRunRequest,
     Message,
     RecordStepRequest,
@@ -13,7 +15,7 @@ from first_domino._generated.models import (
     StartRunRequest,
     TaskInput,
 )
-from first_domino.client import FirstDominoClient, default_client
+from first_domino.client import MAX_REASON_CHARS, FirstDominoClient, default_client
 
 log = logging.getLogger("first_domino")
 
@@ -124,11 +126,24 @@ class RecordedRun:
         )
         await _quietly("record_step", lambda: self._client.record_step(request))
 
-    async def finish(self, status: RunOutcome, final_output: str | None = None) -> None:
+    async def finish(
+        self,
+        status: RunOutcome,
+        final_output: str | None = None,
+        *,
+        failure_reason: str | None = None,
+    ) -> None:
         """Finish the run as passed, failed or errored. Later calls do nothing.
 
+        `failure_reason` says in words why a `failed` run failed; the diagnosis uses it.
+        It is cut to 2000 characters and dropped for any other status.
+
         Example:
-            >>> await run.finish(RunOutcome.failed, final_output="Added the visit on the wrong day")
+            >>> await run.finish(
+            ...     RunOutcome.failed,
+            ...     final_output="Added the visit on Tuesday",
+            ...     failure_reason="The caller asked for Thursday",
+            ... )
         """
         if self._finished:
             return
@@ -138,8 +153,19 @@ class RecordedRun:
         run_id = await self._started()
         if run_id is None:
             return
-        request = FinishRunRequest(run_id=run_id, status=status, final_output=final_output)
+        request = FinishRunRequest(
+            run_id=run_id,
+            status=status,
+            final_output=final_output,
+            failure_reason=_failure_reason(status, failure_reason),
+        )
         await _quietly("finish_run", lambda: self._client.finish_run(request))
+
+
+def _failure_reason(status: RunOutcome, reason: str | None) -> FailureReason | None:
+    if status != RunOutcome.failed or not reason:
+        return None
+    return FailureReason(reason[:MAX_REASON_CHARS])
 
 
 def _listed(message: Message) -> Message:
@@ -156,6 +182,14 @@ async def _quietly[T](action: str, call: Callable[[], Awaitable[T]]) -> T | None
     except Exception:
         log.debug("first_domino.%s_failed", action, exc_info=True)
         return None
+
+
+_RECORDING: ContextVar[RecordedRun | None] = ContextVar("first_domino_recording", default=None)
+
+
+def current_recording() -> RecordedRun | None:
+    """The run of the enclosing `record` block, if any."""
+    return _RECORDING.get()
 
 
 def start_recording(
@@ -200,8 +234,11 @@ async def record(
         ...     await run.finish(fd.RunOutcome.passed, final_output=summary)
     """
     run = start_recording(agent_name, task_input, tool_names=tool_names, client=client)
+    token = _RECORDING.set(run)
     try:
         yield run
     except BaseException:
         await run.finish(RunOutcome.errored)
         raise
+    finally:
+        _RECORDING.reset(token)

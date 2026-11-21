@@ -35,7 +35,7 @@ def answer(question: str) -> str: ...  # your agent, unchanged
 ```
 
 - `check(output)` or `check(input, output)` says whether the run passed. A run that raises is recorded as `errored`, and your exception continues.
-- Already know the answer inside your code? Call `fd.set_outcome(passed=False, reason="...")`; it wins over `check`.
+- Already know the answer inside your code? Call `fd.set_outcome(passed=False, reason="...")`; it wins over `check`, and the reason is sent with the failed run so the diagnosis starts from it.
 - The function's arguments are saved with the run so it can be replayed. Use JSON-friendly types: text, numbers, lists, dicts, dataclasses or pydantic models.
 - Recording never raises into your agent. If First Domino is unreachable, your code behaves exactly as without it.
 - Failed runs are diagnosed on their own.
@@ -67,6 +67,31 @@ An unmarked tool runs again during a replay. If it now returns something else th
 - The replay stops at its next model call with `fd.ReplayStopped`, so it spends no more on the model.
 - It is reported as `errored`, with the drift: the recorded step and the tool whose result differed. The worker logs a `first_domino.replay_drifted` warning naming both.
 - It does not count as evidence. First Domino shows which tool drifted, so you know what to mark with `@fd.tool`.
+
+### Flag failures your check can't see
+
+Some failures only a person notices: a thumbs-down, a complaint, a support ticket about a run your `check` let pass. Keep the run id next to the conversation while the agent runs, and flag the run when the complaint comes in:
+
+```python
+@fd.entrypoint("support-bot", check=lambda question, answer: "refund" in answer)
+def answer(conversation_id: str, question: str) -> str:
+    reply = agent(question)
+    db.save_run_id(conversation_id, fd.current_run_id())
+    return reply
+
+
+# later, in your thumbs-down handler
+async def on_thumbs_down(conversation_id: str, comment: str) -> None:
+    run_id = db.run_id_for(conversation_id)
+    if run_id is not None:
+        await fd.flag(run_id, f"The user said: {comment}")
+```
+
+Or open the run in the web app and press **Mark as failed**.
+
+- `fd.current_run_id()` returns the id of the run being recorded. Called before the agent's first model call, it starts the run and waits for its id (at most `FIRST_DOMINO_TIMEOUT_SECONDS`); call it after the first model call when you can, so the run keeps the list of tools the model was given. It returns `None` outside a run, without an API key, or when First Domino cannot be reached, and never raises. Inside `fd.record`, it returns the id once the run started (its first step, or `await run.start()`).
+- `fd.flag(run_id, reason)` turns a finished recorded run that passed into a failed one with your reason (cut to 2000 characters) and starts its diagnosis. It raises `fd.ApiRequestError` with code `conflict` when the run is not a finished recorded run that passed, and `not_found` for an unknown id.
+- Your `check` passed the run, so it cannot tell a good replay from a bad one. Replays of a flagged run are judged by a model against your reason instead. A calibration step first confirms the judge sees the original run as failed, so a replay it passes is evidence. A specific reason ("booked Tuesday, the user asked for Thursday") judges better than a vague one ("wrong answer").
 
 ## 2. Start the replay worker
 
@@ -121,7 +146,7 @@ async def answer_call(call_text: str, task_id: str) -> None:
 - Recording never raises into your agent. If First Domino is unreachable, your code behaves exactly as without it.
 - If the block raises, the run is finished as `errored` and your exception continues.
 - Put what your success check needs (here `task_id`) in `TaskInput.metadata`. Replays get it back.
-- A run finished as `failed` is diagnosed automatically.
+- A run finished as `failed` is diagnosed automatically. Pass `failure_reason="..."` to `run.finish` to say why; the diagnosis uses it.
 - Not using OpenAI's client directly? Call `await run.step(model=..., output=..., tool_results=..., messages=...)` once per model turn. `fd.message_from_openai` converts OpenAI message dicts.
 
 ### Agents built with the OpenAI Agents SDK
@@ -177,7 +202,7 @@ await worker.run()  # leases forever, several jobs at a time
 
 ## Diagnose from code
 
-Failed runs are diagnosed automatically. To start one yourself and wait for the verdict:
+Failed runs are diagnosed automatically, and so are flagged runs (see [Flag failures your check can't see](#flag-failures-your-check-cant-see)). To start one yourself and wait for the verdict:
 
 ```python
 diagnosis = await fd.diagnose(run_id)
@@ -216,13 +241,14 @@ Settings can also live in a `.env` file in the working directory.
 
 | Module | Job |
 | --- | --- |
-| `instrument` | `entrypoint()`, `tool()`, `set_outcome()`, `serve()`, `worker()` and `init()`: the two-line integration. |
+| `instrument` | `entrypoint()`, `tool()`, `set_outcome()`, `current_run_id()`, `serve()`, `worker()` and `init()`: the two-line integration. |
 | `capture` | Records model calls at the HTTP layer (`httpx` and `httpx2`) and answers them during a replay. |
 | `providers` | The OpenAI Chat Completions, OpenAI Responses and Anthropic Messages wire formats. |
 | `recorder` | `record()`, `start_recording()` and `RecordedRun`: send each step without ever raising into the agent. |
 | `wrap` | `wrap()`: record every completion made through an async OpenAI client. |
 | `worker` | `Worker` and `ReplayContext`: lease, replay, check, submit. |
 | `diagnose` | `diagnose()` and `wait_for_diagnosis()`. |
+| `flag` | `flag()`: mark a run that passed as failed, with the reason. |
 | `openai_format` | Convert between OpenAI message params and First Domino messages. |
 | `openai_agents` | Record and replay OpenAI Agents SDK agents (`first-domino[agents]`). |
 | `responses_format` | Convert between Responses input items and First Domino messages. |

@@ -11,12 +11,25 @@ from fd_shared.settings import SettingsBase
 class EngineSettings(SettingsBase):
     """Every tunable number and model id the engine uses, read from `FD_ENGINE_*`."""
 
-    model_config = SettingsConfigDict(env_prefix="FD_ENGINE_")
+    model_config = SettingsConfigDict(env_prefix="FD_ENGINE_", env_parse_none_str="null")
 
     strong_model: str = Field(min_length=1)
     openai_api_key: SecretStr | None = Field(
         default=None, validation_alias=AliasChoices("OPENAI_API_KEY")
     )
+    judge_model: str | None = Field(default=None, min_length=1)
+    """The model that judges each replay of a flagged run against its failure reason.
+
+    None uses `strong_model`. A flagged run has no code check that sees its failure, so this
+    model decides every replay's outcome in its diagnosis.
+    """
+    judge_temperature: float | None = Field(default=None, ge=0, le=2)
+    """Sampling temperature of the judge. None sends none, so the model uses its default.
+
+    None by default because reasoning models reject any temperature but their default, which
+    would fail every judge call. Set 0 for a model that accepts it, so the same replay gets
+    the same verdict; the search already tolerates some judge noise through its rechecks.
+    """
 
     bisect_with_strong_model: bool = False
     """Bisect replays on `strong_model` instead of the agent's own model.

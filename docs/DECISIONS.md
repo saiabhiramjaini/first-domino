@@ -11,7 +11,7 @@ Each entry states what was decided and why. Change an entry when a decision chan
 | Package names | SDK `first-domino` (import `first_domino`), published on PyPI under MIT; internal packages `fd-*` | One name everywhere; MIT so customers can use it freely |
 | Core method | Bisect over save points, then verify by fixing one step and replaying | Cheap (about log2 of the step count in checks) and gives proof |
 | Replays | Customer-side worker from the SDK polls jobs over HTTP | Customer code and secrets stay with the customer; no inbound endpoint |
-| Success check | Customer-defined code, run by the worker | Plain code is free, fast and exact when the right answer is known |
+| Success check | Customer-defined code, run by the worker. A run flagged as failed after it passed is judged by a model against the reported failure instead, on the server | Plain code is free, fast and exact when the right answer is known. Many real failures are only noticed by a person; the judge needs nothing new from the customer and works with every SDK version |
 | Backend | Python 3.12, FastAPI, async SQLAlchemy 2, Postgres, `uv` workspace | Async throughout; Postgres handles parallel replay writes |
 | Schema changes | Alembic migrations inside `fd-database`, applied by the API at startup. A database created before Alembic is stamped at the baseline revision first | Contract 5 adds columns and an enum value to tables that already hold production data, which startup creation cannot do |
 | Auth | People: Google sign-in through NextAuth (Auth.js v5, JWT sessions); the web server mints a short HS256 token for the API with a shared secret. SDK: hashed project API keys | No third-party auth service; the API stays stateless; keys never stored in plain text |

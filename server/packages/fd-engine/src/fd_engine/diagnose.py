@@ -11,6 +11,8 @@ from fd_engine.checks import CheckRunner
 from fd_engine.explain import LlmExplainer, StepExplainer
 from fd_engine.fallback import Fallback, FallbackOutcome
 from fd_engine.fix import LlmStepFixer
+from fd_engine.judge import LlmReplayJudge, ReplayJudge
+from fd_engine.judged_replays import JudgedReplayRunner
 from fd_engine.llm import Llm
 from fd_engine.ports import CheckSink, CostSink, ReplayRunner, RunReader
 from fd_engine.settings import EngineSettings
@@ -24,7 +26,11 @@ log = get_logger(__name__)
 
 
 class Diagnoser:
-    """Finds and proves the first doomed step of a failed run."""
+    """Finds and proves the first doomed step of a failed run.
+
+    The replays of a flagged run are judged by `judge` against its failure reason, since the
+    customer's check passed that run and cannot see its failure. Other runs never use `judge`.
+    """
 
     def __init__(
         self,
@@ -34,10 +40,12 @@ class Diagnoser:
         sink: CheckSink,
         fixer: StepFixer,
         explainer: StepExplainer,
+        judge: ReplayJudge,
         settings: EngineSettings | None = None,
         cost_sink: CostSink | None = None,
     ) -> None:
         self._reader = reader
+        self._judge = judge
         self._cost_sink = cost_sink
         self._runner = runner
         self._sink = sink
@@ -56,7 +64,7 @@ class Diagnoser:
         settings: EngineSettings,
         cost_sink: CostSink | None = None,
     ) -> "Diagnoser":
-        """Build a diagnoser whose fixer and explainer use the process's shared `Llm`.
+        """Build a diagnoser whose fixer, explainer and judge use the process's shared `Llm`.
 
         Pass `cost_sink` to receive each model call's cost as it happens.
         """
@@ -66,6 +74,9 @@ class Diagnoser:
             sink=sink,
             fixer=LlmStepFixer(llm),
             explainer=LlmExplainer(llm),
+            judge=LlmReplayJudge(
+                llm, model=settings.judge_model, temperature=settings.judge_temperature
+            ),
             settings=settings,
             cost_sink=cost_sink,
         )
@@ -100,13 +111,38 @@ class Diagnoser:
     async def _diagnose(self, run_id: UUID, diagnosis_id: UUID) -> DiagnosisResult:
         run = await self._reader.get_run(run_id)
         steps = await self._reader.get_steps(run_id)
+        judged = self._judged_runner(run, steps, diagnosis_id)
         checks = CheckRunner(
             diagnosis_id=diagnosis_id,
             run_id=run_id,
-            runner=self._runner,
+            runner=judged or self._runner,
             sink=self._sink,
             settings=self._settings,
         )
+        result = await self._search(run, steps, checks, diagnosis_id)
+        if judged is None:
+            return result
+        return result.model_copy(update={"cost_usd": result.cost_usd + judged.cost_usd})
+
+    def _judged_runner(
+        self, run: RunView, steps: list[StepView], diagnosis_id: UUID
+    ) -> JudgedReplayRunner | None:
+        """The runner whose replays the judge decides, for a flagged run only."""
+        if not run.flagged:
+            return None
+        return JudgedReplayRunner(
+            self._runner,
+            judge=self._judge,
+            reader=self._reader,
+            run=run,
+            steps=steps,
+            diagnosis_id=diagnosis_id,
+            cost_sink=self._cost_sink,
+        )
+
+    async def _search(
+        self, run: RunView, steps: list[StepView], checks: CheckRunner, diagnosis_id: UUID
+    ) -> DiagnosisResult:
         await Calibrator(
             diagnosis_id=diagnosis_id, checks=checks, sink=self._sink, settings=self._settings
         ).calibrate(len(steps))

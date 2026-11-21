@@ -16,6 +16,7 @@ from first_domino._generated.models import (
     MessageRole,
     ReplayDrift,
     ReplayOutcome,
+    Run,
     RunOutcome,
     TaskInput,
     ToolCall,
@@ -28,7 +29,16 @@ from first_domino.errors import (
     FirstDominoError,
     ReplayStopped,
 )
-from first_domino.instrument import entrypoint, init, serve, set_outcome, tool, worker
+from first_domino.flag import flag
+from first_domino.instrument import (
+    current_run_id,
+    entrypoint,
+    init,
+    serve,
+    set_outcome,
+    tool,
+    worker,
+)
 from first_domino.openai_format import message_from_openai, message_to_openai, messages_to_openai
 from first_domino.recorder import RecordedRun, record, start_recording
 from first_domino.settings import SdkSettings
@@ -48,13 +58,16 @@ __all__ = [
     "ReplayDrift",
     "ReplayOutcome",
     "ReplayStopped",
+    "Run",
     "RunOutcome",
     "SdkSettings",
     "TaskInput",
     "ToolCall",
     "Worker",
+    "current_run_id",
     "diagnose",
     "entrypoint",
+    "flag",
     "init",
     "message_from_openai",
     "message_to_openai",

@@ -11,6 +11,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from typing import Any
+from uuid import UUID
 
 import httpx
 import httpx2
@@ -20,7 +21,7 @@ import pytest
 import first_domino as fd
 from first_domino import capture
 from first_domino import instrument as entrypoint_module
-from first_domino._generated.models import ReplayJob, ReplayJobStatus, ToolName
+from first_domino._generated.models import FailureReason, ReplayJob, ReplayJobStatus, ToolName
 from first_domino.client import FirstDominoClient
 from first_domino.providers import AnthropicMessages
 from first_domino.recorder import RecordedRun
@@ -376,6 +377,107 @@ def test_set_outcome_wins_over_the_check(api: FakeApi) -> None:
     answer(QUESTION)
 
     assert api.finished[0].status == fd.RunOutcome.failed
+
+
+@pytest.mark.parametrize(
+    ("passed", "reason", "sent"),
+    [
+        (False, "no source", "no source"),
+        (False, "x" * 2500, "x" * 2000),
+        (False, None, None),
+        (True, "looked fine", None),
+    ],
+    ids=["failed", "truncated", "no_reason", "passed"],
+)
+def test_the_reason_of_a_failed_outcome_is_sent_with_the_finish(
+    api: FakeApi, passed: bool, reason: str | None, sent: str | None
+) -> None:
+    @fd.entrypoint(AGENT)
+    def answer(question: str) -> str:
+        fd.set_outcome(passed=passed, reason=reason)
+        return question
+
+    answer(QUESTION)
+
+    (finished,) = api.finished
+    assert finished.failure_reason == (FailureReason(sent) if sent is not None else None)
+
+
+def test_a_failed_check_sends_no_reason(api: FakeApi) -> None:
+    bot(FakeModel(), check=lambda _: False)(QUESTION)
+
+    assert api.finished[0].status == fd.RunOutcome.failed
+    assert api.finished[0].failure_reason is None
+
+
+@pytest.mark.parametrize("before_the_model", [True, False], ids=["before", "after"])
+def test_current_run_id_is_the_recorded_run(api: FakeApi, before_the_model: bool) -> None:
+    client = openai_client(FakeModel())
+    seen: list[UUID | None] = []
+
+    @fd.entrypoint(AGENT)
+    def answer(question: str) -> str:
+        if before_the_model:
+            seen.append(fd.current_run_id())
+        result = chat_loop(client, question)
+        seen.append(fd.current_run_id())
+        return result
+
+    assert answer(QUESTION) == ANSWER
+
+    (run_id,) = api.runs
+    assert seen == [run_id] * len(seen)
+    assert len(api.start_bodies) == 1
+    assert {step.run_id for step in api.steps} == {run_id}
+
+
+async def test_current_run_id_on_the_agents_event_loop(api: FakeApi) -> None:
+    client = async_openai_client(FakeModel())
+    seen: list[UUID | None] = []
+
+    @fd.entrypoint(AGENT)
+    async def answer(question: str) -> str:
+        seen.append(fd.current_run_id())
+        return await responses_loop(client, question, get_weather)
+
+    assert await answer(QUESTION) == ANSWER
+
+    assert seen == list(api.runs)
+    assert len(api.steps) == 2
+
+
+def test_current_run_id_is_none_outside_a_run() -> None:
+    assert fd.current_run_id() is None
+
+
+def test_current_run_id_is_none_without_an_api_key(
+    api: FakeApi, dark_client: FirstDominoClient
+) -> None:
+    fd.init(client=dark_client)
+    seen: list[UUID | None] = []
+
+    @fd.entrypoint(AGENT)
+    def answer(question: str) -> str:
+        seen.append(fd.current_run_id())
+        return question
+
+    assert answer(QUESTION) == QUESTION
+    assert seen == [None]
+    assert api.auth_headers == []
+
+
+def test_current_run_id_is_none_when_the_api_fails(api: FakeApi) -> None:
+    api.fail_paths = {"runs.start": 503}
+    seen: list[UUID | None] = []
+
+    @fd.entrypoint(AGENT)
+    def answer(question: str) -> str:
+        seen.append(fd.current_run_id())
+        return question
+
+    assert answer(QUESTION) == QUESTION
+    assert seen == [None]
+    assert api.runs == {}
 
 
 def test_a_run_that_raises_is_errored_and_raises(api: FakeApi) -> None:

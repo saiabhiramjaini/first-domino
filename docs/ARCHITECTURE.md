@@ -48,7 +48,8 @@ During a replay, `fd.serve()` calls the same function again. Model calls up to t
 
 1. The agent runs inside `@fd.entrypoint` (or `fd.record`).
 2. The run appears in the web app at once; each step is sent as it completes: model output, tool calls, tool results and the message snapshot.
-3. When the function returns, the customer's check (or `fd.set_outcome`) marks the run passed or failed. A run that raises is errored.
+3. When the function returns, the customer's check (or `fd.set_outcome`, which can also say why) marks the run passed or failed. A run that raises is errored.
+4. Failures no check catches are flagged later (`fd.flag`, or Mark as failed in the web app) with what went wrong. The run becomes failed and is diagnosed.
 
 ### 2. Diagnose a failed run
 
@@ -85,6 +86,8 @@ queued | leased ──► expired   the check was decided without it
 - A check with no pass is run once more before the save point counts as doomed, since a few unlucky replays look the same as a doomed one.
 - If a fresh run (m = 0) never passes, the verdict is a task or tool issue, not an agent step.
 - Invariant: the run can succeed from `lo - 1` and is doomed at `hi` (calibration checked it at `n`). Halve until `lo == hi`.
+- For a flagged run, the customer's check passed the original, so it cannot judge replays. The engine judges each replay instead: a model reads the replay's recorded transcript and final output against the reported failure. Calibration then also checks the judge: it must call the unchanged replay a failure before any step is blamed.
+- The failure reason, when there is one, goes into the fixer's and explainer's prompts.
 - Only faithful replays are evidence. While a replay is inside the kept steps, the SDK compares each tool result with the recorded one; on a difference the replay has drifted (a tool read live data, the clock or randomness), stops at its next model call and is reported with the step and tool. Drifted replays count toward neither samples nor passes. A check left with no evidence because its replays drifted stops the diagnosis as `replay_not_faithful`, naming the tool to mark with `@fd.tool`.
 - Verify: rewrite step `lo` and replay. It is proven when enough replays pass.
 - If verify fails, the nearby steps are tried in turn. If none flips the outcome, the verdict is "multiple causes".
@@ -102,7 +105,7 @@ Diagnoses run inside the API process and heartbeat while they run. When the API 
 | `users` | People who signed in with Google |
 | `projects` | The tenant boundary; every other table carries `project_id` |
 | `api_keys` | SHA-256 hash, prefix, last use, revoked time |
-| `runs` | One agent run: source (recorded or replay), parent run, status, task input, tool names |
+| `runs` | One agent run: source (recorded or replay), parent run, status, task input, tool names, failure reason, who flagged it |
 | `steps` | One row per step: model output, tool results, message snapshot, tokens, latency |
 | `replay_jobs` | The queue: run, save point, fixed step, model override, lease, attempt, outcome, drift |
 | `diagnoses` | One per diagnosis: status, verdict, first domino, proof, explanation, cost, owner heartbeat |

@@ -17,13 +17,14 @@ import typing
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast, overload
+from uuid import UUID
 
 from pydantic import TypeAdapter
 
 from first_domino import capture
 from first_domino._generated.models import RunOutcome, StartRunRequest, TaskInput
 from first_domino.client import FirstDominoClient, default_client
-from first_domino.recorder import RecordedRun
+from first_domino.recorder import RecordedRun, current_recording
 from first_domino.settings import SdkSettings
 from first_domino.worker import ReplayContext, Worker
 
@@ -84,7 +85,8 @@ def set_outcome(*, passed: bool, reason: str | None = None) -> None:
     """Say whether the current run passed, from inside the agent code.
 
     Use it when your own code already knows (a failed validation, an eval you run in
-    line). It wins over the entrypoint's `check`. Does nothing outside a run.
+    line). It wins over the entrypoint's `check`. Does nothing outside a run. The
+    `reason` of a failed run is sent with it, and the diagnosis uses it.
 
     Example:
         >>> fd.set_outcome(passed=False, reason="Booked the wrong day")
@@ -92,6 +94,35 @@ def set_outcome(*, passed: bool, reason: str | None = None) -> None:
     session = capture.current_session()
     if session is not None:
         session.verdict = capture.Verdict(passed, reason)
+
+
+def current_run_id() -> UUID | None:
+    """The id of the run being recorded, to keep next to your conversation and flag later.
+
+    Inside an `@fd.entrypoint` call that has not called the model yet, this starts the
+    run and waits for its id, at most `FIRST_DOMINO_TIMEOUT_SECONDS`; the run then has
+    no tool list (the tools the model was given), which only helps diagnosis. Call it
+    after the first model call to keep the tool list. Inside `fd.record`
+    the id exists once the run started (its first step, or `await run.start()`). None
+    outside a run, without an API key, or when First Domino could not be reached. Never
+    raises.
+
+    Example:
+        >>> @fd.entrypoint("support-bot")
+        ... def answer(conversation_id: str, question: str) -> str:
+        ...     db.save_run_id(conversation_id, fd.current_run_id())
+        ...     return agent(question)
+    """
+    try:
+        # Only this context's run: another thread's run would be the wrong conversation.
+        session = capture.SESSION.get()
+        if session is not None:
+            return session.run_id(_CONFIG.recorder_client().settings.timeout_seconds)
+        recording = current_recording()
+        return recording.run_id if recording is not None else None
+    except Exception:
+        log.debug("first_domino.current_run_id_failed", exc_info=True)
+        return None
 
 
 @overload

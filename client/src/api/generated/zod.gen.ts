@@ -285,6 +285,16 @@ export const zApiValidationError = z.object({
 });
 
 /**
+ * FlagRunRequest
+ *
+ * Flags a run that passed its success check as failed, saying what went wrong.
+ */
+export const zFlagRunRequest = z.object({
+    run_id: z.uuid(),
+    reason: z.string().min(1).max(2000)
+});
+
+/**
  * GetCauseResponse
  *
  * The cause.
@@ -494,7 +504,8 @@ export const zRunOutcome = z.enum([
 export const zFinishRunRequest = z.object({
     run_id: z.uuid(),
     status: zRunOutcome,
-    final_output: z.string().nullish()
+    final_output: z.string().nullish(),
+    failure_reason: z.string().max(2000).nullish()
 });
 
 /**
@@ -601,6 +612,9 @@ export const zRun = z.object({
     status: zRunStatus,
     step_count: z.int().gte(0),
     final_output: z.string().nullable(),
+    failure_reason: z.string().nullable(),
+    flagged_at: z.iso.datetime().nullable(),
+    flagged_by_id: z.uuid().nullable(),
     latest_diagnosis_id: z.uuid().nullable(),
     created_by_id: z.uuid(),
     started_at: z.iso.datetime(),
@@ -613,6 +627,15 @@ export const zRun = z.object({
  * The finished run.
  */
 export const zFinishRunResponse = z.object({
+    run: zRun
+});
+
+/**
+ * FlagRunResponse
+ *
+ * The flagged run, now `failed` and being diagnosed.
+ */
+export const zFlagRunResponse = z.object({
     run: zRun
 });
 
@@ -992,6 +1015,13 @@ export const zFinishRunBody = zFinishRunRequest;
  * Successful Response
  */
 export const zFinishRunResponse2 = zFinishRunResponse;
+
+export const zFlagRunBody = zFlagRunRequest;
+
+/**
+ * Successful Response
+ */
+export const zFlagRunResponse2 = zFlagRunResponse;
 
 export const zGetRunQuery = z.object({
     run_id: z.uuid()

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
-from openai import AsyncOpenAI, OpenAIError
+from openai import AsyncOpenAI, OpenAIError, omit
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from fd_engine.errors import LlmCallError, LlmNotConfiguredError
@@ -65,9 +65,19 @@ class LlmTransport(Protocol):
     """Sends one prompt and returns the model's raw JSON text."""
 
     async def complete(
-        self, *, system: str, user: str, schema: type[BaseModel], timeout_seconds: float
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: type[BaseModel],
+        timeout_seconds: float,
+        model: str | None = None,
+        temperature: float | None = None,
     ) -> RawCompletion:
-        """Return the reply text, or raise `LlmCallError` when no reply came back."""
+        """Return the reply text, or raise `LlmCallError` when no reply came back.
+
+        `model` None means the transport's default model, and `temperature` None the model's own.
+        """
         ...
 
 
@@ -83,12 +93,19 @@ class OpenAiTransport:
         self._model = settings.strong_model
 
     async def complete(
-        self, *, system: str, user: str, schema: type[BaseModel], timeout_seconds: float
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: type[BaseModel],
+        timeout_seconds: float,
+        model: str | None = None,
+        temperature: float | None = None,
     ) -> RawCompletion:
         """Ask for JSON matching `schema` and return the text unparsed."""
         try:
             completion = await self._client.chat.completions.create(
-                model=self._model,
+                model=model or self._model,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
@@ -97,6 +114,7 @@ class OpenAiTransport:
                     "type": "json_schema",
                     "json_schema": {"name": schema.__name__, "schema": schema.model_json_schema()},
                 },
+                temperature=omit if temperature is None else temperature,
                 timeout=timeout_seconds,
             )
         except OpenAIError as error:
@@ -121,9 +139,19 @@ class Llm:
         self._transport = transport or OpenAiTransport(settings)
 
     async def structured[T: BaseModel](
-        self, *, system: str, user: str, schema: type[T], fallback: T
+        self,
+        *,
+        system: str,
+        user: str,
+        schema: type[T],
+        fallback: T,
+        model: str | None = None,
+        temperature: float | None = None,
     ) -> LlmReply[T]:
-        """Return the model's reply parsed into `schema`, salvaged, or `fallback`."""
+        """Return the model's reply parsed into `schema`, salvaged, or `fallback`.
+
+        `model` None uses `strong_model`, and `temperature` None the model's default.
+        """
         usage = LlmUsage()
         last_text: str | None = None
         for attempt in range(1 + self._settings.llm_parse_retries):
@@ -133,6 +161,8 @@ class Llm:
                     user=user,
                     schema=schema,
                     timeout_seconds=self._settings.llm_timeout_seconds,
+                    model=model,
+                    temperature=temperature,
                 )
             except LlmCallError:
                 log.warning("llm.call_failed", schema=schema.__name__, attempt=attempt)

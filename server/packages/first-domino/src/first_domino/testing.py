@@ -23,6 +23,7 @@ from first_domino._generated.models import (
     Diagnosis,
     DiagnosisStatus,
     FinishRunRequest,
+    FlagRunRequest,
     LeaseReplayJobRequest,
     ListStepsRequest,
     Message,
@@ -69,13 +70,15 @@ class FakeApi:
 
     Put jobs in `jobs` for the worker to lease, set a job's status in `job_statuses` to end
     it while it runs, and map an action such as `"steps.record"` to an HTTP status in
-    `fail_paths` to make it fail.
+    `fail_paths` to make it fail. `runs.flag` answers `not_found` and `conflict` like the
+    real API.
     """
 
     def __init__(self) -> None:
         self.runs: dict[UUID, Run] = {}
         self.steps: list[RecordStepRequest] = []
         self.finished: list[FinishRunRequest] = []
+        self.flagged: list[FlagRunRequest] = []
         self.jobs: list[ReplayJob] = []
         self.job_statuses: dict[UUID, ReplayJobStatus] = {}
         self.submitted: list[SubmitReplayResultRequest] = []
@@ -96,6 +99,8 @@ class FakeApi:
                 code=ApiErrorCode.validation_failed, title="Validation failed", detail="tool_calls"
             )
             return httpx.Response(422, content=body.model_dump_json())
+        if action == "runs.flag":
+            return self._flag(request)
         route = self._routes()[action]
         return httpx.Response(200, json=json.loads(route(request)))
 
@@ -127,6 +132,9 @@ class FakeApi:
             status=RunStatus.running,
             step_count=0,
             final_output=None,
+            failure_reason=None,
+            flagged_at=None,
+            flagged_by_id=None,
             latest_diagnosis_id=None,
             created_by_id=KEY_ID,
             started_at=NOW,
@@ -166,8 +174,36 @@ class FakeApi:
     def _finish(self, request: httpx.Request) -> str:
         body = FinishRunRequest.model_validate_json(request.content)
         self.finished.append(body)
-        run = self.runs[body.run_id].model_copy(update={"final_output": body.final_output})
+        reason = body.failure_reason.root if body.failure_reason is not None else None
+        run = self.runs[body.run_id].model_copy(
+            update={
+                "status": RunStatus(body.status.value),
+                "final_output": body.final_output,
+                "failure_reason": reason,
+                "finished_at": NOW,
+            }
+        )
+        self.runs[run.id] = run
         return json.dumps({"run": json.loads(run.model_dump_json())})
+
+    def _flag(self, request: httpx.Request) -> httpx.Response:
+        body = FlagRunRequest.model_validate_json(request.content)
+        run = self.runs.get(body.run_id)
+        if run is None:
+            return _error(404, ApiErrorCode.not_found, "Run not found")
+        if run.source != RunSource.recorded or run.status != RunStatus.passed:
+            return _error(409, ApiErrorCode.conflict, "Run cannot be flagged")
+        self.flagged.append(body)
+        run = run.model_copy(
+            update={
+                "status": RunStatus.failed,
+                "failure_reason": body.reason,
+                "flagged_at": NOW,
+                "flagged_by_id": KEY_ID,
+            }
+        )
+        self.runs[run.id] = run
+        return httpx.Response(200, json={"run": json.loads(run.model_dump_json())})
 
     def _lease(self, request: httpx.Request) -> str:
         body = LeaseReplayJobRequest.model_validate_json(request.content)
@@ -217,6 +253,11 @@ class FakeApi:
             finished_at=None,
         )
         return json.dumps({"diagnosis": json.loads(diagnosis.model_dump_json())})
+
+
+def _error(status: int, code: ApiErrorCode, title: str) -> httpx.Response:
+    body = ApiError(code=code, title=title, detail=title)
+    return httpx.Response(status, content=body.model_dump_json())
 
 
 def _has_null_tool_calls(body: dict[str, Any]) -> bool:

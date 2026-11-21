@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, ExportCauseData, ExportCauseErrors, ExportCauseResponses, FinishRunData, FinishRunErrors, FinishRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetReplayJobData, GetReplayJobErrors, GetReplayJobResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
+import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, ExportCauseData, ExportCauseErrors, ExportCauseResponses, FinishRunData, FinishRunErrors, FinishRunResponses, FlagRunData, FlagRunErrors, FlagRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetReplayJobData, GetReplayJobErrors, GetReplayJobResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -124,6 +124,25 @@ export const startRun = <ThrowOnError extends boolean = false>(options: Options<
 export const finishRun = <ThrowOnError extends boolean = false>(options: Options<FinishRunData, ThrowOnError>): RequestResult<FinishRunResponses, FinishRunErrors, ThrowOnError> => (options.client ?? client).post<FinishRunResponses, FinishRunErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/runs.finish',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Flag a run as failed
+ *
+ * Flags a recorded run that passed its success check as failed, with what went wrong.
+ *
+ * Use it for failures no code check catches: a user complaint, a thumbs down, a review. The
+ * run becomes `failed` and is diagnosed; its replays are judged against `reason` by a model.
+ * Only a finished recorded run that `passed` can be flagged (`409` otherwise).
+ */
+export const flagRun = <ThrowOnError extends boolean = false>(options: Options<FlagRunData, ThrowOnError>): RequestResult<FlagRunResponses, FlagRunErrors, ThrowOnError> => (options.client ?? client).post<FlagRunResponses, FlagRunErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/runs.flag',
     ...options,
     headers: {
         'Content-Type': 'application/json',

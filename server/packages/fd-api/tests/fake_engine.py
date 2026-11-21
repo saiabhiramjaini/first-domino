@@ -3,13 +3,16 @@
 from fd_engine.diagnose import Diagnoser
 from fd_engine.explain import ExplainedStep
 from fd_engine.group import CauseCandidate, CauseMatch
+from fd_engine.judge import JudgedReplay
 from fd_engine.ports import CheckSink, ReplayRunner, RunReader
 from fd_engine.settings import EngineSettings
 from fd_engine.verify import FixedStep
-from fd_shared.enums import CauseCategory, MessageRole
+from fd_shared.enums import CauseCategory, MessageRole, ReplayOutcome
 from fd_shared.models import Explanation, Message, RunView, StepView
 
 FIXED_OUTPUT = Message(role=MessageRole.ASSISTANT, content="fixed")
+GOOD_FINAL_OUTPUT = "Did what the user asked"
+"""The final output of a replay the canned judge passes; any other output fails."""
 EXPLANATION = Explanation(
     title="Event added on the wrong day",
     summary="The assistant turned 'tomorrow at 10' into the day after tomorrow.",
@@ -28,6 +31,17 @@ class CannedExplainer:
         self, run: RunView, steps: list[StepView], step: int, fixed_output: Message | None
     ) -> ExplainedStep:
         return ExplainedStep(explanation=EXPLANATION, cost_usd=0.002)
+
+
+class FinalOutputJudge:
+    """Passes a replay whose run finished with `GOOD_FINAL_OUTPUT`, whatever the worker said."""
+
+    async def judge(
+        self, run: RunView, replay: RunView, replay_steps: list[StepView]
+    ) -> JudgedReplay:
+        passed = replay.final_output == GOOD_FINAL_OUTPUT
+        outcome = ReplayOutcome.PASSED if passed else ReplayOutcome.FAILED
+        return JudgedReplay(outcome=outcome, reason="canned", cost_usd=0.003)
 
 
 class FirstCauseMatch:
@@ -60,6 +74,7 @@ class FakeEngine:
             sink=sink,
             fixer=CannedFixer(),
             explainer=CannedExplainer(),
+            judge=FinalOutputJudge(),
             settings=self.settings,
         )
 

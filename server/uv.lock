@@ -371,7 +371,7 @@ requires-dist = [
 
 [[package]]
 name = "first-domino"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/first-domino" }
 dependencies = [
     { name = "httpx" },

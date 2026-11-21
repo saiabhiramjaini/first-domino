@@ -31,3 +31,11 @@ class RunView(BaseModel):
     status: RunStatus
     step_count: int = Field(ge=0)
     final_output: str | None
+    failure_reason: str | None = None
+    """Why the run failed, in words: from `fd.set_outcome` or from a person who flagged it."""
+    flagged: bool = False
+    """A person or the customer's code flagged the run as failed after it passed its check.
+
+    A flagged run has no code check that knows its failure, so the engine judges its replays
+    against `failure_reason` with a model.
+    """

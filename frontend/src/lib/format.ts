@@ -55,3 +55,12 @@ export function formatUsd(value: number): string {
 export function formatSeconds(value: number): string {
   return seconds.format(value);
 }
+
+const pluralRules = new Intl.PluralRules(LOCALE);
+
+export type Noun = { one: string; other: string };
+
+export function formatCount(count: number, noun: Noun): string {
+  const word = pluralRules.select(count) === "one" ? noun.one : noun.other;
+  return `${integer.format(count)} ${word}`;
+}

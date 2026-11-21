@@ -9,7 +9,8 @@ import { StatusBadge } from "@/components/status/status-badge";
 import { CAUSE_CATEGORY } from "@/components/status/status-tones";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListCauses } from "@/hooks/api/use-list-causes";
-import { formatInteger, formatRelative } from "@/lib/format";
+import { formatCount, formatRelative } from "@/lib/format";
+import { RUN_NOUN } from "@/lib/nouns";
 import { pageItems } from "@/lib/paging";
 
 import { verifiedLabel } from "../cause-stats";
@@ -71,7 +72,7 @@ export function CausesList() {
                 <div className="flex items-center gap-1">
                   <dt className="sr-only">Runs</dt>
                   <dd className="font-semibold tabular-nums">
-                    {formatInteger(cause.run_count)} {cause.run_count === 1 ? "run" : "runs"}
+                    {formatCount(cause.run_count, RUN_NOUN)}
                   </dd>
                 </div>
                 <div>

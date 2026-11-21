@@ -1267,11 +1267,11 @@ export type ReplayJob = {
     /**
      * Messages
      *
-     * Messages to resume from: the snapshot after `from_step`, or the opening ones.
+     * Messages to resume from, as saved after step `from_step`.
      */
     messages: Array<Message>;
     /**
-     * When set, use it as the next step's model output instead of calling the model.
+     * When set, use it as the next model output instead of calling the model.
      */
     replacement_output: Message | null;
     /**

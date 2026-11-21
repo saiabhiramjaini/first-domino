@@ -2,7 +2,8 @@ import type { Run } from "@/api/generated";
 import { shortId } from "@/components/runs/short-id";
 import { StatusBadge } from "@/components/status/status-badge";
 import { RUN_SOURCE, RUN_STATUS } from "@/components/status/status-tones";
-import { formatDateTime, formatInteger } from "@/lib/format";
+import { formatCount, formatDateTime } from "@/lib/format";
+import { STEP_NOUN } from "@/lib/nouns";
 
 type RunHeaderProps = { run: Run; actions: React.ReactNode };
 
@@ -18,7 +19,7 @@ export function RunHeader({ run, actions }: RunHeaderProps) {
           </div>
           <p className="text-sm text-muted-foreground">
             Run <span className="font-mono">{shortId(run.id)}</span> · started{" "}
-            {formatDateTime(run.started_at)} · {formatInteger(run.step_count)} steps
+            {formatDateTime(run.started_at)} · {formatCount(run.step_count, STEP_NOUN)}
           </p>
         </div>
         <div className="flex items-center gap-2">{actions}</div>

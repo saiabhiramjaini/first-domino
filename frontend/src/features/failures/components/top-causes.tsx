@@ -8,7 +8,8 @@ import { CAUSE_CATEGORY } from "@/components/status/status-tones";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListCauses } from "@/hooks/api/use-list-causes";
-import { formatInteger } from "@/lib/format";
+import { formatCount } from "@/lib/format";
+import { RUN_NOUN } from "@/lib/nouns";
 import { pageItems } from "@/lib/paging";
 
 import { ALL_CAUSES, TOP_CAUSE_COUNT } from "../inbox-filters";
@@ -53,7 +54,7 @@ export function TopCauses() {
               <span className="line-clamp-2 text-sm font-medium">{cause.title}</span>
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
                 <StatusBadge status={CAUSE_CATEGORY[cause.category]} />
-                {formatInteger(cause.run_count)} runs
+                {formatCount(cause.run_count, RUN_NOUN)}
               </span>
             </Link>
           </li>

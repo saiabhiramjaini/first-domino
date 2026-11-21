@@ -13,7 +13,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetCause } from "@/hooks/api/use-get-cause";
 import { isApiError } from "@/lib/api-error";
-import { formatDateTime, formatInteger, formatRelative } from "@/lib/format";
+import { formatCount, formatDateTime, formatInteger, formatRelative } from "@/lib/format";
+import { RUN_NOUN } from "@/lib/nouns";
 
 import { CauseRunsTable } from "./cause-runs-table";
 
@@ -76,7 +77,7 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
         <StatCard
           label="Verified by replay"
           value={formatInteger(data.verified_count)}
-          hint={`of ${formatInteger(data.run_count)} runs`}
+          hint={`of ${formatCount(data.run_count, RUN_NOUN)}`}
         />
         <StatCard label="First seen" value={formatRelative(data.first_seen_at)} />
         <StatCard

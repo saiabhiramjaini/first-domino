@@ -1,0 +1,107 @@
+"""Diagnosis contract models."""
+
+from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+from fd_api.pagination import CountResponse, PageRequest, PageResponse
+from fd_shared.enums import DiagnosisStatus, VerdictKind
+from fd_shared.models import Explanation, Message
+
+
+class Diagnosis(BaseModel):
+    """One search for the first domino step of a failed run, and its proof."""
+
+    id: UUID
+    run_id: UUID = Field(description="The failed recorded run being diagnosed.")
+    status: DiagnosisStatus
+    verdict_kind: VerdictKind | None = Field(description="The conclusion. Null until `done`.")
+    first_domino_step: int | None = Field(
+        description="Index of the step that doomed the run, once found."
+    )
+    search_low: int | None = Field(
+        description="Lowest step still suspected. Null before the search starts."
+    )
+    search_high: int | None = Field(
+        description="Highest step still suspected. Null before the search starts."
+    )
+    verify_passes: int | None = Field(
+        description="Replays from the fixed step that passed. Null before verifying."
+    )
+    verify_samples: int | None = Field(
+        description="Replays from the fixed step that ran. Null before verifying."
+    )
+    fixed_output: Message | None = Field(
+        description="The rewritten first domino step used to verify the cause."
+    )
+    explanation: Explanation | None = Field(description="What went wrong, once explained.")
+    cause_id: UUID | None = Field(description="The cause group this diagnosis joined.")
+    check_count: int = Field(ge=0, description="Number of checks run so far.")
+    replay_count: int = Field(ge=0, description="Number of replays run so far.")
+    cost_usd: float = Field(ge=0, description="Model cost of the diagnosis so far, in US dollars.")
+    error_code: str | None = Field(
+        description="Stable code of the error that stopped the diagnosis, when `failed`."
+    )
+    created_by_id: UUID | None = Field(
+        description="Id of the person or API key that asked for it. Null for auto-diagnosis."
+    )
+    created_at: datetime = Field(description="Time of creation, in UTC RFC 3339 format.")
+    finished_at: datetime | None = Field(
+        description="Time it reached `done` or `failed`, in UTC RFC 3339 format."
+    )
+
+
+class DiagnosisFilter(BaseModel):
+    """Filters shared by `listDiagnoses` and `countDiagnoses`. Null means no filter."""
+
+    run_ids: list[UUID] | None = Field(default=None, description="Only diagnoses of these runs.")
+    cause_ids: list[UUID] | None = Field(
+        default=None, description="Only diagnoses in these cause groups."
+    )
+    statuses: list[DiagnosisStatus] | None = Field(
+        default=None, description="Only diagnoses with one of these statuses."
+    )
+    verdict_kinds: list[VerdictKind] | None = Field(
+        default=None, description="Only diagnoses with one of these verdicts."
+    )
+
+
+class CreateDiagnosisRequest(BaseModel):
+    """Starts diagnosing a failed recorded run."""
+
+    run_id: UUID
+
+
+class CreateDiagnosisResponse(BaseModel):
+    """The new diagnosis, `queued`."""
+
+    diagnosis: Diagnosis
+
+
+class GetDiagnosisRequest(BaseModel):
+    """Gets one diagnosis."""
+
+    diagnosis_id: UUID
+
+
+class GetDiagnosisResponse(BaseModel):
+    """The diagnosis."""
+
+    diagnosis: Diagnosis
+
+
+class ListDiagnosesRequest(PageRequest, DiagnosisFilter):
+    """Lists diagnoses, newest first."""
+
+
+class ListDiagnosesResponse(PageResponse[Diagnosis]):
+    """A page of diagnoses."""
+
+
+class CountDiagnosesRequest(DiagnosisFilter):
+    """Counts diagnoses."""
+
+
+class CountDiagnosesResponse(CountResponse):
+    """The number of matching diagnoses."""

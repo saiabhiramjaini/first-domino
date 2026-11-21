@@ -1,26 +1,23 @@
 """Loads the mock world data into typed models."""
 
-from fd_demo_agent.world.loader import load_world, slot_id_for
+from fd_demo_agent.world.loader import PHONE_DIGITS, load_world, phone_key
 from fd_demo_agent.world.models import (
-    Calendar,
-    City,
-    Clinic,
-    Doctor,
-    Slot,
-    SlotStatus,
-    Speciality,
+    CalendarEvent,
+    Contact,
+    MemoryItem,
+    SpamNumber,
+    UserProfile,
     World,
 )
 
 __all__ = [
-    "Calendar",
-    "City",
-    "Clinic",
-    "Doctor",
-    "Slot",
-    "SlotStatus",
-    "Speciality",
+    "PHONE_DIGITS",
+    "CalendarEvent",
+    "Contact",
+    "MemoryItem",
+    "SpamNumber",
+    "UserProfile",
     "World",
     "load_world",
-    "slot_id_for",
+    "phone_key",
 ]

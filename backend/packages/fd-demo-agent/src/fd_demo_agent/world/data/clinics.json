@@ -1,8 +1,0 @@
-[
-  {"clinic_id": "c-arogya-kukatpally", "name": "Arogya Clinic", "area": "Kukatpally", "city": "Hyderabad"},
-  {"clinic_id": "c-arogya-madhapur", "name": "Arogya Clinic", "area": "Madhapur", "city": "Hyderabad"},
-  {"clinic_id": "c-lotus-banjara-hills", "name": "Lotus Multispeciality Hospital", "area": "Banjara Hills", "city": "Hyderabad"},
-  {"clinic_id": "c-arogya-indiranagar", "name": "Arogya Clinic", "area": "Indiranagar", "city": "Bengaluru"},
-  {"clinic_id": "c-nandi-whitefield", "name": "Nandi Health Centre", "area": "Whitefield", "city": "Bengaluru"},
-  {"clinic_id": "c-nandi-jayanagar", "name": "Nandi Health Centre", "area": "Jayanagar", "city": "Bengaluru"}
-]

@@ -13,8 +13,9 @@ from openai.types.chat import (
 
 from fd_demo_agent.llm import ChatModel, ModelTurn
 from fd_demo_agent.messages import assistant_messages, function_calls, text_of
-from fd_demo_agent.sandbox import Booking
+from fd_demo_agent.sandbox import CallOutcome
 from fd_demo_agent.settings import DemoAgentSettings
+from fd_demo_agent.tasks import CallTask
 from fd_demo_agent.toolbox import ToolBox, tool_specs
 from fd_demo_agent.world import World, load_world
 
@@ -42,12 +43,12 @@ class AgentStep:
 
 @dataclass(frozen=True, slots=True)
 class AgentResult:
-    """What one call of `BookingAgent.run` did, and the booking it left."""
+    """What one call of `CallAgent.run` did, and the end state it left."""
 
     steps: list[AgentStep]
     messages: list[ChatCompletionMessageParam]
     final_output: str | None
-    booking: Booking | None
+    outcome: CallOutcome
     stop_reason: StopReason
 
 
@@ -62,12 +63,12 @@ def _finished(messages: Sequence[ChatCompletionMessageParam]) -> str | None:
     return None
 
 
-class BookingAgent:
-    """Books doctor appointments with the mock tools, one model turn per step.
+class CallAgent:
+    """Answers a call for the user with the mock tools, one model turn per step.
 
     Example:
-        >>> agent = BookingAgent(OpenAIChatModel(client), settings)
-        >>> result = await agent.run(opening_messages(task.prompt, today))
+        >>> agent = CallAgent(OpenAIChatModel(client), settings)
+        >>> result = await agent.run(task, opening_messages(task, load_world().user))
     """
 
     def __init__(
@@ -80,6 +81,7 @@ class BookingAgent:
 
     async def run(
         self,
+        call: CallTask,
         messages: Sequence[ChatCompletionMessageParam],
         *,
         replacement_output: ChatCompletionAssistantMessageParam | None = None,
@@ -90,6 +92,7 @@ class BookingAgent:
         """Run from any conversation until a final answer or the step limit.
 
         Args:
+            call: The incoming call, whose scripted caller answers `reply_to_caller`.
             messages: The conversation to continue: a task's opening messages, or a save
                 point. Steps already in it count toward the limit.
             replacement_output: Use this as the next step's output instead of calling the
@@ -99,7 +102,7 @@ class BookingAgent:
             on_step: Awaited after every step, for example to record a save point.
         """
         conversation = list(messages)
-        toolbox = ToolBox(self._world)
+        toolbox = ToolBox(self._world, call.caller_lines)
         toolbox.replay_history(conversation)
         model = model_override or self._settings.model
         last_index = self._settings.max_steps
@@ -108,7 +111,7 @@ class BookingAgent:
         steps: list[AgentStep] = []
 
         def result(final_output: str | None, reason: StopReason) -> AgentResult:
-            return AgentResult(steps, conversation, final_output, toolbox.booking, reason)
+            return AgentResult(steps, conversation, final_output, toolbox.outcome(), reason)
 
         final = _finished(conversation)
         if final is not None and replacement_output is None:

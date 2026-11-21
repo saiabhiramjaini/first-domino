@@ -1,1 +1,9 @@
-{"today": "2026-11-21", "days_ahead": 7}
+[
+  {"event_id": "ev-badminton", "title": "Badminton with Srinivas", "date": "2026-11-22", "time": "07:00", "notes": ""},
+  {"event_id": "ev-plumber", "title": "Plumber visit: kitchen sink (Anand)", "date": "2026-11-22", "time": "16:00", "notes": ""},
+  {"event_id": "ev-team-review", "title": "Team review", "date": "2026-11-24", "time": "10:00", "notes": ""},
+  {"event_id": "ev-dinner", "title": "Dinner at Lakshmi's", "date": "2026-11-25", "time": "19:30", "notes": ""},
+  {"event_id": "ev-car-service", "title": "Car service with Venkat", "date": "2026-11-27", "time": "11:00", "notes": ""},
+  {"event_id": "ev-dentist", "title": "Dentist: Dr. Meera Shah", "date": "2026-11-27", "time": "14:00", "notes": ""},
+  {"event_id": "ev-haircut", "title": "Haircut", "date": "2026-11-28", "time": "10:00", "notes": ""}
+]

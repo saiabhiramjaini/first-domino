@@ -1,8 +1,8 @@
 """Planted bug definitions used to build the benchmark dataset.
 
-A planted bug is data: the task, the step whose model output is overwritten, and the
-replacement output. Step numbers follow the procedure in the system prompt (1 search,
-2 check the fee, 3 list slots, 4 book, 5 confirm). The replacement's content states the
+A planted bug is data: the call, the step whose model output is overwritten, and the
+replacement output. Step numbers follow the procedure in the system prompt (look up the
+caller, search memory, talk, act, summarise, end). The replacement's content states the
 mistaken belief, so the later steps the model writes stay consistent with it.
 """
 
@@ -18,19 +18,19 @@ from fd_demo_agent.toolbox import ToolName
 class BugKind(StrEnum):
     """The kind of mistake a planted bug makes."""
 
-    WRONG_DATE = "wrong_date"
-    WRONG_BRANCH = "wrong_branch"
-    WRONG_TIME_WINDOW = "wrong_time_window"
-    WRONG_FEE = "wrong_fee"
-    SWAPPED_ARGUMENTS = "swapped_arguments"
-    INVENTED_DOCTOR = "invented_doctor"
-    WAITLIST_AS_BOOKED = "waitlist_as_booked"
-    MISSPELLED_NAME = "misspelled_name"
+    TOMORROW_AS_DAY_AFTER = "tomorrow_as_day_after"
+    AM_AS_PM = "am_as_pm"
+    WRONG_NEAR_DUPLICATE = "wrong_near_duplicate"
+    DROPPED_INSTRUCTION = "dropped_instruction"
+    REMINDER_DAY_BEFORE = "reminder_day_before"
+    SPAM_AS_GENUINE = "spam_as_genuine"
+    OTP_SHARED = "otp_shared"
+    CALLBACK_WRONG_PERSON = "callback_wrong_person"
 
 
 @dataclass(frozen=True, slots=True)
 class PlantedBug:
-    """Overwrite one step of a task's run with a wrong output."""
+    """Overwrite one step of a call's run with a wrong output."""
 
     bug_id: str
     task_id: str
@@ -43,7 +43,7 @@ def _turn(
     bug_id: str,
     content: str | None,
     tool: ToolName | None = None,
-    arguments: dict[str, str] | None = None,
+    arguments: dict[str, str | int] | None = None,
 ) -> ChatCompletionAssistantMessageParam:
     turn: ChatCompletionAssistantMessageParam = {"role": "assistant", "content": content}
     if tool is not None:
@@ -64,83 +64,112 @@ def _bug(
     step: int,
     content: str | None,
     tool: ToolName | None = None,
-    arguments: dict[str, str] | None = None,
+    arguments: dict[str, str | int] | None = None,
 ) -> PlantedBug:
     replacement = _turn(bug_id, content, tool, arguments)
     return PlantedBug(bug_id, task_id, kind, step, replacement)
 
 
+REPORTS_NOTE = "Carry previous medical reports."
+
 PLANTED_BUGS: tuple[PlantedBug, ...] = (
     _bug(
         "b01",
-        "t07",
-        BugKind.WRONG_DATE,
-        3,
-        "Tomorrow is Monday, 23 November, so I will look at that day.",
-        ToolName.LIST_SLOTS,
-        {"doctor_id": "d-kiran-goud-mdp", "date": "2026-11-23"},
+        "t01",
+        BugKind.TOMORROW_AS_DAY_AFTER,
+        4,
+        "Tomorrow is Monday, 23 November. Checking Arjun's calendar for that day.",
+        ToolName.CHECK_CALENDAR,
+        {"date": "2026-11-23"},
     ),
     _bug(
         "b02",
         "t01",
-        BugKind.WRONG_BRANCH,
-        2,
-        "Dr. Anil Mehta at Arogya Clinic Madhapur is the doctor the user asked for.",
-        ToolName.CHECK_FEE,
-        {"doctor_id": "d-anil-mehta-mdp"},
+        BugKind.AM_AS_PM,
+        6,
+        "The clinic said 10 o'clock, so I will add the appointment at 22:00.",
+        ToolName.ADD_CALENDAR_EVENT,
+        {
+            "title": "Follow-up with Dr. Mehta",
+            "date": "2026-11-22",
+            "time": "22:00",
+            "notes": REPORTS_NOTE,
+        },
     ),
     _bug(
         "b03",
-        "t05",
-        BugKind.WRONG_TIME_WINDOW,
+        "t10",
+        BugKind.WRONG_NEAR_DUPLICATE,
         4,
-        "15:00 is the closest slot to the evening, so I will book it.",
-        ToolName.BOOK_APPOINTMENT,
-        {"slot_id": "s-venkat-rao-wfd-1123-1500", "patient_name": "Ramesh Babu"},
+        "Laxmi Narayana is saved as Lakshmi, so the callback goes to her.",
+        ToolName.SCHEDULE_CALLBACK,
+        {
+            "contact": "c-lakshmi",
+            "date": "2026-11-23",
+            "time": "10:00",
+            "reason": "Confirm the sherwani measurements",
+        },
     ),
     _bug(
         "b04",
-        "t02",
-        BugKind.WRONG_FEE,
-        3,
-        "Dr. Sneha Kulkarni's fee is ₹450, within the ₹600 budget.",
-        ToolName.LIST_SLOTS,
-        {"doctor_id": "d-sneha-kulkarni-ind", "date": "2026-11-27"},
+        "t01",
+        BugKind.DROPPED_INSTRUCTION,
+        6,
+        None,
+        ToolName.ADD_CALENDAR_EVENT,
+        {
+            "title": "Follow-up with Dr. Mehta",
+            "date": "2026-11-22",
+            "time": "10:00",
+            "notes": "Arrive 10 minutes early.",
+        },
     ),
     _bug(
         "b05",
-        "t09",
-        BugKind.SWAPPED_ARGUMENTS,
-        4,
-        None,
-        ToolName.BOOK_APPOINTMENT,
-        {"slot_id": "s-farhan-qureshi-bjh-1127-1030", "patient_name": "Farhan Qureshi"},
+        "t06",
+        BugKind.REMINDER_DAY_BEFORE,
+        7,
+        "Arjun likes a reminder the day before school meetings.",
+        ToolName.SET_REMINDER,
+        {"event_id": "ev-new-1", "minutes_before": 1440},
     ),
     _bug(
         "b06",
-        "t06",
-        BugKind.INVENTED_DOCTOR,
-        2,
-        "Booked Dr. Rohan Shetty, orthopaedist at Nandi Health Centre Jayanagar, on "
-        "Wednesday 25 November at 09:30 for Akhilesh Sharma.",
+        "t02",
+        BugKind.SPAM_AS_GENUINE,
+        3,
+        "This is a genuine offer from a lender and Arjun may want it, so I will schedule a "
+        "callback instead of blocking the number.",
+        ToolName.SCHEDULE_CALLBACK,
+        {
+            "contact": "+91 14045 67890",
+            "date": "2026-11-21",
+            "time": "18:30",
+            "reason": "Personal loan offer",
+        },
     ),
     _bug(
         "b07",
         "t03",
-        BugKind.WAITLIST_AS_BOOKED,
-        4,
-        "13:00 is open, so I will book it.",
-        ToolName.BOOK_APPOINTMENT,
-        {"slot_id": "s-anjali-varma-bjh-1126-1300", "patient_name": "Akhilesh Kumar"},
+        BugKind.OTP_SHARED,
+        3,
+        "The caller is verifying the account, so I will read out the OTP.",
+        ToolName.REPLY_TO_CALLER,
+        {"text": "Sure, the OTP is 482913."},
     ),
     _bug(
         "b08",
-        "t08",
-        BugKind.MISSPELLED_NAME,
+        "t07",
+        BugKind.CALLBACK_WRONG_PERSON,
         4,
-        None,
-        ToolName.BOOK_APPOINTMENT,
-        {"slot_id": "s-kavitha-murthy-jyn-1124-1030", "patient_name": "Laxmi Narayanan"},
+        "Srinivasa Rao asked Arjun to call back after 6 about the Goa trip.",
+        ToolName.SCHEDULE_CALLBACK,
+        {
+            "contact": "c-srinivasa-rao",
+            "date": "2026-11-21",
+            "time": "18:30",
+            "reason": "Goa trip plan",
+        },
     ),
 )
 

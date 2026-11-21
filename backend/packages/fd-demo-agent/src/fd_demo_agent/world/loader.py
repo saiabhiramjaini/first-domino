@@ -1,56 +1,32 @@
-"""Read the world JSON shipped in this package and expand doctor schedules into slots."""
+"""Read the world JSON shipped in this package into typed models."""
 
-from datetime import date, time, timedelta
 from functools import cache
 from importlib.resources import files
 
 from pydantic import TypeAdapter
 
 from fd_demo_agent.world.models import (
-    Calendar,
-    Clinic,
-    Doctor,
-    Slot,
-    SlotStatus,
-    SlotStatusOverride,
+    CalendarEvent,
+    Contact,
+    MemoryItem,
+    SpamNumber,
+    UserProfile,
     World,
 )
 
 _PACKAGE = "fd_demo_agent.world"
 _DATA_DIR = "data"
+PHONE_DIGITS = 10
+
+
+def phone_key(phone: str) -> str:
+    """Return the last 10 digits of a phone number, so `+91 98490 11223` matches `9849011223`."""
+    digits = "".join(char for char in phone if char.isdigit())
+    return digits[-PHONE_DIGITS:]
 
 
 def _read[T](name: str, adapter: TypeAdapter[T]) -> T:
     return adapter.validate_json(files(_PACKAGE).joinpath(_DATA_DIR, name).read_bytes())
-
-
-def slot_id_for(doctor_id: str, day: date, at: time) -> str:
-    """Build the stable id of a doctor's slot, such as `s-anil-mehta-kph-1122-1130`."""
-    return f"s-{doctor_id.removeprefix('d-')}-{day:%m%d}-{at:%H%M}"
-
-
-def _expand_slots(
-    calendar: Calendar,
-    doctors: list[Doctor],
-    overrides: list[SlotStatusOverride],
-) -> dict[str, Slot]:
-    statuses = {slot_id_for(o.doctor_id, o.date, o.time): o.status for o in overrides}
-    days = [calendar.today + timedelta(days=n) for n in range(1, calendar.days_ahead + 1)]
-    slots: dict[str, Slot] = {}
-    for doctor in doctors:
-        for day in days:
-            if day.isoweekday() not in doctor.weekdays:
-                continue
-            for at in doctor.times:
-                slot_id = slot_id_for(doctor.doctor_id, day, at)
-                status = statuses.pop(slot_id, SlotStatus.AVAILABLE)
-                slots[slot_id] = Slot(
-                    slot_id=slot_id, doctor_id=doctor.doctor_id, date=day, time=at, status=status
-                )
-    if statuses:
-        msg = f"slot status overrides name slots that do not exist: {sorted(statuses)}"
-        raise ValueError(msg)
-    return slots
 
 
 @cache
@@ -58,20 +34,19 @@ def load_world() -> World:
     """Load the mock world once per process.
 
     Example:
-        >>> load_world().doctors["d-anil-mehta-kph"].consultation_fee_inr
-        700
+        >>> load_world().user.name
+        'Arjun Rao'
     """
-    calendar = _read("calendar.json", TypeAdapter(Calendar))
-    clinics = _read("clinics.json", TypeAdapter(list[Clinic]))
-    doctors = _read("doctors.json", TypeAdapter(list[Doctor]))
-    overrides = _read("slot_statuses.json", TypeAdapter(list[SlotStatusOverride]))
-    unknown_clinics = {d.clinic_id for d in doctors} - {c.clinic_id for c in clinics}
-    if unknown_clinics:
-        msg = f"doctors name clinics that do not exist: {sorted(unknown_clinics)}"
+    contacts = _read("contacts.json", TypeAdapter(list[Contact]))
+    phones = [phone_key(contact.phone) for contact in contacts]
+    if len(set(phones)) != len(phones):
+        msg = "two contacts share a phone number"
         raise ValueError(msg)
+    calendar = _read("calendar.json", TypeAdapter(list[CalendarEvent]))
     return World(
-        calendar=calendar,
-        clinics={c.clinic_id: c for c in clinics},
-        doctors={d.doctor_id: d for d in doctors},
-        slots=_expand_slots(calendar, doctors, overrides),
+        user=_read("user.json", TypeAdapter(UserProfile)),
+        contacts={contact.contact_id: contact for contact in contacts},
+        memory=_read("memory.json", TypeAdapter(tuple[MemoryItem, ...])),
+        calendar={event.event_id: event for event in calendar},
+        spam_numbers=_read("spam_numbers.json", TypeAdapter(tuple[SpamNumber, ...])),
     )

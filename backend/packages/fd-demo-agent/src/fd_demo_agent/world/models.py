@@ -1,97 +1,66 @@
-"""Typed models of the mock world: clinics, doctors and appointment slots."""
+"""Typed models of the mock world: the user, contacts, memory, calendar and spam numbers."""
 
-from datetime import date, time
-from enum import StrEnum
+from datetime import date, datetime, time
 
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class City(StrEnum):
-    """Cities the mock world covers."""
-
-    HYDERABAD = "Hyderabad"
-    BENGALURU = "Bengaluru"
-
-
-class Speciality(StrEnum):
-    """Medical specialities a doctor can have."""
-
-    GENERAL_PHYSICIAN = "general_physician"
-    CARDIOLOGIST = "cardiologist"
-    DERMATOLOGIST = "dermatologist"
-    PEDIATRICIAN = "pediatrician"
-    ORTHOPEDIST = "orthopedist"
-    ENT_SPECIALIST = "ent_specialist"
-    GYNECOLOGIST = "gynecologist"
-
-
-class SlotStatus(StrEnum):
-    """Whether a slot can still be booked."""
-
-    AVAILABLE = "available"
-    BOOKED = "booked"
-    WAITLIST = "waitlist"
+from pydantic import BaseModel, ConfigDict
 
 
 class _Frozen(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class Calendar(_Frozen):
-    """The fixed today and how many days ahead the clinics publish slots."""
+class UserProfile(_Frozen):
+    """The person the assistant answers calls for, and the fixed current time."""
 
-    today: date
-    days_ahead: int = Field(ge=1)
-
-
-class Clinic(_Frozen):
-    """One clinic branch."""
-
-    clinic_id: str
     name: str
-    area: str
-    city: City
+    city: str
+    now: datetime
 
 
-class Doctor(_Frozen):
-    """One doctor at one clinic branch, with fees and a weekly schedule.
+class Contact(_Frozen):
+    """A saved contact."""
 
-    A doctor who works at two branches appears once per branch, with a separate id.
-    """
-
-    doctor_id: str
+    contact_id: str
     name: str
-    speciality: Speciality
-    clinic_id: str
-    consultation_fee_inr: int = Field(gt=0)
-    follow_up_fee_inr: int = Field(gt=0)
-    weekdays: frozenset[int] = Field(description="ISO weekdays the doctor works, 1 is Monday.")
-    times: tuple[time, ...]
+    phone: str
+    relationship: str
 
 
-class SlotStatusOverride(_Frozen):
-    """A slot whose status is not the default `available`."""
+class MemoryItem(_Frozen):
+    """One fact or preference the user has told the assistant."""
 
-    doctor_id: str
+    memory_id: str
+    text: str
+    tags: tuple[str, ...]
+
+
+class CalendarEvent(_Frozen):
+    """One event on the user's calendar."""
+
+    event_id: str
+    title: str
     date: date
     time: time
-    status: SlotStatus
+    notes: str = ""
 
 
-class Slot(_Frozen):
-    """One bookable appointment time."""
+class SpamNumber(_Frozen):
+    """A number known to make spam or scam calls."""
 
-    slot_id: str
-    doctor_id: str
-    date: date
-    time: time
-    status: SlotStatus
+    phone: str
+    label: str
 
 
 class World(_Frozen):
     """The whole mock world, indexed by id."""
 
-    calendar: Calendar
-    clinics: dict[str, Clinic]
-    doctors: dict[str, Doctor]
-    slots: dict[str, Slot]
+    user: UserProfile
+    contacts: dict[str, Contact]
+    memory: tuple[MemoryItem, ...]
+    calendar: dict[str, CalendarEvent]
+    spam_numbers: tuple[SpamNumber, ...]
+
+    @property
+    def today(self) -> date:
+        """The fixed current date."""
+        return self.user.now.date()

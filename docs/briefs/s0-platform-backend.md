@@ -26,9 +26,9 @@ Never edit `backend/packages/fd-engine/`, `backend/packages/first-domino/`, `bac
 - `fd-shared`: every enum in the contract as a `StrEnum`; models for `TaskInput`, `ToolCall`, `Message`, `Explanation`, and the engine-facing `RunView`, `StepView`, `CheckView`, `DiagnosisResult`; the error hierarchy with stable codes; the settings base; `get_logger`.
 - `fd-api`: the app factory, the error handlers that produce `{code, title, detail}`, page request and response base models, and every route in `docs/CONTRACT.md` with its request and response models, operation id and declared errors.
 - Every handler returns fixed example data from `fd_api/examples.py` for now. Auth accepts any bearer token and uses one example project. Mark both clearly so they are easy to replace.
-- `fd_scripts.export_openapi` belongs to S4, so for now write `api/openapi.json` with a small entry point in `fd_api` (for example `python -m fd_api.export_openapi`), and point `make openapi` at it.
-- Run `make openapi` and `make sdk-models`. Commit `api/openapi.json` (at the repo root) and `backend/packages/first-domino/src/first_domino/_generated/` (you may write the generated folder; S2 owns the rest of the SDK).
-- A contract test in `backend/packages/fd-api/tests/` fails when the committed `api/openapi.json` differs from the live schema.
+- `fd_scripts.export_openapi` belongs to S4, so for now write `backend/api/openapi.json` with a small entry point in `fd_api` (for example `python -m fd_api.export_openapi`), and point `make openapi` at it.
+- Run `make openapi` and `make sdk-models`. Commit `backend/api/openapi.json` and `backend/packages/first-domino/src/first_domino/_generated/` (you may write the generated folder; S2 owns the rest of the SDK).
+- A contract test in `backend/packages/fd-api/tests/` fails when the committed `backend/api/openapi.json` differs from the live schema.
 - Tell the user C1 is ready so they can merge.
 
 ### 2. Real storage

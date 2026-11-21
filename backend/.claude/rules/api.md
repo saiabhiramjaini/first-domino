@@ -5,7 +5,7 @@ paths:
 
 # Working in `packages/fd-api/`
 
-The API is the control plane and owns the HTTP contract. `../api/openapi.json` is generated from it and checked in. The SDK models and, later, the web client are generated from that file, so the contract is the product: write it carefully.
+The API is the control plane and owns the HTTP contract. `api/openapi.json` is generated from it and checked in. The SDK models and, later, the web client are generated from that file, so the contract is the product: write it carefully.
 
 ## Routes
 
@@ -69,5 +69,5 @@ The API is the control plane and owns the HTTP contract. `../api/openapi.json` i
 
 ## After a contract change
 
-- Run `make openapi` and `make sdk-models`, and commit `../api/openapi.json` and the generated SDK models in the same change.
-- A contract test in `packages/fd-api/tests/` compares the committed `../api/openapi.json` with the app's live schema and fails until they match.
+- Run `make openapi` and `make sdk-models`, and commit `api/openapi.json` and the generated SDK models in the same change.
+- A contract test in `packages/fd-api/tests/` compares the committed `api/openapi.json` with the app's live schema and fails until they match.

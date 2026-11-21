@@ -228,6 +228,27 @@ export const zCreateDiagnosisRequest = z.object({
 });
 
 /**
+ * DiagnosisErrorCode
+ *
+ * Why a diagnosis ended `failed`.
+ *
+ * `replay_unavailable`: every replay of a check errored or timed out (is a worker running?).
+ * `check_budget_exceeded`: the search needed more checks than allowed.
+ * `llm_not_configured`: the engine has no model key or model id.
+ * `llm_call_failed`: a model call failed before returning anything.
+ * `interrupted`: the API restarted while the diagnosis ran.
+ * `internal_error`: anything else; see the API logs.
+ */
+export const zDiagnosisErrorCode = z.enum([
+    'replay_unavailable',
+    'check_budget_exceeded',
+    'llm_not_configured',
+    'llm_call_failed',
+    'interrupted',
+    'internal_error'
+]);
+
+/**
  * DiagnosisStatus
  *
  * The stage a diagnosis is in. `done` and `failed` are final.
@@ -579,6 +600,7 @@ export const zRun = z.object({
     replay_job_id: z.uuid().nullable(),
     replay_from_step: z.int().nullable(),
     task_input: zTaskInput,
+    tool_names: z.array(z.string()),
     status: zRunStatus,
     step_count: z.int().gte(0),
     final_output: z.string().nullable(),
@@ -624,6 +646,7 @@ export const zListRunsResponse = z.object({
 export const zStartRunRequest = z.object({
     agent_name: z.string().min(1).max(128),
     task_input: zTaskInput,
+    tool_names: z.array(z.string()).max(128).optional(),
     replay_job_id: z.uuid().nullish()
 });
 
@@ -819,7 +842,7 @@ export const zDiagnosis = z.object({
     check_count: z.int().gte(0),
     replay_count: z.int().gte(0),
     cost_usd: z.number().gte(0),
-    error_code: z.string().nullable(),
+    error_code: zDiagnosisErrorCode.nullable(),
     created_by_id: z.uuid().nullable(),
     created_at: z.iso.datetime(),
     finished_at: z.iso.datetime().nullable()

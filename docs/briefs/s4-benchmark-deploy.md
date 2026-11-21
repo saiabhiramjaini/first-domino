@@ -14,7 +14,7 @@ You join **First Domino** after the first end-to-end run works (milestone C3). F
 
 ## You own
 
-`backend/packages/fd-scripts/`, `deploy/`, `.github/workflows/` (except `frontend.yml`, which S3 owns) and `docs/status/s4.md`. Move `make openapi` to `fd_scripts.export_openapi` only after agreeing it with S0 in your status file.
+`backend/packages/fd-scripts/`, `.github/workflows/` (except `frontend.yml`, which S3 owns) and `docs/status/s4.md`. Move `make openapi` to `fd_scripts.export_openapi` only after agreeing it with S0 in your status file.
 
 ## Tasks, in order
 
@@ -32,7 +32,7 @@ You join **First Domino** after the first end-to-end run works (milestone C3). F
 
 ### 4. Deploy (milestone C5)
 
-- A Dockerfile for the API and the demo worker (S3 provides `frontend/Dockerfile`), a production compose file in `deploy/` with Postgres, API, web and Caddy for HTTPS on a sslip.io name.
+- A Dockerfile for the API and the demo worker (S3 provides `frontend/Dockerfile`), a production compose file with Postgres, API, web and Caddy for HTTPS on a sslip.io name (not needed for now: the user chose no deployment).
 - One EC2 instance. Secrets from an `.env` on the instance, never in the repo.
 - The demo worker runs as its own container next to the stack, as a customer's would.
 - Stop at 9:30 AM Sunday if it is not working; a recorded demo is an accepted submission.

@@ -26,6 +26,6 @@ class ApiSettings(SettingsBase):
         description="HS256 secret shared with the web app for its session tokens.",
     )
     openapi_path: Path = Field(
-        default=Path("../api/openapi.json"),
+        default=Path("api/openapi.json"),
         description="Where `make openapi` writes the schema, relative to `backend/`.",
     )

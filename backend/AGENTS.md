@@ -9,7 +9,7 @@ Run every command in this file from `backend/`.
 - One function, one job. Ruff caps complexity at 10 and length at 50 statements.
 - A new concern goes in a new module. Never grow a file into a second job.
 - Reuse the shared helper before writing a new one. Extract a shared helper on the third copy.
-- Never edit `../api/openapi.json` or `first_domino/_generated/` by hand. Change the API and regenerate.
+- Never edit `api/openapi.json` or `first_domino/_generated/` by hand. Change the API and regenerate.
 
 ## Package layers
 
@@ -27,7 +27,7 @@ The workspace is a `uv` monorepo under `packages/`. Imports flow one way only. "
 
 - The engine never touches the database or HTTP. It depends on the `Protocol` ports in `fd_engine.ports`. The API provides the adapters.
 - The SDK and the demo agent talk to the API only over HTTP. They are a real customer, so they get no shortcut into the backend.
-- The API owns the wire contract. `make openapi` writes `../api/openapi.json`, and `make sdk-models` generates `first_domino/_generated/` from it. Never hand-copy a contract type.
+- The API owns the wire contract. `make openapi` writes `api/openapi.json`, and `make sdk-models` generates `first_domino/_generated/` from it. Never hand-copy a contract type.
 
 ## Typed boundaries
 

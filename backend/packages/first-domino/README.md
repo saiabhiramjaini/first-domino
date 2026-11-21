@@ -107,4 +107,4 @@ assert await worker.run_once() == fd.ReplayOutcome.passed
 | `settings` | `SdkSettings`, read with the `FIRST_DOMINO_` prefix. |
 | `errors` | `ConfigurationError` and `ApiRequestError`. |
 | `testing` | An in-memory API for tests. |
-| `_generated/` | Wire models generated from `../api/openapi.json` by `make sdk-models`. Do not edit. |
+| `_generated/` | Wire models generated from `api/openapi.json` by `make sdk-models`. Do not edit. |

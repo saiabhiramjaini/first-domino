@@ -33,8 +33,8 @@ make install     # uv sync, all packages and dev tools
 make db-up       # start local Postgres
 make check       # ruff, pyright, pytest
 make fix         # ruff auto-fix and format
-make openapi     # write ../api/openapi.json
-make sdk-models  # generate the SDK models from ../api/openapi.json
+make openapi     # write api/openapi.json
+make sdk-models  # generate the SDK models from api/openapi.json
 ```
 
 The full list is `make help`.

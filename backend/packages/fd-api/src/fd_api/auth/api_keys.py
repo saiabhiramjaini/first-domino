@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import timedelta
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +41,30 @@ def mint_api_key() -> NewApiKey:
     return NewApiKey(
         secret=secret, prefix=secret[:API_KEY_PREFIX_LENGTH], key_hash=hash_api_key(secret)
     )
+
+
+class CreatedApiKey(BaseModel):
+    """A stored key and its secret, which leaves the API only once."""
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    api_key: ApiKey
+    secret: str
+
+
+async def create_api_key(
+    session: AsyncSession, *, project_id: UUID, name: str, created_by_id: UUID
+) -> CreatedApiKey:
+    """Mints a key and stores its hash."""
+    new_key = mint_api_key()
+    api_key = await ApiKeysRepository(session).create(
+        project_id=project_id,
+        name=name,
+        prefix=new_key.prefix,
+        key_hash=new_key.key_hash,
+        created_by_id=created_by_id,
+    )
+    return CreatedApiKey(api_key=api_key, secret=new_key.secret)
 
 
 async def verify_api_key(session: AsyncSession, secret: str) -> ApiKey:

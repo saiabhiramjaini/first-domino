@@ -28,7 +28,7 @@ Run from `frontend/`.
 ```bash
 bun install
 bun run dev            # http://localhost:3000
-bun run generate:api   # regenerate the client from ../api/openapi.json
+bun run generate:api   # regenerate the client from ../backend/api/openapi.json
 bun run check          # lint, format check, typecheck, tests
 bun run build
 ```

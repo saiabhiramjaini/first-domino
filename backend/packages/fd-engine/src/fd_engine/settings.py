@@ -18,6 +18,12 @@ class EngineSettings(SettingsBase):
         default=None, validation_alias=AliasChoices("OPENAI_API_KEY")
     )
 
+    bisect_with_strong_model: bool = False
+    """Bisect replays on `strong_model` instead of the agent's own model.
+
+    Off by default: a stronger model recovers from mistakes the agent itself never recovers
+    from, so bisect lands late. Measured on the call-assistant benchmark.
+    """
     samples_per_check: int = Field(default=3, ge=1)
     verify_samples: int = Field(default=5, ge=1)
     verify_pass_threshold: int = Field(default=3, ge=1)

@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 SDK_GENERATED := packages/first-domino/src/first_domino/_generated/models.py
 
-.PHONY: help install lint fix typecheck test check db-up db-down api dev-key worker openapi sdk-models
+.PHONY: help install lint fix typecheck test check db-up db-down api dev-key seed-demo worker openapi sdk-models
 
 help: ## List commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -37,14 +37,18 @@ api: ## Run the API with reload
 dev-key: ## Print a new API key for the local developer's project (needs db-up)
 	@uv run python -m fd_api.dev_api_key
 
+seed-demo: ## Give EMAIL the "Equal AI (demo)" project and print its worker API key
+	@test -n "$(EMAIL)" || (echo "usage: make seed-demo EMAIL=person@example.com" >&2; exit 2)
+	@uv run python -m fd_api.seed_demo --email "$(EMAIL)"
+
 worker: ## Run the demo customer's replay worker
 	uv run python -m fd_demo_agent.worker
 
-openapi: ## Write ../api/openapi.json from the API
+openapi: ## Write api/openapi.json from the API
 	uv run python -m fd_api.export_openapi
 
-sdk-models: ## Generate SDK wire models from ../api/openapi.json
-	uv run datamodel-codegen --input ../api/openapi.json --input-file-type openapi \
+sdk-models: ## Generate SDK wire models from api/openapi.json
+	uv run datamodel-codegen --input api/openapi.json --input-file-type openapi \
 		--output $(SDK_GENERATED) --output-model-type pydantic_v2.BaseModel \
 		--use-annotated --use-standard-collections --use-union-operator \
 		--target-python-version 3.12 --disable-timestamp --formatters builtin \

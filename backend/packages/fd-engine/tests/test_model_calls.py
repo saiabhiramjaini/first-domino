@@ -136,6 +136,20 @@ async def test_fixer_lists_the_tools_the_run_used() -> None:
     assert "Tools the run used: tool_1, tool_2, tool_3" in transport.prompts[0]
 
 
+async def test_fixer_lists_known_tools_and_rejects_others() -> None:
+    fix = {"content": None, "tool_calls": [{"name": "block_number", "arguments": "{}"}]}
+    model, transport = llm(json.dumps(fix))
+    reader = FakeReader(step_count=4)
+    run = (await reader.get_run(reader.run_id)).model_copy(
+        update={"tool_names": ["block_caller", "end_call"]}
+    )
+
+    fixed = await LlmStepFixer(model).fix(run, await reader.get_steps(reader.run_id), 3)
+
+    assert fixed.output is None
+    assert "Tools the agent has: block_caller, end_call" in transport.prompts[0]
+
+
 def candidates(count: int) -> list[CauseCandidate]:
     return [
         CauseCandidate(id=uuid4(), title=f"cause {n}", category=CauseCategory.OTHER, summary="s")

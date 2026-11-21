@@ -32,7 +32,7 @@ Done when `bun run check` passes and `/api/health` answers.
 
 ### 3. API layer (after contract v1)
 
-- Generate the typed client and Zod schemas from `../api/openapi.json` into `src/api/generated/`.
+- Generate the typed client and Zod schemas from `../backend/api/openapi.json` into `src/api/generated/`.
 - One React Query hook per operation in `src/hooks/api/` (`use-list-runs`, `use-get-diagnosis`, `use-create-diagnosis`, ...), sending the web session token.
 - Until real handlers land, the API answers with example data, so screens work from the start.
 

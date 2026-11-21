@@ -13,7 +13,7 @@ Run once, from the repo root. `frontend/` already holds the rule files, so scaff
 5. From the reference, every section it keeps (4, 6 to 9, 12, 13 to 17, 23 to 26): Prettier config, `src/lib/` files (`log.ts`, `app-environment.ts`, `get-ip.ts`, `process-handlers.ts`, `report-client-error.ts`, `utils.ts`), `/api/log/client-error`, `/api/health`, providers, Vitest, `.env.example`, `tsconfig` strict with `noUncheckedIndexedAccess`, `next.config.ts`, `instrumentation.ts`, and the error, not-found and loading pages. Replace `{{APP_NAME}}` with `first-domino-web`.
 6. `next.config.ts` also sets `reactCompiler: true`.
 7. `package.json` scripts: `dev`, `build`, `start`, `lint`, `format:check`, `typecheck` (`tsc --noEmit`), `test` (`vitest run`), `check` (lint, format check, typecheck, test in order), `generate:api`.
-8. API client: `openapi-ts.config.ts` reads `../api/openapi.json` and writes `src/api/generated/` with the fetch client and the Zod plugin. Commit the generated output.
+8. API client: `openapi-ts.config.ts` reads `../backend/api/openapi.json` and writes `src/api/generated/` with the fetch client and the Zod plugin. Commit the generated output.
 9. `Dockerfile` and `.dockerignore` from reference section 29. S4 deploys them.
 10. `.github/workflows/frontend.yml` at the repo root: install, `bun run check`, `bun run build`, with `working-directory: frontend`. The backend has its own `backend.yml`.
 

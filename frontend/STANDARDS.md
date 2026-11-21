@@ -17,7 +17,7 @@ Run once, from the repo root. `frontend/` already holds the rule files, so scaff
 9. `Dockerfile` and `.dockerignore` from reference section 29. S4 deploys them.
 10. `.github/workflows/frontend.yml` at the repo root: install, `bun run check`, `bun run build`, with `working-directory: frontend`. The backend has its own `backend.yml`.
 
-Not used from the reference: Husky (the repo-root pre-commit config runs Prettier and the commit message check for `frontend/`), Vercel files and workflows (we deploy with Docker on EC2), `apiFetch` (replaced by the generated client), and its governance documents (replaced by this file, `AGENTS.md` and `REVIEW.md`).
+Husky lives here, in `frontend/.husky/` (`prepare`: `cd .. && husky frontend/.husky`), and its hooks cover both halves: ruff for staged backend files, Prettier for staged frontend files, and the `type: subject` commit message check. Not used from the reference: Vercel files and workflows (we deploy with Docker on EC2), `apiFetch` (replaced by the generated client), and its governance documents (replaced by this file, `AGENTS.md` and `REVIEW.md`).
 
 ## Structure
 

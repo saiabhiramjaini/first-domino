@@ -30,7 +30,7 @@ The backend and the frontend are fully separate: each has its own tooling, depen
 - Backend: see [`backend/README.md`](./backend/README.md).
 - Frontend: see [`frontend/AGENTS.md`](./frontend/AGENTS.md).
 
-After `git init`, run `uv run --project backend pre-commit install` once, so the git hooks for both halves run.
+Git hooks are Husky scripts in `frontend/.husky/`. Running `bun install` in `frontend/` turns them on (its `prepare` script points git at them). The pre-commit hook runs ruff on staged backend files and Prettier on staged frontend files; the commit-msg hook checks `type: subject`.
 
 ## Working in parallel
 

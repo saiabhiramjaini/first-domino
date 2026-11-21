@@ -28,7 +28,7 @@ Each entry states what was decided and why. Change an entry when a decision chan
 | Parallel build | Five workstreams on their own branches and worktrees; contract first; API answers with example data until real handlers land | Agents can integrate from the first hour without waiting |
 | Web stack | Next.js 16, Bun, shadcn/ui, React Query, react-hook-form with Zod, Pino, NextAuth with Google, client generated with `@hey-api/openapi-ts` | Owner's frontend scaffold plus the generated-client pattern |
 | Repo layout | One repository with fully separate `backend/` (Python) and `frontend/` (Next.js); shared docs at the root; the generated contract lives in `backend/api/openapi.json` and is the only backend file the frontend reads | Each half has its own tooling, rules and CI; they meet only at the HTTP contract |
-| Hooks | One root `pre-commit` config runs ruff in `backend/`, Prettier in `frontend/`, and the commit message check | Git hooks must live at the repository root; no Husky |
+| Hooks | Husky, installed from `frontend/` (`prepare`: `cd .. && husky frontend/.husky`). `pre-commit` runs ruff on staged backend files and Prettier on staged frontend files, then re-stages them; `commit-msg` checks `type: subject` | Plain shell scripts the owner already uses; no Python `pre-commit` tool |
 | Hosted runners | Not built. "What's next" slide: customer pushes a container we run in a sandbox | Too large for the hackathon |
 
 ## Open

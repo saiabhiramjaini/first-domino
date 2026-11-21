@@ -92,6 +92,7 @@ class Check(IdMixin, TimestampMixin, Base):
 
     __tablename__ = "checks"
     __table_args__ = (
+        UniqueConstraint("project_id", "id"),
         UniqueConstraint("project_id", "diagnosis_id", "index"),
         project_foreign_key("diagnosis_id", "diagnoses"),
     )

@@ -59,6 +59,7 @@ async def _start_replay(
         parent_run_id=job.run_id,
         replay_job_id=job.id,
         replay_from_step=job.from_step,
+        check_id=job.check_id,
     )
 
 
@@ -170,14 +171,16 @@ async def get_run(
 async def list_runs(
     body: ListRunsRequest, caller: PersonCaller, session: DbSession
 ) -> ListRunsResponse:
-    """Lists runs, newest first. Recorded runs only unless `sources` says otherwise."""
+    """Lists runs, newest first, or a check's replay runs oldest first when `check_id` is set."""
     rows = await RunsRepository(session).list_filtered(
         project_id=caller.project_id,
         statuses=body.statuses,
         sources=body.sources,
         agent_name=body.agent_name,
+        check_id=body.check_id,
         limit=body.limit + 1,
         after=decode_cursor(body.cursor, TimeKey),
+        oldest_first=body.check_id is not None,
     )
     page, next_cursor = paginate(
         rows, body.limit, lambda row: TimeKey(at=row.started_at, id=row.id)
@@ -202,5 +205,6 @@ async def count_runs(
         statuses=body.statuses,
         sources=body.sources,
         agent_name=body.agent_name,
+        check_id=body.check_id,
     )
     return CountRunsResponse(count=count)

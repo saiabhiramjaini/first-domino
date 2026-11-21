@@ -30,7 +30,9 @@ class Run(IdMixin, TimestampMixin, Base):
         project_foreign_key("replay_job_id", "replay_jobs"),
         project_foreign_key("latest_diagnosis_id", "diagnoses"),
         project_foreign_key("created_by_id", "api_keys"),
+        project_foreign_key("check_id", "checks"),
         Index("ix_runs_project_source_started", "project_id", "source", "started_at", "id"),
+        Index("ix_runs_project_check", "project_id", "check_id"),
     )
 
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
@@ -39,6 +41,7 @@ class Run(IdMixin, TimestampMixin, Base):
     parent_run_id: Mapped[UUID | None]
     replay_job_id: Mapped[UUID | None]
     replay_from_step: Mapped[int | None]
+    check_id: Mapped[UUID | None]
     task_input: Mapped[TaskInput] = mapped_column(PydanticJson(TaskInput))
     tool_names: Mapped[list[str]] = mapped_column(ARRAY(String(128)))
     status: Mapped[RunStatus] = mapped_column(RUN_STATUS)

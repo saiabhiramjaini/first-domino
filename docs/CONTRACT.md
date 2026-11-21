@@ -1,6 +1,6 @@
 # Contract
 
-**Contract version: 3** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`)
+**Contract version: 4** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`; 4 added `check_id` to runs and the `check_id` run filter, and `exportCause`)
 
 This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `server/api/openapi.json` is generated from the API and must match this file.
 
@@ -94,14 +94,14 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 
 ### Run
 
-`id`, `agent_name`, `source` (`RunSource`), `parent_run_id` (or null; the run a replay came from), `replay_job_id` (or null), `replay_from_step` (or null), `task_input` (`TaskInput`), `tool_names` (list of string; the tools the agent was given), `status` (`RunStatus`), `step_count`, `final_output` (string or null), `latest_diagnosis_id` (or null), `created_by_id` (the API key), `started_at`, `finished_at` (or null).
+`id`, `agent_name`, `source` (`RunSource`), `parent_run_id` (or null; the run a replay came from), `replay_job_id` (or null), `replay_from_step` (or null), `check_id` (or null; for a replay run, the check it was replayed for), `task_input` (`TaskInput`), `tool_names` (list of string; the tools the agent was given), `status` (`RunStatus`), `step_count`, `final_output` (string or null), `latest_diagnosis_id` (or null), `created_by_id` (the API key), `started_at`, `finished_at` (or null).
 
 | Operation | Path | Caller | Request | Response |
 | --- | --- | --- | --- | --- |
 | `startRun` | `POST /v1/runs.start` | K | `agent_name`, `task_input`, `tool_names` (default empty), `replay_job_id` (or null) | `run` |
 | `finishRun` | `POST /v1/runs.finish` | K | `run_id`, `status` (`RunOutcome`), `final_output` (or null) | `run` |
 | `getRun` | `GET /v1/runs.get` | P/K | `run_id` | `run` |
-| `listRuns` | `POST /v1/runs.list` | P | page, `statuses` (list or null), `sources` (list, default `["recorded"]`; null means every source), `agent_name` (or null) | page of `Run` |
+| `listRuns` | `POST /v1/runs.list` | P | page, `statuses` (list or null), `sources` (list, default `["recorded"]`, or `["replay"]` when `check_id` is set; null means every source), `agent_name` (or null), `check_id` (or null; the replay runs of one check, oldest first) | page of `Run` |
 | `countRuns` | `POST /v1/runs.count` | P | same filters as `listRuns` | `count` |
 
 - `startRun` with a `replay_job_id` creates a `replay` run linked to the job's original run.
@@ -153,9 +153,14 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | --- | --- | --- | --- | --- |
 | `listCauses` | `POST /v1/causes.list` | P | page, `categories` (list or null) | page of `Cause`, most runs first |
 | `getCause` | `GET /v1/causes.get` | P | `cause_id` | `cause` |
+| `exportCause` | `POST /v1/causes.export` | P | `cause_id` | `export`: `{cause_id, exported_at, cases: [RegressionCase]}` |
 | `countCauses` | `POST /v1/causes.count` | P | same filters as `listCauses` | `count` |
 
 The runs of a cause come from `listDiagnoses` with `cause_ids`.
+
+**RegressionCase**: `run_id`, `diagnosis_id`, `agent_name`, `task_input`, `first_domino_step`, `messages` (the conversation just before that step), `original_output` (what the agent did there), `fixed_output` (or null; the step replays passed with), `verified`. Each case is a failed run that should pass once the agent is fixed. Newest first, one per diagnosed run, at most `FD_API_CAUSE_EXPORT_MAX_CASES` (default 100).
+
+- A run belongs to the cause of its latest diagnosis only.
 
 ### Benchmark
 

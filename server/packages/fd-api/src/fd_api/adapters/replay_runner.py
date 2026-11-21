@@ -4,19 +4,18 @@ import asyncio
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from fd_api.adapters.check_tracker import CheckTracker
+from fd_api.services.snapshots import messages_after
 from fd_api.settings import ApiSettings
 from fd_database import tables
 from fd_database.repositories import (
     DiagnosesRepository,
     ReplayJobsRepository,
     RunsRepository,
-    StepsRepository,
 )
 from fd_database.session import Database
 from fd_database.tables.base import utc_now
-from fd_shared.enums import MessageRole, ReplayJobStatus, ReplayOutcome
+from fd_shared.enums import ReplayJobStatus, ReplayOutcome
 from fd_shared.errors import NotFoundError
 from fd_shared.logging import get_logger
 from fd_shared.models import Message
@@ -35,12 +34,6 @@ def outcome_of(job: tables.ReplayJob) -> ReplayOutcome | None:
     return job.outcome or ReplayOutcome.ERRORED
 
 
-def opening_messages(step: tables.Step) -> list[Message]:
-    """The messages before step 1: its snapshot without its own output and tool results."""
-    added = 1 + len(step.tool_results)
-    return list(step.messages[:-added])
-
-
 class QueueReplayRunner:
     """Turns the engine's replay requests into jobs for one diagnosis and waits for them."""
 
@@ -50,9 +43,11 @@ class QueueReplayRunner:
         *,
         project_id: UUID,
         diagnosis_id: UUID,
+        tracker: CheckTracker,
         settings: ApiSettings,
     ) -> None:
         self._database = database
+        self._tracker = tracker
         self._project_id = project_id
         self._diagnosis_id = diagnosis_id
         self._settings = settings
@@ -97,10 +92,13 @@ class QueueReplayRunner:
                 project_id=self._project_id,
                 run_id=run.id,
                 diagnosis_id=self._diagnosis_id,
+                check_id=self._tracker.current_check_id,
                 agent_name=run.agent_name,
                 task_input=run.task_input,
                 from_step=from_step,
-                messages=await self._messages(session, run, from_step),
+                messages=await messages_after(
+                    session, project_id=self._project_id, run=run, save_point=from_step
+                ),
                 replacement_output=replacement_output,
                 model_override=model_override,
                 samples=samples,
@@ -112,16 +110,6 @@ class QueueReplayRunner:
                 replays_added=samples,
             )
         return [job.id for job in jobs]
-
-    async def _messages(
-        self, session: AsyncSession, run: tables.Run, from_step: int
-    ) -> list[Message]:
-        steps = StepsRepository(session)
-        index = max(from_step, 1)
-        step = await steps.get_by_index(project_id=self._project_id, run_id=run.id, index=index)
-        if step is None:
-            return [Message(role=MessageRole.USER, content=run.task_input.prompt)]
-        return list(step.messages) if from_step > 0 else opening_messages(step)
 
     async def _wait(self, job_ids: Sequence[UUID]) -> list[ReplayOutcome]:
         while True:

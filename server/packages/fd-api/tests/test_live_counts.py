@@ -1,6 +1,7 @@
 """A running diagnosis counts its checks and replays as they happen, not only at the end."""
 
 from fd_api.adapters.check_sink import DatabaseCheckSink
+from fd_api.adapters.check_tracker import CheckTracker
 from fd_database.repositories import DiagnosesRepository
 from fd_database.session import Database
 from fd_shared.enums import CheckPhase, CheckResult
@@ -16,7 +17,7 @@ async def test_checks_and_replays_count_up_while_running(database: Database) -> 
         diagnosis = await DiagnosesRepository(session).create(
             project_id=project_id, run_id=run_id, created_by_id=None
         )
-    sink = DatabaseCheckSink(database, project_id)
+    sink = DatabaseCheckSink(database, project_id, CheckTracker())
 
     for index, save_point in enumerate((0, 4)):
         check = CheckView(

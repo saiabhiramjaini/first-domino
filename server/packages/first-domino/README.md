@@ -10,7 +10,7 @@ First Domino records every step of your agent's runs. When a run fails, it repla
 pip install "first-domino[openai] @ git+<repo-url>#subdirectory=server/packages/first-domino"
 ```
 
-Python 3.12+. Depends on `httpx`, `pydantic` and `pydantic-settings`; the `openai` extra is only for `fd.wrap`.
+Python 3.12+. Depends on `httpx`, `pydantic` and `pydantic-settings`. The `openai` extra is for `fd.wrap`; the `agents` extra is for the OpenAI Agents SDK adapter.
 
 ```bash
 export FIRST_DOMINO_API_KEY=fd_live_...                # from Settings > API keys
@@ -55,6 +55,25 @@ async def answer_call(call_text: str, task_id: str) -> None:
 - Put what your success check needs (here `task_id`) in `TaskInput.metadata`. Replays get it back.
 - A run finished as `failed` is diagnosed automatically.
 - Not using OpenAI's client directly? Call `await run.step(model=..., output=..., tool_results=..., messages=...)` once per model turn. `fd.message_from_openai` converts OpenAI message dicts.
+
+### Agents built with the OpenAI Agents SDK
+
+Install `first-domino[agents]` and run the agent through the adapter. Every model turn is recorded as a step, and a replay resumes `Runner.run` from the save point:
+
+```python
+from first_domino import openai_agents as fd_agents
+
+async with fd.record("call-assistant", task) as run:
+    result = await fd_agents.run_recorded(agent, call_text, run)
+    await run.finish(fd.RunOutcome.passed if handled(result) else fd.RunOutcome.failed)
+
+
+@worker.agent("call-assistant")
+async def replay(ctx: fd.ReplayContext) -> RunResult:
+    return await fd_agents.replay(ctx, agent)  # replacement output and model override included
+```
+
+Replays resume from the recorded messages; your tools only see new calls, so restore any state they need for the save point first. Streamed turns (`Runner.run_streamed`) are not recorded.
 
 ## 3. Run the replay worker
 
@@ -131,6 +150,8 @@ Settings can also live in a `.env` file in the working directory.
 | `worker` | `Worker` and `ReplayContext`: lease, replay, check, submit. |
 | `diagnose` | `diagnose()` and `wait_for_diagnosis()`. |
 | `openai_format` | Convert between OpenAI message params and First Domino messages. |
+| `openai_agents` | Record and replay OpenAI Agents SDK agents (`first-domino[agents]`). |
+| `responses_format` | Convert between Responses input items and First Domino messages. |
 | `client` | `FirstDominoClient`, the typed async HTTP client. |
 | `settings` | `SdkSettings`, read with the `FIRST_DOMINO_` prefix. |
 | `errors` | `ConfigurationError` and `ApiRequestError` (with the API's stable `code`). |

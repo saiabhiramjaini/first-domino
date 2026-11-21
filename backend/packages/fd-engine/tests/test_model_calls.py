@@ -125,6 +125,20 @@ async def test_fixer_rejects_tool_arguments_that_are_not_a_json_object() -> None
     assert fixed.cost_usd > 0
 
 
+async def test_fixer_rejects_a_tool_the_agent_does_not_have() -> None:
+    fix = {"content": None, "tool_calls": [{"name": "block_number", "arguments": "{}"}]}
+    model, transport = llm(json.dumps(fix))
+    reader = FakeReader(step_count=4)
+    run = (await reader.get_run(reader.run_id)).model_copy(
+        update={"tool_names": ["block_caller", "end_call"]}
+    )
+
+    fixed = await LlmStepFixer(model).fix(run, await reader.get_steps(reader.run_id), 3)
+
+    assert fixed.output is None
+    assert "Tools the agent can call: block_caller, end_call" in transport.prompts[0]
+
+
 def candidates(count: int) -> list[CauseCandidate]:
     return [
         CauseCandidate(id=uuid4(), title=f"cause {n}", category=CauseCategory.OTHER, summary="s")

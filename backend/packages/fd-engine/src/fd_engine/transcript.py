@@ -22,6 +22,8 @@ def render_task(run: RunView) -> str:
     """The task the agent was given, with its metadata."""
     lines = [f"# Task for agent {run.agent_name}", run.task_input.prompt]
     lines.extend(f"{key}: {value}" for key, value in sorted(run.task_input.metadata.items()))
+    if run.tool_names:
+        lines.append(f"Tools the agent can call: {', '.join(run.tool_names)}")
     return "\n".join(lines)
 
 

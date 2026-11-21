@@ -111,6 +111,8 @@ class RunView(_Frozen):
     agent_name: str
     task_input: TaskInput
     step_count: int = Field(ge=0)
+    tool_names: list[str] = Field(default_factory=list)
+    """Tools the agent can call. Empty when the recorder did not send them."""
 
 
 class StepView(_Frozen):

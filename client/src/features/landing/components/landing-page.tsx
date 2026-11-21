@@ -42,13 +42,12 @@ const PRINCIPLES = [
 
 const SDK_SNIPPET = `import first_domino as fd
 
-async with fd.record("call-assistant", task) as run:
-    client = fd.wrap(openai, run)      # every model turn is a save point
-    result = await run_agent(client, task)
-    await run.finish(fd.RunOutcome.passed if check(result) else fd.RunOutcome.failed)
+@fd.entrypoint("support-bot", check=is_good_answer)
+def answer(question: str) -> str:
+    ...  # your agent, unchanged
 
-worker = fd.Worker(agent_names=["call-assistant"])
-await worker.run()                     # replays on your side, on request`;
+# worker.py, next to your agent
+fd.serve()  # replays on your side, on request`;
 
 type LandingPageProps = { isSignedIn: boolean };
 
@@ -103,7 +102,7 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row">
             <Link href={appHref} className={buttonVariants({ variant: "brand", size: "lg" })}>
-              {isSignedIn ? "Open your failures" : "Get started free"}
+              {isSignedIn ? "Open the app" : "Get started free"}
               <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
             </Link>
             <a href="#how" className={buttonVariants({ variant: "outline", size: "lg" })}>
@@ -118,13 +117,13 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
         <section id="how" aria-labelledby="how-title" className="scroll-mt-20 border-t">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-20 sm:px-6">
             <div className="flex max-w-2xl flex-col gap-3">
-              <span className="font-mono text-xs text-domino">How it works</span>
+              <span className="font-mono text-xs text-muted-foreground">How it works</span>
               <h2 id="how-title" className="text-3xl font-semibold tracking-tight text-balance">
                 A 12-step call, narrowed to one step in four checks.
               </h2>
               <p className="text-pretty text-muted-foreground">
-                Step through a real search. Blue is still in range, grey is ruled out, violet is the
-                first domino.
+                Step through a real search. Outlined steps are still in range, filled grey ones are
+                ruled out, and violet is the first domino.
               </p>
             </div>
             <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
@@ -132,7 +131,7 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
               <ol className="flex flex-col gap-6">
                 {STEPS.map((step, position) => (
                   <li key={step.title} className="flex gap-4">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-xs text-domino">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-xs text-muted-foreground">
                       {position + 1}
                     </span>
                     <div className="flex flex-col gap-1">
@@ -149,7 +148,7 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
         <section id="why" aria-labelledby="why-title" className="scroll-mt-20 border-t">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-20 sm:px-6">
             <div className="flex max-w-2xl flex-col gap-3">
-              <span className="font-mono text-xs text-domino">Why First Domino</span>
+              <span className="font-mono text-xs text-muted-foreground">Why First Domino</span>
               <h2 id="why-title" className="text-3xl font-semibold tracking-tight text-balance">
                 Other tools tell you a run failed. This one tells you why, with proof.
               </h2>
@@ -157,7 +156,7 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
             <div className="grid gap-px overflow-hidden rounded-lg border bg-border md:grid-cols-3">
               {PRINCIPLES.map((item) => (
                 <article key={item.title} className="flex flex-col gap-3 bg-card p-6">
-                  <item.icon className="size-5 text-domino" aria-hidden="true" />
+                  <item.icon className="size-5 text-muted-foreground" aria-hidden="true" />
                   <h3 className="font-medium">{item.title}</h3>
                   <p className="text-sm text-pretty text-muted-foreground">{item.body}</p>
                 </article>
@@ -169,27 +168,27 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
         <section id="sdk" aria-labelledby="sdk-title" className="scroll-mt-20 border-t">
           <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-20 sm:px-6 lg:grid-cols-2">
             <div className="flex flex-col gap-4">
-              <span className="font-mono text-xs text-domino">Python SDK</span>
+              <span className="font-mono text-xs text-muted-foreground">Python SDK</span>
               <h2 id="sdk-title" className="text-3xl font-semibold tracking-tight text-balance">
-                Wrap your agent. Run one worker. Done.
+                Add two lines. Run one worker. Done.
               </h2>
               <p className="text-pretty text-muted-foreground">
-                Record each run with a few lines around the agent you already have. A failed run is
-                diagnosed automatically, and the worker replays it next to your agent when First
-                Domino asks.
+                Mark the function that runs your agent, and every model call inside it is recorded
+                live. A failed run is diagnosed on its own, and the worker replays it next to your
+                agent when First Domino asks.
               </p>
               <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
-                <li>Works with the OpenAI client and the OpenAI Agents SDK</li>
+                <li>Works with OpenAI, Anthropic, LangChain and the OpenAI Agents SDK</li>
                 <li>Recording never raises into your agent</li>
-                <li>Your success check decides what passing means</li>
+                <li>Your own check decides what passing means</li>
               </ul>
             </div>
             <div className="min-w-0 overflow-hidden rounded-lg border bg-card">
               <div className="flex items-center justify-between border-b px-4 py-2.5">
                 <span className="font-mono text-xs text-muted-foreground">agent.py</span>
-                <span className="font-mono text-[11px] text-muted-foreground">python</span>
+                <span className="font-mono text-xs text-muted-foreground">python</span>
               </div>
-              <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed">
+              <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed sm:text-sm">
                 <code>{SDK_SNIPPET}</code>
               </pre>
             </div>
@@ -202,7 +201,7 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
               Stop guessing which step broke your agent.
             </h2>
             <Link href={appHref} className={buttonVariants({ variant: "brand", size: "lg" })}>
-              {isSignedIn ? "Open your failures" : "Get started free"}
+              {isSignedIn ? "Open the app" : "Get started free"}
               <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
             </Link>
           </div>

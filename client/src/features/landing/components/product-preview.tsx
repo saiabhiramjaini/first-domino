@@ -15,15 +15,13 @@ export function ProductPreview() {
           <span className="size-2.5 rounded-full bg-muted-foreground/30" />
           <span className="size-2.5 rounded-full bg-muted-foreground/30" />
           <span className="size-2.5 rounded-full bg-muted-foreground/30" />
-          <span className="ml-3 font-mono text-xs text-muted-foreground">
-            failures / run 7f3a91c2
-          </span>
+          <span className="ml-3 font-mono text-xs text-muted-foreground">runs / 7f3a91c2</span>
         </div>
         <div className="flex flex-col gap-6 p-5 sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-2 text-left">
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-md border border-verified/25 bg-verified/10 px-1.5 py-0.5 text-xs font-medium text-verified">
-                <span className="size-1.5 rounded-full bg-current" />
+              <span className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-domino">
+                <span className="size-1.5 rounded-full bg-domino" />
                 Verified
               </span>
               <p className="text-lg font-semibold tracking-tight sm:text-xl">
@@ -34,16 +32,16 @@ export function ProductPreview() {
                 step 6 made the call pass.
               </p>
             </div>
-            <dl className="grid grid-cols-4 gap-5 rounded-lg border bg-background/50 px-4 py-3 text-left">
+            <dl className="grid grid-cols-4 gap-5 text-left">
               {[
                 ["First domino", "#6", "text-domino"],
-                ["Proof", "5/5", "text-verified"],
+                ["Proof", "5/5", ""],
                 ["Replays", "17", ""],
                 ["Cost", "$0.014", ""],
               ].map(([label, value, tone]) => (
                 <div key={label} className="flex flex-col gap-1">
-                  <dt className="text-[11px] text-muted-foreground">{label}</dt>
-                  <dd className={cn("font-mono text-base font-medium", tone)}>{value}</dd>
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className={cn("text-base font-medium tabular-nums", tone)}>{value}</dd>
                 </div>
               ))}
             </dl>
@@ -53,11 +51,10 @@ export function ProductPreview() {
               <li
                 key={step}
                 className={cn(
-                  "flex h-12 w-9 items-center justify-center rounded-md border font-mono text-xs",
-                  step < DOMINO && "border-transparent bg-ruled-out/60 text-muted-foreground/70",
-                  step === DOMINO &&
-                    "-rotate-6 border-domino bg-domino text-domino-foreground ring-2 ring-verified ring-offset-2 ring-offset-card",
-                  step > DOMINO && "border-border bg-muted/40 text-muted-foreground"
+                  "flex h-10 w-8 items-center justify-center rounded-md border font-mono text-xs",
+                  step < DOMINO && "border-transparent bg-muted text-muted-foreground/60",
+                  step === DOMINO && "-rotate-6 border-domino bg-domino text-domino-foreground",
+                  step > DOMINO && "border-border text-muted-foreground"
                 )}
               >
                 {step}

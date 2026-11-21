@@ -23,24 +23,32 @@ function ApiKeyList() {
 
   if (apiKeys.isError) {
     return (
-      <QueryError
-        error={apiKeys.error}
-        what="API keys"
-        source="settings.load_api_keys"
-        onRetry={() => void apiKeys.refetch()}
-      />
+      <div className="border-t p-4">
+        <QueryError
+          error={apiKeys.error}
+          what="API keys"
+          source="settings.load_api_keys"
+          onRetry={() => void apiKeys.refetch()}
+        />
+      </div>
     );
   }
-  if (apiKeys.isPending) return <Skeleton className="h-12 w-full" />;
+  if (apiKeys.isPending) {
+    return (
+      <div className="border-t p-4">
+        <Skeleton className="h-8 w-full" />
+      </div>
+    );
+  }
   if (items.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <ul className="flex flex-col divide-y rounded-md border" aria-label="Your API keys">
+    <div className="flex flex-col border-t">
+      <ul className="flex flex-col divide-y" aria-label="Your API keys">
         {items.map((apiKey) => {
           const state = apiKeyState(apiKey);
           return (
-            <li key={apiKey.id} className="flex items-center gap-3 px-3 py-2.5">
+            <li key={apiKey.id} className="flex min-h-14 items-center gap-3 px-4 py-2.5">
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate text-sm font-medium">{apiKey.name}</span>
                 <span className="font-mono text-xs text-muted-foreground">
@@ -56,11 +64,15 @@ function ApiKeyList() {
           );
         })}
       </ul>
-      <LoadMoreButton
-        hasNextPage={apiKeys.hasNextPage}
-        isFetchingNextPage={apiKeys.isFetchingNextPage}
-        onLoadMore={() => void apiKeys.fetchNextPage()}
-      />
+      {apiKeys.hasNextPage && (
+        <div className="border-t p-2">
+          <LoadMoreButton
+            hasNextPage={apiKeys.hasNextPage}
+            isFetchingNextPage={apiKeys.isFetchingNextPage}
+            onLoadMore={() => void apiKeys.fetchNextPage()}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -69,8 +81,10 @@ function ApiKeyList() {
 export function ApiKeys() {
   const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null);
   return (
-    <div className="flex flex-col gap-4">
-      <CreateApiKeyForm onCreated={setCreatedKey} />
+    <div className="overflow-hidden rounded-lg border">
+      <div className="p-4">
+        <CreateApiKeyForm onCreated={setCreatedKey} />
+      </div>
       <ApiKeyList />
       <ApiKeySecretDialog createdKey={createdKey} onClose={() => setCreatedKey(null)} />
     </div>

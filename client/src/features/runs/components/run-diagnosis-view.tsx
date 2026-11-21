@@ -138,7 +138,6 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
       {diagnosisId === null && run.data.status !== "failed" ? (
         <Panel>
           <RunStatusNote status={run.data.status} stepCount={stepCount} />
-          <div className="border-t px-5 py-5">{stepStrip}</div>
         </Panel>
       ) : diagnosisId === null ? (
         <Panel>
@@ -156,7 +155,6 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
               )
             }
           />
-          <div className="border-t px-5 py-5">{stepStrip}</div>
         </Panel>
       ) : diagnosisQuery.isError ? (
         <QueryError

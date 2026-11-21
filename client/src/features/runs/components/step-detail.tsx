@@ -9,6 +9,14 @@ export function isModelCall(step: Pick<Step, "tokens_in" | "tokens_out">): boole
   return step.tokens_in + step.tokens_out > 0;
 }
 
+function readable(content: string): string {
+  try {
+    return JSON.stringify(JSON.parse(content), null, 2);
+  } catch {
+    return content;
+  }
+}
+
 export function StepDetail({ step, isDomino = false }: StepDetailProps) {
   return (
     <div className="flex flex-col">
@@ -36,7 +44,9 @@ export function StepDetail({ step, isDomino = false }: StepDetailProps) {
                 key={result.tool_call_id ?? `result-${position}`}
                 className="overflow-x-auto rounded-md border bg-card p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap"
               >
-                {result.content ?? "No content"}
+                {result.content === null || result.content === undefined
+                  ? "No content"
+                  : readable(result.content)}
               </pre>
             ))}
           </section>

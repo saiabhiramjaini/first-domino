@@ -67,7 +67,11 @@ export function RunsList({ initialFilter }: RunsListProps) {
   return (
     <section aria-label="Runs" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 border-b">
-        <Tabs value={filter} onValueChange={(value) => selectFilter(value as RunFilter)}>
+        <Tabs
+          value={filter}
+          onValueChange={(value) => selectFilter(value as RunFilter)}
+          className="min-w-0 overflow-x-auto"
+        >
           <TabsList variant="line" className="h-9 gap-3 p-0">
             {RUN_FILTERS.map((item) => (
               <TabsTrigger key={item.value} value={item.value} className="flex-none px-0.5">
@@ -126,8 +130,8 @@ export function RunsList({ initialFilter }: RunsListProps) {
                 <TableHead className="w-28">Status</TableHead>
                 <TableHead>Run</TableHead>
                 <TableHead>First domino</TableHead>
-                <TableHead className="text-right">Steps</TableHead>
-                <TableHead className="text-right">Duration</TableHead>
+                <TableHead className="hidden text-right md:table-cell">Steps</TableHead>
+                <TableHead className="hidden text-right md:table-cell">Duration</TableHead>
                 <TableHead className="text-right">Started</TableHead>
               </TableRow>
             </TableHeader>
@@ -166,10 +170,10 @@ export function RunsList({ initialFilter }: RunsListProps) {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="hidden text-right tabular-nums md:table-cell">
                     {formatInteger(run.step_count)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground tabular-nums">
+                  <TableCell className="hidden text-right text-muted-foreground tabular-nums md:table-cell">
                     {runDuration(run.started_at, run.finished_at, now)}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap text-muted-foreground">

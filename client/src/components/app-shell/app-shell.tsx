@@ -5,7 +5,6 @@ import { BrandName } from "@/components/brand/brand-name";
 import { AppNav } from "./app-nav";
 import { Breadcrumbs } from "./breadcrumbs";
 import { MobileNav } from "./mobile-nav";
-import { ProjectName } from "./project-name";
 import type { ShellUser } from "./shell-user";
 import { UserMenu } from "./user-menu";
 
@@ -24,8 +23,7 @@ export function AppShell({ user, children }: AppShellProps) {
             <BrandName />
           </Link>
         </div>
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3">
-          <ProjectName />
+        <div className="flex flex-1 flex-col overflow-y-auto px-2 py-3">
           <AppNav />
         </div>
         <div className="border-t border-sidebar-border p-2">

@@ -12,7 +12,7 @@ const usd = new Intl.NumberFormat(LOCALE, {
 const seconds = new Intl.NumberFormat(LOCALE, {
   style: "unit",
   unit: "second",
-  unitDisplay: "short",
+  unitDisplay: "narrow",
   maximumFractionDigits: 1,
 });
 const relative = new Intl.RelativeTimeFormat(LOCALE, { numeric: "auto" });

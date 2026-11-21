@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 import { LoadMoreButton } from "@/components/feedback/load-more-button";
 import { QueryError } from "@/components/feedback/query-error";
 import { StatusBadge } from "@/components/status/status-badge";
@@ -10,12 +8,11 @@ import { useListApiKeys } from "@/hooks/api/use-list-api-keys";
 import { formatRelative } from "@/lib/format";
 import { pageItems } from "@/lib/paging";
 
-import { ApiKeySecretDialog } from "./api-key-secret-dialog";
 import { API_KEY_STATE, apiKeyState } from "./api-key-state";
 import { CreateApiKeyForm } from "./create-api-key-form";
 import { RevokeApiKeyButton } from "./revoke-api-key-button";
 
-type CreatedApiKey = { name: string; secret: string };
+export type CreatedApiKey = { name: string; secret: string };
 
 function ApiKeyList() {
   const apiKeys = useListApiKeys();
@@ -77,16 +74,17 @@ function ApiKeyList() {
   );
 }
 
-// Create a project key and see the existing ones. The new key's secret is shown once.
-export function ApiKeys() {
-  const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null);
+type ApiKeysProps = { onCreated: (createdKey: CreatedApiKey) => void };
+
+// Create a project key and see the existing ones. The caller shows the new key's secret,
+// once, in a dialog that must outlive this list (see SetupSteps).
+export function ApiKeys({ onCreated }: ApiKeysProps) {
   return (
     <div className="overflow-hidden rounded-lg border">
       <div className="p-4">
-        <CreateApiKeyForm onCreated={setCreatedKey} />
+        <CreateApiKeyForm onCreated={onCreated} />
       </div>
       <ApiKeyList />
-      <ApiKeySecretDialog createdKey={createdKey} onClose={() => setCreatedKey(null)} />
     </div>
   );
 }

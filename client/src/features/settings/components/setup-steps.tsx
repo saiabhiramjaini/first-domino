@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowRightIcon, CheckIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  KeyRoundIcon,
+  PlugIcon,
+  RotateCcwIcon,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
@@ -13,7 +20,8 @@ import { cn } from "@/lib/utils";
 
 import { doneCount, onboardingItems, type OnboardingItem } from "../onboarding";
 import { apiKeyState } from "./api-key-state";
-import { ApiKeys } from "./api-keys-card";
+import { ApiKeySecretDialog } from "./api-key-secret-dialog";
+import { ApiKeys, type CreatedApiKey } from "./api-keys-card";
 import { CodeBlock } from "./code-block";
 
 const RECORDED_RUNS: CountRunsRequest = { sources: ["recorded"] };
@@ -76,25 +84,33 @@ function stepStates(items: OnboardingItem[]): StepState[] {
   );
 }
 
+const STEP_ICON = {
+  create_key: KeyRoundIcon,
+  connect_agent: PlugIcon,
+  start_worker: RotateCcwIcon,
+} as const satisfies Record<OnboardingItem["id"], LucideIcon>;
+
+// Each step has its own icon. A finished step is filled in; the others are outlined.
 function Marker({
+  id,
   state,
-  number,
   isPicked,
 }: {
+  id: OnboardingItem["id"];
   state: StepState;
-  number: number;
   isPicked: boolean;
 }) {
+  const Icon = STEP_ICON[id];
   return (
     <span
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium tabular-nums transition-colors",
+        "flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
         state === "done" && "border-transparent bg-foreground text-background",
         state !== "done" && isPicked && "border-foreground bg-background text-foreground",
         state !== "done" && !isPicked && "border-border bg-background text-muted-foreground"
       )}
     >
-      {state === "done" ? <CheckIcon className="size-4" aria-hidden="true" /> : number}
+      <Icon className="size-4" aria-hidden="true" />
     </span>
   );
 }
@@ -111,10 +127,13 @@ function Waiting({ text }: { text: string }) {
   );
 }
 
-function stepContent(id: OnboardingItem["id"]): React.ReactNode {
+function stepContent(
+  id: OnboardingItem["id"],
+  onKeyCreated: (createdKey: CreatedApiKey) => void
+): React.ReactNode {
   switch (id) {
     case "create_key":
-      return <ApiKeys />;
+      return <ApiKeys onCreated={onKeyCreated} />;
     case "connect_agent":
       return (
         <>
@@ -157,6 +176,14 @@ export function SetupSteps() {
   const isLoading = items.some((item) => item.status === "loading");
   const isComplete = doneCount(items) === items.length;
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
+  // Lives here, not inside step 1: creating a key ticks step 1, and the panel below may then
+  // change. The one-time secret must survive that.
+  const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null);
+
+  function handleKeyCreated(key: CreatedApiKey) {
+    setCreatedKey(key);
+    setPickedIndex(0); // stay on step 1 until the person moves on
+  }
 
   // A link such as /settings#start_worker opens that step, until another step is clicked.
   const hash = useSyncExternalStore(subscribeToHash, readHash, () => "");
@@ -196,7 +223,7 @@ export function SetupSteps() {
                   isPicked && "bg-muted/40"
                 )}
               >
-                <Marker state={stepState} number={index + 1} isPicked={isPicked} />
+                <Marker id={step.id} state={stepState} isPicked={isPicked} />
                 <span
                   className={cn(
                     "text-center text-xs text-wrap sm:text-sm",
@@ -233,7 +260,7 @@ export function SetupSteps() {
           </div>
           <p className="max-w-2xl text-sm text-pretty text-muted-foreground">{copy.body}</p>
         </div>
-        <div className="flex flex-col gap-3">{stepContent(item.id)}</div>
+        <div className="flex flex-col gap-3">{stepContent(item.id, handleKeyCreated)}</div>
         {next && (
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => setPickedIndex(picked + 1)}>
@@ -243,6 +270,8 @@ export function SetupSteps() {
           </div>
         )}
       </section>
+
+      <ApiKeySecretDialog createdKey={createdKey} onClose={() => setCreatedKey(null)} />
 
       {isComplete && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-card px-4 py-3 sm:px-5">

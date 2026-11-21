@@ -60,7 +60,11 @@ class Bench:
         agent = CallAgent(OpenAIChatModel(openai_client(agent_settings)), agent_settings)
         self._llm = Llm(self._engine_settings)
         self._runner = DemoReplayRunner(
-            agent, cases, asyncio.Semaphore(scripts.replay_concurrency), self._engine_settings
+            agent,
+            cases,
+            asyncio.Semaphore(scripts.replay_concurrency),
+            self._engine_settings,
+            scripts,
         )
         self._diagnoser = Diagnoser.with_llm(
             self._llm,

@@ -19,6 +19,7 @@ from fd_engine.llm import LlmUsage
 from fd_engine.settings import EngineSettings
 from fd_scripts.convert import assistant_param, conversation
 from fd_scripts.dataset import LabelledRun
+from fd_scripts.settings import ScriptsSettings
 from fd_shared.enums import DiagnosisStatus, ReplayOutcome
 from fd_shared.logging import get_logger
 from fd_shared.models import CheckView, Message, RunView, StepView
@@ -75,12 +76,14 @@ class DemoReplayRunner:
         agent: CallAgent,
         cases: dict[UUID, LabelledRun],
         limit: asyncio.Semaphore,
-        settings: EngineSettings,
+        engine_settings: EngineSettings,
+        scripts_settings: ScriptsSettings,
     ) -> None:
         self._agent = agent
         self._cases = cases
         self._limit = limit
-        self._settings = settings
+        self._engine_settings = engine_settings
+        self._scripts_settings = scripts_settings
         self._usage: defaultdict[UUID, LlmUsage] = defaultdict(LlmUsage)
 
     def usage(self, run_id: UUID) -> LlmUsage:
@@ -124,13 +127,20 @@ class DemoReplayRunner:
                 return ReplayOutcome.ERRORED
         tokens_in = sum(step.tokens_in for step in result.steps)
         tokens_out = sum(step.tokens_out for step in result.steps)
-        self._usage[run_id] = self._usage[run_id].plus(self._price(tokens_in, tokens_out))
+        usage = self._price(tokens_in, tokens_out, on_strong_model=model_override is not None)
+        self._usage[run_id] = self._usage[run_id].plus(usage)
         passed = check_call(task, result.outcome).passed
         return ReplayOutcome.PASSED if passed else ReplayOutcome.FAILED
 
-    def _price(self, tokens_in: int, tokens_out: int) -> LlmUsage:
-        cost = (
-            tokens_in * self._settings.llm_input_usd_per_million_tokens
-            + tokens_out * self._settings.llm_output_usd_per_million_tokens
-        ) / _MILLION
+    def _price(self, tokens_in: int, tokens_out: int, *, on_strong_model: bool) -> LlmUsage:
+        engine, scripts = self._engine_settings, self._scripts_settings
+        price_in, price_out = (
+            (engine.llm_input_usd_per_million_tokens, engine.llm_output_usd_per_million_tokens)
+            if on_strong_model
+            else (
+                scripts.agent_input_usd_per_million_tokens,
+                scripts.agent_output_usd_per_million_tokens,
+            )
+        )
+        cost = (tokens_in * price_in + tokens_out * price_out) / _MILLION
         return LlmUsage(tokens_in=tokens_in, tokens_out=tokens_out, cost_usd=cost)

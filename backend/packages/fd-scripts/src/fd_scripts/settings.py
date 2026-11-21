@@ -20,5 +20,9 @@ class ScriptsSettings(SettingsBase):
     doom_samples: int = Field(default=3, ge=1)
     dataset_concurrency: int = Field(default=6, ge=1)
 
+    agent_input_usd_per_million_tokens: float = Field(default=0.4, ge=0)
+    """Price of the demo agent's own model, charged for replays that run on it."""
+    agent_output_usd_per_million_tokens: float = Field(default=1.6, ge=0)
+
     benchmark_concurrency: int = Field(default=3, ge=1)
     replay_concurrency: int = Field(default=12, ge=1)

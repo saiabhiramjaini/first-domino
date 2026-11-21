@@ -2899,7 +2899,7 @@
           "internal_error"
         ],
         "title": "DiagnosisErrorCode",
-        "description": "Why a diagnosis ended `failed`.\n\n`replay_unavailable`: every replay of a check errored or timed out (is a worker running?).\n`check_budget_exceeded`: the search needed more checks than allowed.\n`llm_not_configured`: the engine has no model key or model id.\n`llm_call_failed`: a model call failed before returning anything.\n`interrupted`: the API restarted while the diagnosis ran.\n`internal_error`: anything else; see the API logs."
+        "description": "Why a diagnosis ended `failed`.\n\n`replay_unavailable`: every replay of a check errored or timed out (is a worker running?).\n`check_budget_exceeded`: the search needed more checks than allowed.\n`llm_not_configured`: the engine has no model key or model id.\n`llm_call_failed`: a model call failed before returning anything.\n`interrupted`: the API process running it stopped heartbeating (for example, it restarted).\n`internal_error`: anything else; see the API logs."
       },
       "DiagnosisStatus": {
         "type": "string",

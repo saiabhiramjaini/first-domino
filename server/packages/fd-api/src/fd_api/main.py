@@ -27,7 +27,7 @@ def _lifespan(settings: ApiSettings, database: Database | None, engine: EngineFa
         await db.create_tables()
         async with httpx.AsyncClient() as http:
             runner = DiagnosisRunner(db, engine or LlmEngineFactory(), http, settings)
-            await runner.fail_interrupted()
+            await runner.open()
             app.state.database = db
             app.state.diagnosis_runner = runner
             log.info("api.started")

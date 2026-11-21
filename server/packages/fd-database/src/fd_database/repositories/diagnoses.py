@@ -109,6 +109,7 @@ class DiagnosesRepository:
         diagnosis.check_count = check_count
         diagnosis.replay_count = replay_count
         diagnosis.cost_usd = cost_usd
+        diagnosis.error_code = None
         diagnosis.finished_at = finished_at
         await self._session.flush()
         return diagnosis
@@ -123,17 +124,51 @@ class DiagnosesRepository:
         await self._session.flush()
         return diagnosis
 
-    async def fail_all_active(
-        self, *, error_code: DiagnosisErrorCode, finished_at: datetime
-    ) -> int:
-        """Fails every unfinished diagnosis in every project. Returns how many.
+    async def claim(
+        self, *, project_id: UUID, diagnosis_id: UUID, runner_id: UUID, now: datetime
+    ) -> bool:
+        """Marks an unfinished diagnosis as run by `runner_id`. False when it already ended."""
+        claimed = await self._session.scalars(
+            update(Diagnosis)
+            .where(
+                Diagnosis.project_id == project_id,
+                Diagnosis.id == diagnosis_id,
+                Diagnosis.status.in_(ACTIVE_DIAGNOSIS_STATUSES),
+            )
+            .values(runner_id=runner_id, heartbeat_at=now, updated_at=now)
+            .returning(Diagnosis.id)
+        )
+        return claimed.one_or_none() is not None
 
-        The one cross-project write: it runs at startup, when no diagnosis task can be alive,
-        so a diagnosis cut off by a restart never blocks a new one for its run.
+    # The two writes below span projects on purpose: they belong to one API process (its
+    # `runner_id`), or to no live process at all, never to a caller.
+
+    async def heartbeat(self, *, runner_id: UUID, now: datetime) -> None:
+        """Records that the process `runner_id` is still running its diagnoses."""
+        await self._session.execute(
+            update(Diagnosis)
+            .where(
+                Diagnosis.runner_id == runner_id,
+                Diagnosis.status.in_(ACTIVE_DIAGNOSIS_STATUSES),
+            )
+            .values(heartbeat_at=now)
+        )
+
+    async def fail_abandoned(
+        self, *, stale_before: datetime, error_code: DiagnosisErrorCode, finished_at: datetime
+    ) -> int:
+        """Fails unfinished diagnoses nobody is running. Returns how many.
+
+        Abandoned means the owner's last heartbeat, or the creation time of a diagnosis no
+        process claimed, is older than `stale_before`.
         """
+        last_sign_of_life = func.coalesce(Diagnosis.heartbeat_at, Diagnosis.created_at)
         failed = await self._session.scalars(
             update(Diagnosis)
-            .where(Diagnosis.status.in_(ACTIVE_DIAGNOSIS_STATUSES))
+            .where(
+                Diagnosis.status.in_(ACTIVE_DIAGNOSIS_STATUSES),
+                last_sign_of_life < stale_before,
+            )
             .values(
                 status=DiagnosisStatus.FAILED,
                 error_code=error_code,

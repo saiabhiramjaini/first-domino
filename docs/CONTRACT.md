@@ -133,7 +133,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `countDiagnoses` | `POST /v1/diagnoses.count` | P | same filters as `listDiagnoses` | `count` |
 
 - Only failed recorded runs can be diagnosed. One diagnosis may run per run at a time (`409` otherwise).
-- `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API restarted mid-diagnosis), `internal_error` (see the API logs).
+- `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API process running it stopped heartbeating, for example it restarted), `internal_error` (see the API logs).
 - A new cause posts one message to the project's Slack webhook, when one is set.
 - The web app polls `getDiagnosis` and `listChecks` every second while `status` is not `done` or `failed`.
 

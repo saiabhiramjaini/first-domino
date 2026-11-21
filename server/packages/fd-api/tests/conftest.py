@@ -1,11 +1,13 @@
 """Shared fixtures for the API tests.
 
-`client` runs the real app against `FD_DATABASE_URL` (start one with `make db-up`) and skips
-when it is unreachable. `bare_client` needs no database and serves only what runs before auth.
+`client` runs the real app against a throwaway `<database>_test_<random>` on the
+`FD_DATABASE_URL` server (start one with `make db-up`), never the database itself, and skips
+when the server is unreachable.
+`bare_client` needs no database and serves only what runs before auth.
 """
 
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from uuid import uuid4
 
 import jwt
@@ -18,6 +20,8 @@ from fd_api.auth.users import WEB_TOKEN_ALGORITHM, WEB_TOKEN_AUDIENCE, WEB_TOKEN
 from fd_api.main import create_app
 from fd_api.settings import ApiSettings
 from fd_database.session import Database
+from fd_database.settings import DatabaseSettings
+from fd_database.testing import temporary_test_database
 
 from .fake_engine import FakeEngine
 
@@ -42,9 +46,17 @@ async def bare_client(settings: ApiSettings) -> AsyncIterator[AsyncClient]:
         yield client
 
 
+@pytest.fixture(scope="session")
+def database_settings() -> Iterator[DatabaseSettings]:
+    with temporary_test_database(DatabaseSettings()) as settings:
+        if settings is None:
+            pytest.skip("Postgres is not reachable at FD_DATABASE_URL")
+        yield settings
+
+
 @pytest.fixture
-def database() -> Database:
-    return Database()
+def database(database_settings: DatabaseSettings) -> Database:
+    return Database(database_settings)
 
 
 @pytest.fixture

@@ -5,8 +5,9 @@ from typing import Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from fd_engine.llm import Llm
-from fd_engine.models import CauseCategory, Explanation, Message, RunView, StepView
 from fd_engine.transcript import render_message, render_steps, render_task
+from fd_shared.enums import CauseCategory
+from fd_shared.models import Explanation, Message, RunView, StepView
 
 _SYSTEM = """\
 You explain why an AI agent run failed, for the engineer who owns the agent.

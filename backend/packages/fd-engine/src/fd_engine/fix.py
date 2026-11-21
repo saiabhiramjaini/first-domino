@@ -6,9 +6,10 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator
 
 from fd_engine.llm import Llm, ReplyQuality
-from fd_engine.models import Message, MessageRole, RunView, StepView, ToolCall
-from fd_engine.transcript import render_steps, render_task
+from fd_engine.transcript import render_steps, render_task, tools_seen
 from fd_engine.verify import FixedStep
+from fd_shared.enums import MessageRole
+from fd_shared.models import Message, RunView, StepView, ToolCall
 
 _SYSTEM = """\
 You repair one turn of a failed AI agent run.
@@ -18,8 +19,8 @@ can still complete the task.
 - Change only what is wrong. Keep the same tool and every correct argument unless the wrong tool
   was the mistake. Copy the exact argument names and value formats (dates, times, ids) the run
   already uses.
-- Call only the tools the agent can call, listed with the task. When no list is given, use tool
-  names that appear in the run.
+- Prefer the tools the run already used, listed with the task. Call another tool only when the
+  right action needs it, named in the same style as the others.
 - Do not finish the task in this one turn unless the original turn was the last one.
 - Check the facts the turn depends on against the task and the tool results before it:
   - Relative dates and times ("tomorrow", "this Friday", "day after tomorrow, evening", "after
@@ -79,17 +80,14 @@ class LlmStepFixer:
             fallback=FixReply(),
         )
         cost = reply.usage.cost_usd
-        if reply.quality is not ReplyQuality.PARSED or not _usable(reply.value, run):
+        if reply.quality is not ReplyQuality.PARSED or not _usable(reply.value):
             return FixedStep(output=None, cost_usd=cost)
         return FixedStep(output=_to_message(reply.value), cost_usd=cost)
 
 
-def _usable(fix: FixReply, run: RunView) -> bool:
-    """A fix says or calls something, and calls only tools the agent has when they are known."""
-    if not (fix.content or fix.tool_calls):
-        return False
-    known = set(run.tool_names)
-    return not known or all(call.name in known for call in fix.tool_calls)
+def _usable(fix: FixReply) -> bool:
+    """A fix says or calls something."""
+    return bool(fix.content or fix.tool_calls)
 
 
 def _prompt(run: RunView, steps: list[StepView], step_index: int) -> str:
@@ -99,6 +97,7 @@ def _prompt(run: RunView, steps: list[StepView], step_index: int) -> str:
     return "\n\n".join(
         [
             render_task(run),
+            f"Tools the run used: {', '.join(tools_seen(steps)) or '(none)'}",
             "# Steps before the mistake",
             render_steps(before) or "(none)",
             "# The turn to rewrite",

@@ -7,7 +7,8 @@ other way.
 from typing import Protocol
 from uuid import UUID
 
-from fd_engine.models import Check, DiagnosisStatus, Message, ReplayOutcome, RunView, StepView
+from fd_shared.enums import DiagnosisStatus, ReplayOutcome
+from fd_shared.models import CheckView, Message, RunView, StepView
 
 
 class RunReader(Protocol):
@@ -53,11 +54,11 @@ class ReplayRunner(Protocol):
 class CheckSink(Protocol):
     """Stores each check and the live search range so the web app can show them."""
 
-    async def check_started(self, check: Check) -> None:
+    async def check_started(self, check: CheckView) -> None:
         """Store a new check whose result is `pending`."""
         ...
 
-    async def check_finished(self, check: Check) -> None:
+    async def check_finished(self, check: CheckView) -> None:
         """Store the passes and result of a check stored earlier with the same index."""
         ...
 

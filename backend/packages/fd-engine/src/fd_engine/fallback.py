@@ -3,9 +3,10 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from fd_engine.checks import CheckRunner
-from fd_engine.models import CheckPhase, RunView, StepView
 from fd_engine.settings import EngineSettings
 from fd_engine.verify import FixAttempt, Verifier
+from fd_shared.enums import CheckPhase
+from fd_shared.models import RunView, StepView
 
 
 def rank_candidates(found: int, step_count: int, window: int) -> list[int]:

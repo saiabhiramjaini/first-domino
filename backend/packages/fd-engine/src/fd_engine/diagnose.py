@@ -11,17 +11,15 @@ from fd_engine.explain import LlmExplainer, StepExplainer
 from fd_engine.fallback import Fallback, FallbackOutcome
 from fd_engine.fix import LlmStepFixer
 from fd_engine.llm import Llm
-from fd_engine.models import (
-    CheckPhase,
-    DiagnosisResult,
-    DiagnosisStatus,
-    RunView,
-    StepView,
-    VerdictKind,
-)
 from fd_engine.ports import CheckSink, ReplayRunner, RunReader
 from fd_engine.settings import EngineSettings
 from fd_engine.verify import FixAttempt, StepFixer, Verifier
+from fd_shared.enums import CheckPhase, DiagnosisStatus, VerdictKind
+from fd_shared.errors import FirstDominoError
+from fd_shared.logging import get_logger
+from fd_shared.models import DiagnosisResult, RunView, StepView
+
+log = get_logger(__name__)
 
 
 class Diagnoser:
@@ -71,6 +69,25 @@ class Diagnoser:
             ReplayUnavailableError: A check got no completed replay.
             CheckBudgetError: Bisect needed more than `max_checks` checks.
         """
+        log.info("diagnosis.started", run_id=str(run_id), diagnosis_id=str(diagnosis_id))
+        try:
+            result = await self._diagnose(run_id, diagnosis_id)
+        except FirstDominoError as error:
+            log.warning("diagnosis.stopped", diagnosis_id=str(diagnosis_id), error_code=error.code)
+            raise
+        log.info(
+            "diagnosis.finished",
+            diagnosis_id=str(diagnosis_id),
+            verdict_kind=result.verdict_kind,
+            first_domino_step=result.first_domino_step,
+            verify_passes=result.verify_passes,
+            check_count=result.check_count,
+            replay_count=result.replay_count,
+            cost_usd=result.cost_usd,
+        )
+        return result
+
+    async def _diagnose(self, run_id: UUID, diagnosis_id: UUID) -> DiagnosisResult:
         run = await self._reader.get_run(run_id)
         steps = await self._reader.get_steps(run_id)
         checks = CheckRunner(

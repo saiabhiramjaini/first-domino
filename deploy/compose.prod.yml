@@ -67,7 +67,8 @@ services:
       LOG_LEVEL: info
 
   # The demo customer's replay worker. It reaches the API through the public URL, exactly as
-  # a customer's worker would, and runs only after `make seed-demo` gave it an API key.
+  # a customer's worker would. Compose checks variables even for services that are off, so its
+  # key is optional here; start it with `--profile worker` once `seed_demo` printed the key.
   worker:
     <<: *backend
     command: ["python", "-m", "fd_demo_agent.worker"]
@@ -77,8 +78,8 @@ services:
         condition: service_started
     environment:
       FIRST_DOMINO_BASE_URL: https://${FD_DOMAIN}
-      FIRST_DOMINO_API_KEY: ${FIRST_DOMINO_API_KEY:?set FIRST_DOMINO_API_KEY in deploy/.env (from make seed-demo)}
-      FD_DEMO_AGENT_MODEL: ${FD_DEMO_AGENT_MODEL:?set FD_DEMO_AGENT_MODEL in deploy/.env}
+      FIRST_DOMINO_API_KEY: ${FIRST_DOMINO_API_KEY:-}
+      FD_DEMO_AGENT_MODEL: ${FD_DEMO_AGENT_MODEL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
 
   caddy:

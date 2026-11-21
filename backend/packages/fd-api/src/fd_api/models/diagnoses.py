@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from fd_api.pagination import CountResponse, PageRequest, PageResponse
 from fd_database import tables
-from fd_shared.enums import DiagnosisStatus, VerdictKind
+from fd_shared.enums import DiagnosisErrorCode, DiagnosisStatus, VerdictKind
 from fd_shared.models import Explanation, Message
 
 
@@ -41,8 +41,8 @@ class Diagnosis(BaseModel):
     check_count: int = Field(ge=0, description="Number of checks run so far.")
     replay_count: int = Field(ge=0, description="Number of replays run so far.")
     cost_usd: float = Field(ge=0, description="Model cost of the diagnosis so far, in US dollars.")
-    error_code: str | None = Field(
-        description="Stable code of the error that stopped the diagnosis, when `failed`."
+    error_code: DiagnosisErrorCode | None = Field(
+        description="Why the diagnosis failed. Null unless `failed`."
     )
     created_by_id: UUID | None = Field(
         description="Id of the person or API key that asked for it. Null for auto-diagnosis."

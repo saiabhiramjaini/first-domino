@@ -19,11 +19,19 @@ from fd_database.tables.types import (
     CAUSE_CATEGORY,
     CHECK_PHASE,
     CHECK_RESULT,
+    DIAGNOSIS_ERROR_CODE,
     DIAGNOSIS_STATUS,
     VERDICT_KIND,
     PydanticJson,
 )
-from fd_shared.enums import CauseCategory, CheckPhase, CheckResult, DiagnosisStatus, VerdictKind
+from fd_shared.enums import (
+    CauseCategory,
+    CheckPhase,
+    CheckResult,
+    DiagnosisErrorCode,
+    DiagnosisStatus,
+    VerdictKind,
+)
 from fd_shared.models import Explanation, Message
 
 COST_PRECISION = 12
@@ -72,7 +80,7 @@ class Diagnosis(IdMixin, TimestampMixin, Base):
     check_count: Mapped[int]
     replay_count: Mapped[int]
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(COST_PRECISION, COST_SCALE))
-    error_code: Mapped[str | None] = mapped_column(String(128))
+    error_code: Mapped[DiagnosisErrorCode | None] = mapped_column(DIAGNOSIS_ERROR_CODE)
     created_by_id: Mapped[UUID | None]
     finished_at: Mapped[datetime | None] = optional_timestamp()
 

@@ -1,6 +1,6 @@
 # Contract
 
-**Contract version: 2** (2 added `tool_names` to runs)
+**Contract version: 3** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`)
 
 This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `api/openapi.json` is generated from the API and must match this file.
 
@@ -53,6 +53,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `RunSource` | `recorded`, `replay` |
 | `MessageRole` | `system`, `user`, `assistant`, `tool` |
 | `DiagnosisStatus` | `queued`, `bisecting`, `verifying`, `explaining`, `done`, `failed` |
+| `DiagnosisErrorCode` | `replay_unavailable`, `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted`, `internal_error` (why a diagnosis `failed`) |
 | `VerdictKind` | `step_verified`, `step_unverified`, `multiple_causes`, `task_or_tool_issue` |
 | `CheckPhase` | `precheck`, `bisect`, `verify`, `fallback` |
 | `CheckResult` | `pending`, `can_succeed`, `doomed` |
@@ -120,7 +121,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 
 ### Diagnosis
 
-`id`, `run_id`, `status` (`DiagnosisStatus`), `verdict_kind` (or null until done), `first_domino_step` (int or null), `search_low` and `search_high` (current bisect range, for the live view; null before the search starts), `verify_passes` and `verify_samples` (or null), `fixed_output` (`Message` or null; the rewritten step), `explanation` (`Explanation` or null), `cause_id` (or null), `check_count`, `replay_count`, `cost_usd`, `error_code` (or null), `created_by_id` (the person or API key; null for auto-diagnosis), `created_at`, `finished_at` (or null).
+`id`, `run_id`, `status` (`DiagnosisStatus`), `verdict_kind` (or null until done), `first_domino_step` (int or null), `search_low` and `search_high` (current bisect range, for the live view; null before the search starts), `verify_passes` and `verify_samples` (or null), `fixed_output` (`Message` or null; the rewritten step), `explanation` (`Explanation` or null), `cause_id` (or null), `check_count`, `replay_count`, `cost_usd`, `error_code` (`DiagnosisErrorCode` or null), `created_by_id` (the person or API key; null for auto-diagnosis), `created_at`, `finished_at` (or null).
 
 **Explanation**: `title`, `summary`, `suggested_fix`, `category` (`CauseCategory`).
 
@@ -132,7 +133,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `countDiagnoses` | `POST /v1/diagnoses.count` | P | same filters as `listDiagnoses` | `count` |
 
 - Only failed recorded runs can be diagnosed. One diagnosis may run per run at a time (`409` otherwise).
-- `error_code` on a `failed` diagnosis is one of: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API restarted mid-diagnosis), `internal_error`.
+- `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API restarted mid-diagnosis), `internal_error` (see the API logs).
 - A new cause posts one message to the project's Slack webhook, when one is set.
 - The web app polls `getDiagnosis` and `listChecks` every second while `status` is not `done` or `failed`.
 

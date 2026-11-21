@@ -16,6 +16,7 @@ from first_domino._generated.models import (
     TaskInput,
     ToolCall,
 )
+from first_domino.client import FirstDominoClient
 from first_domino.diagnose import diagnose, wait_for_diagnosis
 from first_domino.errors import ApiRequestError, ConfigurationError, FirstDominoError
 from first_domino.openai_format import message_from_openai, message_to_openai, messages_to_openai
@@ -28,6 +29,7 @@ __all__ = [
     "ApiRequestError",
     "ConfigurationError",
     "Diagnosis",
+    "FirstDominoClient",
     "FirstDominoError",
     "Message",
     "MessageRole",

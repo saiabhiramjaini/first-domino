@@ -17,6 +17,7 @@ import { formatCount, formatDateTime, formatInteger, formatRelative } from "@/li
 import { RUN_NOUN } from "@/lib/nouns";
 
 import { CauseRunsTable } from "./cause-runs-table";
+import { ExportTestsButton } from "./export-tests-button";
 
 type CauseDetailProps = { causeId: string };
 
@@ -66,7 +67,11 @@ export function CauseDetail({ causeId }: CauseDetailProps) {
         <div>
           <BackToCauses />
         </div>
-        <PageHeader title={data.title} description={`Step: ${data.step_name}`} />
+        <PageHeader
+          title={data.title}
+          description={`Step: ${data.step_name}`}
+          actions={<ExportTestsButton causeId={data.id} />}
+        />
         <div>
           <StatusBadge status={CAUSE_CATEGORY[data.category]} />
         </div>

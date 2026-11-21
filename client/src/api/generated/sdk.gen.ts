@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, FinishRunData, FinishRunErrors, FinishRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetLatestBenchmarkData, GetLatestBenchmarkErrors, GetLatestBenchmarkResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
+import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, ExportCauseData, ExportCauseErrors, ExportCauseResponses, FinishRunData, FinishRunErrors, FinishRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetLatestBenchmarkData, GetLatestBenchmarkErrors, GetLatestBenchmarkResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -145,7 +145,7 @@ export const getRun = <ThrowOnError extends boolean = false>(options: Options<Ge
 /**
  * List runs
  *
- * Lists runs, newest first. Recorded runs only unless `sources` says otherwise.
+ * Lists runs, newest first, or a check's replay runs oldest first when `check_id` is set.
  */
 export const listRuns = <ThrowOnError extends boolean = false>(options: Options<ListRunsData, ThrowOnError>): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> => (options.client ?? client).post<ListRunsResponses, ListRunsErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -323,6 +323,24 @@ export const getCause = <ThrowOnError extends boolean = false>(options: Options<
 export const countCauses = <ThrowOnError extends boolean = false>(options: Options<CountCausesData, ThrowOnError>): RequestResult<CountCausesResponses, CountCausesErrors, ThrowOnError> => (options.client ?? client).post<CountCausesResponses, CountCausesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/causes.count',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Export a cause as regression tests
+ *
+ * Returns the cause's diagnosed runs, newest first, as regression test cases.
+ *
+ * Each case is a run that failed and should pass once the agent is fixed: feed `messages` to
+ * the agent and check it no longer repeats `original_output`, then run the success check.
+ */
+export const exportCause = <ThrowOnError extends boolean = false>(options: Options<ExportCauseData, ThrowOnError>): RequestResult<ExportCauseResponses, ExportCauseErrors, ThrowOnError> => (options.client ?? client).post<ExportCauseResponses, ExportCauseErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/causes.export',
     ...options,
     headers: {
         'Content-Type': 'application/json',

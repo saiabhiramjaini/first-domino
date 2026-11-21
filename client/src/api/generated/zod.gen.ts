@@ -275,6 +275,15 @@ export const zExplanation = z.object({
 });
 
 /**
+ * ExportCauseRequest
+ *
+ * Exports a cause's diagnosed runs as regression test cases.
+ */
+export const zExportCauseRequest = z.object({
+    cause_id: z.uuid()
+});
+
+/**
  * FieldError
  *
  * One invalid field in a request.
@@ -531,7 +540,8 @@ export const zRunStatus = z.enum([
 export const zCountRunsRequest = z.object({
     statuses: z.array(zRunStatus).nullish(),
     sources: z.array(zRunSource).nullish(),
-    agent_name: z.string().max(128).nullish()
+    agent_name: z.string().max(128).nullish(),
+    check_id: z.uuid().nullish()
 });
 
 /**
@@ -543,6 +553,7 @@ export const zListRunsRequest = z.object({
     statuses: z.array(zRunStatus).nullish(),
     sources: z.array(zRunSource).nullish(),
     agent_name: z.string().max(128).nullish(),
+    check_id: z.uuid().nullish(),
     limit: z.int().gte(1).lte(100).optional().default(50),
     cursor: z.string().nullish()
 });
@@ -599,6 +610,7 @@ export const zRun = z.object({
     parent_run_id: z.uuid().nullable(),
     replay_job_id: z.uuid().nullable(),
     replay_from_step: z.int().nullable(),
+    check_id: z.uuid().nullish(),
     task_input: zTaskInput,
     tool_names: z.array(z.string()),
     status: zRunStatus,
@@ -697,6 +709,46 @@ export const zRecordStepRequest = z.object({
     tokens_in: z.int().gte(0),
     tokens_out: z.int().gte(0),
     latency_ms: z.int().gte(0)
+});
+
+/**
+ * RegressionCase
+ *
+ * One failed run of a cause, as a test the fixed agent must pass.
+ *
+ * Replay the agent from `messages`: the original run failed after `original_output`, and
+ * passed in replays that used `fixed_output` instead.
+ */
+export const zRegressionCase = z.object({
+    run_id: z.uuid(),
+    diagnosis_id: z.uuid(),
+    agent_name: z.string(),
+    task_input: zTaskInput,
+    first_domino_step: z.int().gte(1),
+    messages: z.array(zMessage),
+    original_output: zMessage,
+    fixed_output: zMessage.nullable(),
+    verified: z.boolean()
+});
+
+/**
+ * CauseExport
+ *
+ * A cause's failed runs as regression tests for the customer's eval suite.
+ */
+export const zCauseExport = z.object({
+    cause_id: z.uuid(),
+    exported_at: z.iso.datetime(),
+    cases: z.array(zRegressionCase)
+});
+
+/**
+ * ExportCauseResponse
+ *
+ * The export.
+ */
+export const zExportCauseResponse = z.object({
+    export: zCauseExport
 });
 
 /**
@@ -1047,6 +1099,13 @@ export const zCountCausesBody = zCountCausesRequest;
  * Successful Response
  */
 export const zCountCausesResponse2 = zCountCausesResponse;
+
+export const zExportCauseBody = zExportCauseRequest;
+
+/**
+ * Successful Response
+ */
+export const zExportCauseResponse2 = zExportCauseResponse;
 
 /**
  * Successful Response

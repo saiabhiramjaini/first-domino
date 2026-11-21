@@ -152,7 +152,13 @@ async def test_fixer_lists_known_tools_and_rejects_others() -> None:
 
 def candidates(count: int) -> list[CauseCandidate]:
     return [
-        CauseCandidate(id=uuid4(), title=f"cause {n}", category=CauseCategory.OTHER, summary="s")
+        CauseCandidate(
+            id=uuid4(),
+            title=f"cause {n}",
+            category=CauseCategory.WRONG_DATE,
+            step_name="add_calendar_event",
+            summary="s",
+        )
         for n in range(count)
     ]
 
@@ -160,7 +166,32 @@ def candidates(count: int) -> list[CauseCandidate]:
 async def test_group_without_candidates_makes_no_call() -> None:
     model, transport = llm()
 
-    match = await CauseGrouper(model).match(Explanation.model_validate(EXPLANATION), [])
+    match = await CauseGrouper(model).match(
+        Explanation.model_validate(EXPLANATION), [], step_name="add_calendar_event"
+    )
+
+    assert match.cause_id is None
+    assert transport.prompts == []
+
+
+@pytest.mark.parametrize(
+    ("category", "step_name"),
+    [
+        (CauseCategory.BAD_TOOL_ARGS, "add_calendar_event"),
+        (CauseCategory.WRONG_DATE, "set_reminder"),
+    ],
+)
+async def test_group_offers_only_causes_with_the_same_category_and_tool(
+    category: CauseCategory, step_name: str
+) -> None:
+    model, transport = llm()
+    existing = [
+        c.model_copy(update={"category": category, "step_name": step_name}) for c in candidates(2)
+    ]
+
+    match = await CauseGrouper(model).match(
+        Explanation.model_validate(EXPLANATION), existing, step_name="add_calendar_event"
+    )
 
     assert match.cause_id is None
     assert transport.prompts == []
@@ -173,10 +204,28 @@ async def test_group_maps_the_number_to_a_candidate(
     model, _ = llm(json.dumps({"match": number}))
     existing = candidates(3)
 
-    match = await CauseGrouper(model).match(Explanation.model_validate(EXPLANATION), existing)
+    match = await CauseGrouper(model).match(
+        Explanation.model_validate(EXPLANATION), existing, step_name="add_calendar_event"
+    )
 
     expected = existing[expected_index].id if expected_index is not None else None
     assert match.cause_id == expected
+
+
+async def test_group_numbers_only_the_keyed_candidates() -> None:
+    model, transport = llm(json.dumps({"match": 1}))
+    other_tool = candidates(1)[0].model_copy(
+        update={"title": "reminder cause", "step_name": "set_reminder"}
+    )
+    keyed = candidates(1)[0]
+
+    match = await CauseGrouper(model).match(
+        Explanation.model_validate(EXPLANATION), [other_tool, keyed], step_name="add_calendar_event"
+    )
+
+    assert match.cause_id == keyed.id
+    assert f"1. {keyed.title}" in transport.prompts[0]
+    assert other_tool.title not in transport.prompts[0]
 
 
 @pytest.mark.parametrize(("step", "expected"), [(3, 3), (9, None), (0, None)])

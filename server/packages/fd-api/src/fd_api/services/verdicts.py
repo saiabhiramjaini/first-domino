@@ -49,8 +49,11 @@ async def store_verdict(
     match = CauseMatch(cause_id=None, cost_usd=0.0)
     explanation = result.explanation
     grouped = explanation is not None and result.verdict_kind in _GROUPED_VERDICTS
+    step_name = step_label(None)
     if explanation is not None and grouped:
-        match = await matcher.match(explanation, await _candidates(database, project_id))
+        step_name = await _failing_step_name(database, project_id, diagnosis_id, result)
+        candidates = await _candidates(database, project_id)
+        match = await matcher.match(explanation, candidates, step_name=step_name)
     async with database.transaction() as session:
         diagnoses = DiagnosesRepository(session)
         diagnosis = await diagnoses.get(project_id=project_id, diagnosis_id=diagnosis_id)
@@ -59,7 +62,7 @@ async def store_verdict(
         await _detach_earlier(session, diagnosis)
         stored = StoredVerdict(cause=None, cause_is_new=False)
         if explanation is not None and grouped:
-            stored = await _file_cause(session, diagnosis, result, explanation, match)
+            stored = await _file_cause(session, diagnosis, result, explanation, match, step_name)
         await diagnoses.finish(
             diagnosis=diagnosis,
             verdict_kind=result.verdict_kind,
@@ -95,10 +98,31 @@ async def _candidates(database: Database, project_id: UUID) -> list[CauseCandida
         causes = await CausesRepository(session).list_all(project_id=project_id)
     return [
         CauseCandidate(
-            id=cause.id, title=cause.title, category=cause.category, summary=cause.summary
+            id=cause.id,
+            title=cause.title,
+            category=cause.category,
+            step_name=cause.step_name,
+            summary=cause.summary,
         )
         for cause in causes
     ]
+
+
+async def _failing_step_name(
+    database: Database, project_id: UUID, diagnosis_id: UUID, result: DiagnosisResult
+) -> str:
+    if result.first_domino_step is None:
+        return step_label(None)
+    async with database.transaction() as session:
+        diagnosis = await DiagnosesRepository(session).get(
+            project_id=project_id, diagnosis_id=diagnosis_id
+        )
+        if diagnosis is None:
+            return step_label(None)
+        step = await StepsRepository(session).get_by_index(
+            project_id=project_id, run_id=diagnosis.run_id, index=result.first_domino_step
+        )
+    return step_label(step)
 
 
 async def _file_cause(
@@ -107,6 +131,7 @@ async def _file_cause(
     result: DiagnosisResult,
     explanation: Explanation,
     match: CauseMatch,
+    step_name: str,
 ) -> StoredVerdict:
     causes = CausesRepository(session)
     verified = result.verdict_kind is VerdictKind.STEP_VERIFIED
@@ -118,16 +143,11 @@ async def _file_cause(
         if cause is not None:
             cause = await causes.add_run(cause=cause, verified=verified, seen_at=now)
             return StoredVerdict(cause=cause, cause_is_new=False)
-    step = None
-    if result.first_domino_step is not None:
-        step = await StepsRepository(session).get_by_index(
-            project_id=diagnosis.project_id, run_id=diagnosis.run_id, index=result.first_domino_step
-        )
     cause = await causes.create(
         project_id=diagnosis.project_id,
         title=explanation.title,
         category=explanation.category,
-        step_name=step_label(step),
+        step_name=step_name,
         summary=explanation.summary,
         suggested_fix=explanation.suggested_fix,
         verified=verified,

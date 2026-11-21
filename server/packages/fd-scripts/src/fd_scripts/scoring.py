@@ -23,6 +23,8 @@ class CaseResult(BaseModel):
     error_code: str | None
     cost_usd: float
     seconds: float
+    replays: int | None = None
+    """Replays started, including ones stopped early; None for a method that does not replay."""
 
 
 class MethodScore(BaseModel):
@@ -37,6 +39,7 @@ class MethodScore(BaseModel):
     verified_rate: float | None
     mean_cost_usd: float
     mean_seconds: float
+    mean_replays: float | None = None
 
 
 def _within_one(result: CaseResult) -> bool:
@@ -54,6 +57,7 @@ def score(method: BenchmarkMethod, results: list[CaseResult]) -> MethodScore:
         msg = f"no results for {method}"
         raise ValueError(msg)
     proofs = [result.verified for result in mine if result.verified is not None]
+    replays = [result.replays for result in mine if result.replays is not None]
     return MethodScore(
         method=method,
         runs_scored=len(mine),
@@ -62,4 +66,5 @@ def score(method: BenchmarkMethod, results: list[CaseResult]) -> MethodScore:
         verified_rate=fmean(proofs) if proofs else None,
         mean_cost_usd=fmean(result.cost_usd for result in mine),
         mean_seconds=fmean(result.seconds for result in mine),
+        mean_replays=fmean(replays) if replays else None,
     )

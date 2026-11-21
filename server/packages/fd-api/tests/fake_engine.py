@@ -33,7 +33,9 @@ class CannedExplainer:
 class FirstCauseMatch:
     """Files every cause under the first existing group."""
 
-    async def match(self, explanation: Explanation, candidates: list[CauseCandidate]) -> CauseMatch:
+    async def match(
+        self, explanation: Explanation, candidates: list[CauseCandidate], *, step_name: str
+    ) -> CauseMatch:
         return CauseMatch(cause_id=candidates[0].id if candidates else None, cost_usd=0.0)
 
 

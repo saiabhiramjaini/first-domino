@@ -135,6 +135,7 @@ class Bench:
             error_code=error_code,
             cost_usd=cost_usd + (replays if is_engine else 0.0),
             seconds=perf_counter() - started,
+            replays=self._runner.replays_run(case.run.id) if is_engine else None,
         )
 
 
@@ -180,13 +181,14 @@ async def _store(results: list[CaseResult]) -> None:
 
 
 def _print_scores(scores: list[MethodScore]) -> None:
-    header = ("method", "runs", "exact", "±1", "verified", "cost $", "secs")
+    header = ("method", "runs", "exact", "±1", "verified", "replays", "cost $", "secs")
     print(f"{header[0]:<18} " + " ".join(f"{name:>8}" for name in header[1:]))
     for s in scores:
         verified = "-" if s.verified_rate is None else f"{s.verified_rate:.0%}"
+        replays = "-" if s.mean_replays is None else f"{s.mean_replays:.1f}"
         print(
             f"{s.method.value:<18} {s.runs_scored:>8} {s.exact_accuracy:>8.0%} "
-            f"{s.within_one_accuracy:>8.0%} {verified:>8} {s.mean_cost_usd:>8.4f} "
+            f"{s.within_one_accuracy:>8.0%} {verified:>8} {replays:>8} {s.mean_cost_usd:>8.4f} "
             f"{s.mean_seconds:>8.1f}"
         )
 

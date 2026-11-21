@@ -19,23 +19,29 @@ You are the customer-side engineer for **First Domino**, a hackathon project (Bu
 
 ## The demo domain
 
-A **doctor appointment booking agent** for Indian clinics, in the spirit of an AI assistant that books on your behalf. Fixed "today" is Saturday 21 Nov 2026. Example request: "Book Dr. Mehta at Apollo Kukatpally for tomorrow morning, under ₹800, for my father Ramesh."
+An **AI call assistant**: it answers incoming phone calls on the user's behalf, talks to the caller, then takes the actions the call needs, using what it knows about the user. Calls are text transcripts; there is no audio. The user is **Arjun Rao** in Hyderabad. Fixed "today" is Saturday 21 Nov 2026, 11:00 AM IST.
+
+Never use a real company's name, brand, logo or people in code, data or copy. It is our own "call assistant". Callers and businesses are fictional.
 
 ## Tasks, in order
 
 ### 1. Mock world (no backend needed)
 
-- `world/data/*.json`: about 6 clinics in Hyderabad and Bengaluru, 15 doctors with specialities and fees, slots for the next 7 days with availability.
-- Pydantic models and loading through `importlib.resources`.
-- Tools as pure functions: `search_doctors`, `list_slots`, `check_fee`, `book_appointment` (writes to a per-run sandbox).
+- `world/data/*.json`, loaded into Pydantic models through `importlib.resources`:
+  - **contacts**: about 25 saved contacts with phone numbers and relationships, including near-duplicate Indian names (Dr. Mehta's clinic and Mehta Electricals; Lakshmi and Laxmi Narayana; Srinivas and Srinivasa Rao).
+  - **memory**: the user's personal context, such as "Dr. Mehta's clinic is my family doctor", "remind me 1 hour before any appointment", "always carry previous medical reports to the doctor", "never share OTPs or bank details", "home address: ...".
+  - **calendar**: the user's existing events for the next 7 days.
+  - **known spam numbers**.
+- Tools as pure functions over a per-run sandbox: `lookup_contact(phone)`, `search_memory(query)`, `check_calendar(date)`, `reply_to_caller(text)`, `add_calendar_event(title, date, time, notes)`, `move_calendar_event(event_id, date, time)`, `set_reminder(event_id, minutes_before)`, `schedule_callback(contact, date, time, reason)`, `block_caller(phone, reason)`, `send_call_summary(summary, action_items)`, `end_call()`.
+- **The caller is scripted, so replays are deterministic.** Each call has a fixed list of caller lines. `reply_to_caller` records what the assistant said and returns the caller's next line (or `[caller hung up]`), chosen by turn number, never by what the assistant said.
 
 ### 2. Agent loop and success check (milestone C2)
 
-- `agent.py`: our own loop over the OpenAI SDK, one step per model turn plus its tool results, a save point after every step, able to start from any message list, honour a replacement output for the next step, and run with a model override.
-- `tasks.py`: 10 tasks covering date words ("tomorrow", "this Friday", "26th"), time windows, fee limits, specialities and Indian names (Ramesh, Akhilesh, Lakshmi).
-- `success.py`: plain-code check of the final booking against the task's expected booking.
-- `bugs.py`: 8 planted bug types as data (wrong date, wrong clinic branch, wrong time window, fee checked against the wrong fee, swapped arguments, invented doctor, waitlist treated as booked, misspelled patient name), each naming the step to overwrite and the replacement output.
-- Run the agent locally and show completed and failed runs with their steps.
+- `agent.py`: our own loop over the OpenAI SDK, one step per model turn plus its tool results, a save point after every step, able to start from any message list, honour a replacement output for the next step, and run with a model override. Keep the existing loop, sandbox rebuild, runner and bug-planting mechanism; only the world, tools, prompts, tasks, success check and bugs change.
+- `tasks.py`: 10 incoming calls, each with the caller's number, the scripted caller lines and the expected end state. Cover: a clinic confirming an appointment "tomorrow at 10" (calendar event, reminder 1 hour before, note to carry reports); a bank loan offer (block, no callback); an OTP scam (refuse, block, warn in the summary); a delivery rider asking for directions (share the saved address); a plumber moving a visit "to the day after tomorrow, evening" (move the event); a school parent-teacher meeting "this Friday at 4" (event and reminder); a friend asking to call back after 6 (callback); a landlord rent reminder (reminder); a caller mixing Hindi and English; a caller whose name is close to another contact.
+- `success.py`: plain-code check of the final sandbox against the task's expected end state: events (title, date, time, notes), reminders, callbacks, blocked numbers, required facts in the summary, and nothing sensitive said to the caller.
+- `bugs.py`: 8 planted bug types as data, each naming the step to overwrite and the replacement output: "tomorrow" resolved to the day after, 10 AM booked as 10 PM, the wrong contact picked from near-duplicate names, the "carry reports" instruction dropped from the notes, the reminder set 1 day before instead of 1 hour, a spam call treated as genuine (callback instead of block), an OTP read out to a scam caller, the callback set for the wrong person.
+- Run the agent locally and show completed and failed calls with their steps.
 
 ### 3. SDK (after contract v1)
 

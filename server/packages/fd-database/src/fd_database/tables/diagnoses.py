@@ -83,6 +83,8 @@ class Diagnosis(IdMixin, TimestampMixin, Base):
     error_code: Mapped[DiagnosisErrorCode | None] = mapped_column(DIAGNOSIS_ERROR_CODE)
     created_by_id: Mapped[UUID | None]
     finished_at: Mapped[datetime | None] = optional_timestamp()
+    runner_id: Mapped[UUID | None]
+    heartbeat_at: Mapped[datetime | None] = optional_timestamp()
 
 
 class Check(IdMixin, TimestampMixin, Base):

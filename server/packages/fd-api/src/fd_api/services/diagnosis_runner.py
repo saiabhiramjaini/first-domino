@@ -1,7 +1,8 @@
 """Registry that runs diagnoses as tracked background tasks."""
 
 import asyncio
-from uuid import UUID
+from datetime import timedelta
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import Request
@@ -33,7 +34,12 @@ def diagnosis_error_code(error: FirstDominoError) -> DiagnosisErrorCode:
 
 
 class DiagnosisRunner:
-    """Runs each diagnosis in a background task and holds it until it ends."""
+    """Runs each diagnosis in a background task and holds it until it ends.
+
+    Several API processes may share one database. Each runner has its own `runner_id`, claims
+    the diagnoses it runs and refreshes their heartbeat; a runner fails only diagnoses whose
+    owner stopped heartbeating, never another live process's.
+    """
 
     def __init__(
         self,
@@ -47,6 +53,8 @@ class DiagnosisRunner:
         self._http = http
         self._settings = settings
         self._tasks: set[asyncio.Task[None]] = set()
+        self._keep_alive: asyncio.Task[None] | None = None
+        self.runner_id = uuid4()
 
     async def start(self, *, project_id: UUID, run_id: UUID, diagnosis_id: UUID) -> None:
         """Starts a committed, `queued` diagnosis in the background and returns at once.
@@ -60,18 +68,34 @@ class DiagnosisRunner:
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
 
-    async def fail_interrupted(self) -> None:
-        """Fails diagnoses a previous process left unfinished. Call once at startup."""
+    async def open(self) -> None:
+        """Fails abandoned diagnoses, then keeps this runner's heartbeat going. Call at startup."""
+        await self.fail_abandoned()
+        self._keep_alive = asyncio.create_task(
+            self._heartbeat_forever(), name="diagnosis-heartbeat"
+        )
+
+    async def fail_abandoned(self) -> None:
+        """Fails unfinished diagnoses whose owning process stopped heartbeating."""
+        now = utc_now()
+        stale_before = now - timedelta(seconds=self._settings.diagnosis_abandoned_after_seconds)
         async with self._database.transaction() as session:
-            count = await DiagnosesRepository(session).fail_all_active(
-                error_code=DiagnosisErrorCode.INTERRUPTED, finished_at=utc_now()
+            count = await DiagnosesRepository(session).fail_abandoned(
+                stale_before=stale_before,
+                error_code=DiagnosisErrorCode.INTERRUPTED,
+                finished_at=now,
             )
         if count:
             log.warning("diagnoses.interrupted", count=count)
 
+    async def heartbeat(self) -> None:
+        """Marks this runner's diagnoses as still running."""
+        async with self._database.transaction() as session:
+            await DiagnosesRepository(session).heartbeat(runner_id=self.runner_id, now=utc_now())
+
     async def shutdown(self) -> None:
-        """Cancels running diagnoses and waits for them to stop."""
-        tasks = list(self._tasks)
+        """Stops the heartbeat, cancels running diagnoses and waits for them to stop."""
+        tasks = [*self._tasks, *([self._keep_alive] if self._keep_alive else [])]
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -81,7 +105,28 @@ class DiagnosisRunner:
         while self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
 
+    async def _heartbeat_forever(self) -> None:
+        while True:
+            await asyncio.sleep(self._settings.diagnosis_heartbeat_seconds)
+            try:
+                await self.heartbeat()
+                await self.fail_abandoned()
+            except Exception:
+                log.exception("diagnoses.heartbeat_failed")
+
+    async def _claim(self, project_id: UUID, diagnosis_id: UUID) -> bool:
+        async with self._database.transaction() as session:
+            return await DiagnosesRepository(session).claim(
+                project_id=project_id,
+                diagnosis_id=diagnosis_id,
+                runner_id=self.runner_id,
+                now=utc_now(),
+            )
+
     async def _run(self, *, project_id: UUID, run_id: UUID, diagnosis_id: UUID) -> None:
+        if not await self._claim(project_id, diagnosis_id):
+            log.warning("diagnoses.not_claimed", diagnosis_id=str(diagnosis_id))
+            return
         try:
             await self._diagnose(project_id=project_id, run_id=run_id, diagnosis_id=diagnosis_id)
         except FirstDominoError as error:

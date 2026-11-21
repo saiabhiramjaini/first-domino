@@ -38,6 +38,8 @@ Needs Python 3.12 with `uv`, Bun, Docker (running) and `jq`.
 
 Checks: `make check` in `server/`, `bun run check` in `client/`.
 
+Deploy (Vercel + EC2 + Neon, with CI/CD): see [`docs/DEPLOY.md`](./docs/DEPLOY.md).
+
 ## Getting started as a contributor
 
 - Server: see [`server/README.md`](./server/README.md).

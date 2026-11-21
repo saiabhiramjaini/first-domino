@@ -1,4 +1,4 @@
-import type { Check, CheckPhase } from "@/api/generated";
+import type { CheckPhase } from "@/api/generated";
 import { StatusBadge } from "@/components/status/status-badge";
 import { CHECK_PHASE, CHECK_RESULT } from "@/components/status/status-tones";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import type { CheckRow } from "./check-rows";
+
 type CheckListProps = {
-  checks: Check[];
+  checks: CheckRow[];
   selectedCheckId: string | null;
-  onViewReplays: (check: Check) => void;
+  onViewReplays: (check: CheckRow) => void;
 };
 
 export function savePointText(phase: CheckPhase, savePoint: number): string {
@@ -60,7 +62,7 @@ export function CheckList({ checks, selectedCheckId, onViewReplays }: CheckListP
               data-state={check.id === selectedCheckId ? "selected" : undefined}
             >
               <TableCell className="font-mono text-xs text-muted-foreground tabular-nums">
-                {check.index}
+                {check.number}
               </TableCell>
               <TableCell>
                 <StatusBadge status={CHECK_PHASE[check.phase]} dot={false} />
@@ -78,7 +80,7 @@ export function CheckList({ checks, selectedCheckId, onViewReplays }: CheckListP
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={`View the replays of check ${check.index}`}
+                  aria-label={`View the replays of check ${check.number}`}
                   aria-pressed={check.id === selectedCheckId}
                   onClick={() => onViewReplays(check)}
                 >

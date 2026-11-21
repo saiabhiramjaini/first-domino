@@ -21,6 +21,7 @@ import { isApiError } from "@/lib/api-error";
 
 import { CheckReplays } from "../replays/check-replays";
 import { CheckList } from "./check-list";
+import { checkRows } from "./check-rows";
 import { DiagnoseRunButton } from "./diagnose-run-button";
 import { DiagnosisFailed } from "./diagnosis-failed";
 import { RunHeader } from "./run-header";
@@ -81,7 +82,8 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         : defaultSelectedStep(stepCount, diagnosis)
       : pickedStep;
   const dominoStep = steps.data?.find((step) => step.index === diagnosis?.first_domino_step);
-  const replayCheck = checks.data?.find((check) => check.id === replayCheckId);
+  const rows = checkRows(checks.data ?? []);
+  const replayCheck = rows.find((row) => row.id === replayCheckId);
   // A finished run with no steps has nothing to search, so it is never diagnosed.
   const hasNoSteps = !isRecording && stepCount === 0;
   const canDiagnose =
@@ -241,7 +243,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
             </div>
           ) : checks.data ? (
             <CheckList
-              checks={checks.data}
+              checks={rows}
               selectedCheckId={replayCheckId}
               onViewReplays={(check) => setReplayCheckId(check.id)}
             />

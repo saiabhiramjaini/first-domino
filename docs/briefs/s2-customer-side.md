@@ -19,9 +19,9 @@ You are the customer-side engineer for **First Domino**, a hackathon project (Bu
 
 ## The demo domain
 
-An **AI call assistant**: it answers incoming phone calls on the user's behalf, talks to the caller, then takes the actions the call needs, using what it knows about the user. Calls are text transcripts; there is no audio. The user is **Arjun Rao** in Hyderabad. Fixed "today" is Saturday 21 Nov 2026, 11:00 AM IST.
+**Equal AI is the first customer we build First Domino for.** The demo agent is our own replica of Equal AI's AI call assistant, built from how their public material describes it: it answers incoming phone calls on the user's behalf, talks to the caller, then takes the actions the call needs, using what it knows about the user. Calls are text transcripts; there is no audio. The user is **Arjun Rao** in Hyderabad. Fixed "today" is Saturday 21 Nov 2026, 11:00 AM IST.
 
-Never use a real company's name, brand, logo or people in code, data or copy. It is our own "call assistant". Callers and businesses are fictional.
+The customer workspace in demo data is named **"Equal AI (demo)"**. That is the only real company name used. No Equal AI logos or artwork, no claim that Equal AI uses or endorses First Domino, and no real people: the user, callers and businesses are fictional. In code the agent is `call-assistant`.
 
 ## Tasks, in order
 

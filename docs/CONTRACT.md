@@ -22,9 +22,11 @@ Only the platform backend workstream (S0) edits this file. Anyone else who needs
 
 | Caller | How | Used by |
 | --- | --- | --- |
-| Person | `Authorization: Bearer <Clerk session token>` | Web app |
+| Person | `Authorization: Bearer <web session token>` | Web app |
 | SDK or worker | `Authorization: Bearer <project API key>` (`fd_live_` prefix) | `first-domino` SDK, demo agent |
 
+- People sign in to the web app with Google through NextAuth (Auth.js v5, JWT sessions, no database adapter). The web app's server mints the **web session token**: an HS256 JWT signed with the secret both halves share (`API_JWT_SECRET` in the frontend, `FD_API_WEB_JWT_SECRET` in the backend), with claims `sub` (the Google account id), `email`, `name`, `iss` = `first-domino-web`, `aud` = `first-domino-api`, `iat` and `exp` (1 hour). It is re-minted before it expires.
+- The API verifies the signature, issuer, audience and expiry, then finds or creates the person by `sub`. It never trusts other claims for access.
 - A person's first authenticated call creates their project. A person has exactly one project during the hackathon.
 - Each operation below lists which caller it accepts: **P** (person), **K** (API key) or **P/K**.
 

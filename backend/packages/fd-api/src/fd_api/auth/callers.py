@@ -13,7 +13,7 @@ from fd_shared.errors import UnauthenticatedError
 
 API_KEY_PREFIX = "fd_live_"
 
-_bearer = HTTPBearer(auto_error=False, description="A Clerk session token or a project API key.")
+_bearer = HTTPBearer(auto_error=False, description="A web session token or a project API key.")
 
 
 class CallerKind(StrEnum):
@@ -42,7 +42,7 @@ async def _bearer_token(
 
 
 def _example_caller(token: str) -> Caller:
-    # EXAMPLE AUTH (contract v1): accepts any token. Replaced by Clerk and API key checks.
+    # EXAMPLE AUTH (contract v1): accepts any token. Replaced by web token and API key checks.
     if token.startswith(API_KEY_PREFIX):
         return Caller(
             kind=CallerKind.API_KEY,

@@ -4435,7 +4435,7 @@
     "securitySchemes": {
       "HTTPBearer": {
         "type": "http",
-        "description": "A Clerk session token or a project API key.",
+        "description": "A web session token or a project API key.",
         "scheme": "bearer"
       }
     }

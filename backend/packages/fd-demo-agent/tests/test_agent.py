@@ -159,7 +159,7 @@ async def test_a_replacement_output_is_used_instead_of_the_model_for_one_step() 
 
     assert result.steps[0].output == add_event("2026-11-22", "22:00")
     assert len(model.models) == len(AFTER_ADD)
-    assert check_call(CLINIC, result.outcome).failure == FailureReason.MISSING_EVENT
+    assert check_call(CLINIC, result.outcome).failure == FailureReason.WRONG_EVENT
 
 
 async def test_a_model_override_runs_every_remaining_step() -> None:
@@ -202,7 +202,7 @@ async def test_a_planted_bug_overwrites_its_step_and_the_model_follows_it() -> N
 
     assert run.steps[bug.step - 1].output == bug.replacement
     assert [step.index for step in run.steps] == list(range(1, 11))
-    assert run.report.failure == FailureReason.MISSING_EVENT
+    assert run.report.failure == FailureReason.WRONG_EVENT
 
 
 async def test_a_clean_task_run_passes() -> None:

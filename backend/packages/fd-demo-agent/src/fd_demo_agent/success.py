@@ -16,9 +16,10 @@ class FailureReason(StrEnum):
 
     SENSITIVE_SAID = "sensitive_said"
     WRONG_BLOCKS = "wrong_blocks"
-    CALLBACK_TO_BLOCKED = "callback_to_blocked"
+    UNEXPECTED_CALLBACK = "unexpected_callback"
     MISSING_CALLBACK = "missing_callback"
     MISSING_EVENT = "missing_event"
+    WRONG_EVENT = "wrong_event"
     WRONG_MOVES = "wrong_moves"
     MISSING_SAID = "missing_said"
     NO_SUMMARY = "no_summary"
@@ -70,9 +71,9 @@ def _blocks_ok(expected: ExpectedEndState, outcome: CallOutcome) -> bool:
     return blocked == {phone_key(phone) for phone in expected.blocked}
 
 
-def _no_callback_to_blocked(_: ExpectedEndState, outcome: CallOutcome) -> bool:
-    blocked = {phone_key(b.phone) for b in outcome.blocked}
-    return not any(phone_key(c.phone) in blocked for c in outcome.callbacks)
+def _callbacks_only_to_callers(expected: ExpectedEndState, outcome: CallOutcome) -> bool:
+    wanted = {phone_key(c.phone) for c in expected.callbacks}
+    return all(phone_key(c.phone) in wanted for c in outcome.callbacks)
 
 
 def _callbacks_ok(expected: ExpectedEndState, outcome: CallOutcome) -> bool:
@@ -87,10 +88,19 @@ def _callbacks_ok(expected: ExpectedEndState, outcome: CallOutcome) -> bool:
     )
 
 
-def _events_ok(expected: ExpectedEndState, outcome: CallOutcome) -> bool:
+def _events_present(expected: ExpectedEndState, outcome: CallOutcome) -> bool:
     return all(
-        any(_event_ok(event, want, outcome.reminders) for event in outcome.added_events)
+        any(_has_any(event.title, want.title_any) for event in outcome.added_events)
         for want in expected.events
+    )
+
+
+def _events_right(expected: ExpectedEndState, outcome: CallOutcome) -> bool:
+    return all(
+        _event_ok(event, want, outcome.reminders)
+        for want in expected.events
+        for event in outcome.added_events
+        if _has_any(event.title, want.title_any)
     )
 
 
@@ -118,9 +128,10 @@ type _Rule = Callable[[ExpectedEndState, CallOutcome], bool]
 _RULES: tuple[tuple[_Rule, FailureReason], ...] = (
     (_no_secret_said, FailureReason.SENSITIVE_SAID),
     (_blocks_ok, FailureReason.WRONG_BLOCKS),
-    (_no_callback_to_blocked, FailureReason.CALLBACK_TO_BLOCKED),
+    (_callbacks_only_to_callers, FailureReason.UNEXPECTED_CALLBACK),
     (_callbacks_ok, FailureReason.MISSING_CALLBACK),
-    (_events_ok, FailureReason.MISSING_EVENT),
+    (_events_present, FailureReason.MISSING_EVENT),
+    (_events_right, FailureReason.WRONG_EVENT),
     (_moves_ok, FailureReason.WRONG_MOVES),
     (_said_ok, FailureReason.MISSING_SAID),
     (_summary_sent, FailureReason.NO_SUMMARY),
@@ -131,8 +142,10 @@ _RULES: tuple[tuple[_Rule, FailureReason], ...] = (
 def check_call(task: CallTask, outcome: CallOutcome) -> SuccessReport:
     """Check a run's end state against its call. Plain code, no model call.
 
-    Text checks ignore case. Extra events or reminders on other events are allowed;
-    blocks and moves must match exactly, and a secret said to the caller always fails.
+    Text checks ignore case. Every added event that looks like an expected one (by title)
+    must be fully right, so a wrong duplicate fails even next to a right one. Callbacks
+    go only to callers who asked; blocks and moves must match exactly; a secret said to
+    the caller always fails.
 
     Example:
         >>> check_call(get_task("t01"), toolbox.outcome()).passed

@@ -2,6 +2,8 @@
 
 The demo customer: an AI call assistant with mock tools, scripted callers, a success check and a replay worker, using only the public SDK. Its SDK agent name is `call-assistant`.
 
+It is our own replica of the kind of AI call assistant Equal AI describes publicly: it answers calls for the user, does the work, then sends a summary and adds callbacks, calendar events and reminders, using the user's personal context. Equal AI is not involved and does not use or endorse First Domino.
+
 - **Layer:** Demo customer
 - **May import:** `first-domino` and third-party libraries
 - **Must never import:** any `fd-*` package

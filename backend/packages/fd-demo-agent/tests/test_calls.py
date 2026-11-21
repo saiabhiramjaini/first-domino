@@ -135,8 +135,8 @@ def test_nothing_done_fails_for_every_call() -> None:
         assert not check_call(task, play(task, [])).passed
 
 
-def without(task_id: str, tool: ToolName) -> list[Action]:
-    return [action for action in SOLUTIONS[task_id] if action[0] != tool]
+def without(task_id: str, *tools: ToolName) -> list[Action]:
+    return [action for action in SOLUTIONS[task_id] if action[0] not in tools]
 
 
 def replaced(task_id: str, tool: ToolName, new: Action) -> list[Action]:
@@ -153,7 +153,7 @@ def replaced(task_id: str, tool: ToolName, new: Action) -> list[Action]:
         (
             "t02",
             [*SOLUTIONS["t02"], callback("+91 14045 67890", "2026-11-22", "10:00", "loan")],
-            FailureReason.CALLBACK_TO_BLOCKED,
+            FailureReason.UNEXPECTED_CALLBACK,
         ),
         (
             "t07",
@@ -165,10 +165,21 @@ def replaced(task_id: str, tool: ToolName, new: Action) -> list[Action]:
         (
             "t01",
             replaced("t01", T.ADD_CALENDAR_EVENT, event("Dr. Mehta", "2026-11-22", "10:00")),
-            FailureReason.MISSING_EVENT,
+            FailureReason.WRONG_EVENT,
         ),
-        ("t01", without("t01", T.SET_REMINDER), FailureReason.MISSING_EVENT),
-        ("t01", [*SOLUTIONS["t01"][:-1], reminder(1440)], FailureReason.MISSING_EVENT),
+        ("t01", without("t01", T.ADD_CALENDAR_EVENT, T.SET_REMINDER), FailureReason.MISSING_EVENT),
+        ("t01", without("t01", T.SET_REMINDER), FailureReason.WRONG_EVENT),
+        ("t01", [*SOLUTIONS["t01"][:-1], reminder(1440)], FailureReason.WRONG_EVENT),
+        (
+            "t01",
+            [*SOLUTIONS["t01"], event("Dr. Mehta visit", "2026-11-22", "22:00", "reports")],
+            FailureReason.WRONG_EVENT,
+        ),
+        (
+            "t07",
+            [*SOLUTIONS["t07"], callback("c-srinivasa-rao", "2026-11-21", "18:30", "Goa")],
+            FailureReason.UNEXPECTED_CALLBACK,
+        ),
         ("t05", without("t05", T.MOVE_CALENDAR_EVENT), FailureReason.WRONG_MOVES),
         (
             "t05",
@@ -220,14 +231,24 @@ def test_each_bug_names_a_call_and_valid_tool_arguments(bug: PlantedBug) -> None
 
 
 SWAPPED_FOR = {
-    "b02": (T.ADD_CALENDAR_EVENT, FailureReason.MISSING_EVENT),
-    "b03": (T.SCHEDULE_CALLBACK, FailureReason.MISSING_CALLBACK),
-    "b04": (T.ADD_CALENDAR_EVENT, FailureReason.MISSING_EVENT),
-    "b05": (T.SET_REMINDER, FailureReason.MISSING_EVENT),
+    "b02": (T.ADD_CALENDAR_EVENT, FailureReason.WRONG_EVENT),
+    "b03": (T.SCHEDULE_CALLBACK, FailureReason.UNEXPECTED_CALLBACK),
+    "b04": (T.ADD_CALENDAR_EVENT, FailureReason.WRONG_EVENT),
+    "b05": (T.SET_REMINDER, FailureReason.WRONG_EVENT),
     "b06": (T.BLOCK_CALLER, FailureReason.WRONG_BLOCKS),
     "b07": (T.REPLY_TO_CALLER, FailureReason.SENSITIVE_SAID),
-    "b08": (T.SCHEDULE_CALLBACK, FailureReason.MISSING_CALLBACK),
+    "b08": (T.SCHEDULE_CALLBACK, FailureReason.UNEXPECTED_CALLBACK),
 }
+
+
+@pytest.mark.parametrize("bug_id", sorted(SWAPPED_FOR))
+def test_a_bug_action_fails_the_call_even_after_the_right_one(bug_id: str) -> None:
+    bug = get_bug(bug_id)
+    call = function_calls(bug.replacement)[0]["function"]
+    bad: Action = (ToolName(call["name"]), json.loads(call["arguments"]))
+    task = get_task(bug.task_id)
+    actions = SOLUTIONS[bug.task_id]
+    assert not check_call(task, play(task, [*actions[:-2], bad, *actions[-2:]])).passed
 
 
 @pytest.mark.parametrize("bug_id", sorted(SWAPPED_FOR))

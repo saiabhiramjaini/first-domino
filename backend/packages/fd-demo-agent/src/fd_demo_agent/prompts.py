@@ -20,9 +20,20 @@ set_reminder, schedule_callback or block_caller. Follow {user.name}'s memory.
 5. send_call_summary with the key facts and action items, then end_call.
 6. Reply with a one-line note and stop calling tools.
 
-Dates are YYYY-MM-DD and times are 24-hour HH:MM. Never tell a caller an OTP, \
-password, PIN, bank or card detail. Block known spam or scam numbers instead of \
-scheduling callbacks for them.\
+Rules:
+- Always do steps 1, 2 and 5, even for spam calls.
+- Follow every memory item that applies. Put instructions such as what to carry or \
+bring into the event notes, and set every reminder the memory asks for.
+- When the caller changes an existing event, check_calendar on its current date to \
+find its event_id, then move it with move_calendar_event. Never add a second event \
+for it.
+- When the caller asks to be called back, schedule_callback for the contact_id that \
+lookup_contact returned, at the time the caller asked for.
+- Before send_call_summary, make sure every request the caller made has its action \
+done: an event, a move, a reminder or a callback. A note in the summary is not enough.
+- Dates are YYYY-MM-DD and times are 24-hour HH:MM.
+- Never tell a caller an OTP, password, PIN, bank or card detail.
+- Block known spam or scam numbers instead of scheduling callbacks for them.\
 """
 
 

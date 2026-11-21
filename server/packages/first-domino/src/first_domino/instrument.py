@@ -395,7 +395,7 @@ async def replay(entry: Entrypoint, ctx: ReplayContext, client: FirstDominoClien
     steps = await client.list_steps(ctx.job.run_id) if ctx.from_step > 0 else []
     plan = capture.ReplayPlan.of(steps, ctx.from_step, ctx.replacement_output, ctx.model_override)
     run = RecordedRun(_CONFIG.recorder_client(), ctx.run.run_id, first_step=ctx.from_step + 1)
-    session = capture.Session(run, replay=plan)
+    session = capture.Session(run, replay=plan, stop=ctx.stop)
     kwargs = entry.arguments(ctx.task_input)
     capture.install()
 

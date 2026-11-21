@@ -153,6 +153,7 @@ await worker.run()  # leases forever, several jobs at a time
 - One failed job never stops the worker: a crash in your agent or check is reported as `errored` and the loop goes on.
 - The worker refuses to start without an API key or without both handlers for each agent name.
 - `FIRST_DOMINO_WORKER_CONCURRENCY` (default 4) sets how many replays run at once.
+- A replay First Domino no longer needs (its check was already decided) stops at its next model call with `fd.ReplayStopped`, which derives from `BaseException` so `except Exception` does not swallow it. A custom `@worker.agent` can watch `ctx.stop` for the same signal.
 
 ## Diagnose from code
 
@@ -188,6 +189,7 @@ assert await worker.run_once() == fd.ReplayOutcome.passed
 | `FIRST_DOMINO_BASE_URL` | The First Domino API. Point it at your own server if you self-host. | `https://api-first-domino.abhiramtech.in` |
 | `FIRST_DOMINO_WORKER_CONCURRENCY` | Replays one worker runs at once. | `4` |
 | `FIRST_DOMINO_LEASE_WAIT_SECONDS` | How long one lease call waits for a job (0 to 20). | `10` |
+| `FIRST_DOMINO_JOB_CHECK_SECONDS` | How often a running replay checks it is still needed. | `3` |
 | `FIRST_DOMINO_TIMEOUT_SECONDS` | Timeout of one API call. | `30` |
 
 Settings can also live in a `.env` file in the working directory.

@@ -734,6 +734,15 @@ export type GetProjectSelfResponse = {
 };
 
 /**
+ * GetReplayJobResponse
+ *
+ * The job as it stands. A worker stops its replay once the job is no longer leased to it.
+ */
+export type GetReplayJobResponse = {
+    replay_job: ReplayJob;
+};
+
+/**
  * GetRunResponse
  *
  * The run.
@@ -2649,6 +2658,48 @@ export type LeaseReplayJobResponses = {
 };
 
 export type LeaseReplayJobResponse2 = LeaseReplayJobResponses[keyof LeaseReplayJobResponses];
+
+export type GetReplayJobData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Replay Job Id
+         */
+        replay_job_id: string;
+    };
+    url: '/v1/replay-jobs.get';
+};
+
+export type GetReplayJobErrors = {
+    /**
+     * Not authenticated
+     */
+    401: ApiError;
+    /**
+     * Not found
+     */
+    404: ApiError;
+    /**
+     * Validation failed
+     */
+    422: ApiValidationError;
+    /**
+     * Internal error
+     */
+    500: ApiInternalError;
+};
+
+export type GetReplayJobError = GetReplayJobErrors[keyof GetReplayJobErrors];
+
+export type GetReplayJobResponses = {
+    /**
+     * Successful Response
+     */
+    200: GetReplayJobResponse;
+};
+
+export type GetReplayJobResponse2 = GetReplayJobResponses[keyof GetReplayJobResponses];
 
 export type SubmitReplayResultData = {
     body: SubmitReplayResultRequest;

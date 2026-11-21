@@ -109,12 +109,12 @@ class ReplayJobsRepository:
             .values(status=ReplayJobStatus.EXPIRED, lease_expires_at=None, finished_at=now)
         )
 
-    async def expire_queued(
+    async def expire_unfinished(
         self, *, project_id: UUID, replay_job_ids: Sequence[UUID], now: datetime
     ) -> int:
-        """Ends the jobs no worker has picked up yet; nobody waits for them any more.
+        """Ends the jobs that have no result yet, because nobody waits for them any more.
 
-        A leased job is left alone: a worker is already running it. Returns how many ended.
+        A worker running one of them sees it ended and stops the replay. Returns how many ended.
         """
         if not replay_job_ids:
             return 0
@@ -123,7 +123,7 @@ class ReplayJobsRepository:
             .where(
                 ReplayJob.project_id == project_id,
                 ReplayJob.id.in_(replay_job_ids),
-                ReplayJob.status == ReplayJobStatus.QUEUED,
+                ReplayJob.status.in_([ReplayJobStatus.QUEUED, ReplayJobStatus.LEASED]),
             )
             .values(status=ReplayJobStatus.EXPIRED, finished_at=now)
             .returning(ReplayJob.id)

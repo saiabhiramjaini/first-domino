@@ -56,6 +56,18 @@ class ReplayJob(BaseModel):
         )
 
 
+class GetReplayJobRequest(BaseModel):
+    """Which replay job to return."""
+
+    replay_job_id: UUID
+
+
+class GetReplayJobResponse(BaseModel):
+    """The job as it stands. A worker stops its replay once the job is no longer leased to it."""
+
+    replay_job: ReplayJob
+
+
 class LeaseReplayJobRequest(BaseModel):
     """Waits for a replay job for one of these agents and leases it."""
 

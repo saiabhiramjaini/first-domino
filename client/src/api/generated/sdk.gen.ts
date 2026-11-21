@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, ExportCauseData, ExportCauseErrors, ExportCauseResponses, FinishRunData, FinishRunErrors, FinishRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
+import type { CountCausesData, CountCausesErrors, CountCausesResponses, CountDiagnosesData, CountDiagnosesErrors, CountDiagnosesResponses, CountRunsData, CountRunsErrors, CountRunsResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDiagnosisData, CreateDiagnosisErrors, CreateDiagnosisResponses, ExportCauseData, ExportCauseErrors, ExportCauseResponses, FinishRunData, FinishRunErrors, FinishRunResponses, GetCauseData, GetCauseErrors, GetCauseResponses, GetDiagnosisData, GetDiagnosisErrors, GetDiagnosisResponses, GetHealthData, GetHealthResponses, GetProjectSelfData, GetProjectSelfErrors, GetProjectSelfResponses, GetReplayJobData, GetReplayJobErrors, GetReplayJobResponses, GetRunData, GetRunErrors, GetRunResponses, GetStepSnapshotData, GetStepSnapshotErrors, GetStepSnapshotResponses, LeaseReplayJobData, LeaseReplayJobErrors, LeaseReplayJobResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListCausesData, ListCausesErrors, ListCausesResponses, ListChecksData, ListChecksErrors, ListChecksResponses, ListDiagnosesData, ListDiagnosesErrors, ListDiagnosesResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListStepsData, ListStepsErrors, ListStepsResponses, RecordStepData, RecordStepErrors, RecordStepResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SetProjectSlackWebhookData, SetProjectSlackWebhookErrors, SetProjectSlackWebhookResponses, StartRunData, StartRunErrors, StartRunResponses, SubmitReplayResultData, SubmitReplayResultErrors, SubmitReplayResultResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -363,6 +363,20 @@ export const leaseReplayJob = <ThrowOnError extends boolean = false>(options: Op
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Get a replay job
+ *
+ * Returns one replay job of the caller's project.
+ *
+ * A worker polls it while replaying: once the job is `expired` (nobody waits for its result)
+ * or leased again by another worker, the replay can stop.
+ */
+export const getReplayJob = <ThrowOnError extends boolean = false>(options: Options<GetReplayJobData, ThrowOnError>): RequestResult<GetReplayJobResponses, GetReplayJobErrors, ThrowOnError> => (options.client ?? client).get<GetReplayJobResponses, GetReplayJobErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/replay-jobs.get',
+    ...options
 });
 
 /**

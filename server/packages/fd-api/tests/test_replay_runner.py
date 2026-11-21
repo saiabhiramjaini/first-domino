@@ -1,11 +1,11 @@
-"""When the engine stops waiting for a replay, the job nobody started is ended."""
+"""When the engine stops waiting for a replay, its jobs without a result are ended."""
 
 import asyncio
 from uuid import UUID
 
 from httpx import AsyncClient
 from pydantic import SecretStr
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from fd_api.adapters.check_tracker import CheckTracker
 from fd_api.adapters.replay_runner import QueueReplayRunner
@@ -31,7 +31,7 @@ async def _marked_jobs(database: Database, diagnosis_id: UUID) -> list[tables.Re
         return list(rows)
 
 
-async def test_cancelling_a_replay_ends_its_unstarted_job(
+async def test_cancelling_a_replay_ends_its_queued_and_running_jobs(
     client: AsyncClient, database: Database, api_key: Headers
 ) -> None:
     run = await _finished_run(client, api_key, "failed")
@@ -50,7 +50,7 @@ async def test_cancelling_a_replay_ends_its_unstarted_job(
         runner.replay(
             UUID(run["id"]),
             from_step=1,
-            samples=1,
+            samples=2,
             model_override=MARKER_MODEL,
             replacement_output=None,
         )
@@ -59,11 +59,18 @@ async def test_cancelling_a_replay_ends_its_unstarted_job(
         if await _marked_jobs(database, diagnosis_id):
             break
         await asyncio.sleep(0.02)
+    running = (await _marked_jobs(database, diagnosis_id))[0]
+    async with database.transaction() as session:
+        await session.execute(
+            update(tables.ReplayJob)
+            .where(tables.ReplayJob.id == running.id)
+            .values(status=ReplayJobStatus.LEASED)
+        )
     waiting.cancel()
     await asyncio.gather(waiting, return_exceptions=True)
 
-    [job] = await _marked_jobs(database, diagnosis_id)
-    assert job.status is ReplayJobStatus.EXPIRED
+    jobs = await _marked_jobs(database, diagnosis_id)
+    assert [job.status for job in jobs] == [ReplayJobStatus.EXPIRED] * 2
 
 
 async def _project_of(database: Database, run_id: str) -> UUID:

@@ -1,4 +1,7 @@
-"""SDK errors. Recording never raises them into the agent; the worker raises them at start-up."""
+"""SDK errors. Recording never raises them into the agent; the worker raises them at start-up.
+
+The one exception is `ReplayStopped`, raised into a replay nobody needs any more.
+"""
 
 from first_domino._generated.models import ApiErrorCode
 
@@ -28,3 +31,11 @@ class ApiRequestError(FirstDominoError):
     def retryable(self) -> bool:
         """True for network failures and server errors, which may pass on a later try."""
         return self.status_code is None or self.status_code >= 500
+
+
+class ReplayStopped(BaseException):
+    """Raised at a replay's next model call once First Domino no longer needs the replay.
+
+    It derives from `BaseException` so agent code and model SDK retries that catch
+    `Exception` let it through, the way they let `asyncio.CancelledError` through.
+    """

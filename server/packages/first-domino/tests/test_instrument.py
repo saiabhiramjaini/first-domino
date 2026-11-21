@@ -5,6 +5,8 @@ once, then answers. The agents below call it the ways real agents do.
 """
 
 import json
+import threading
+import time
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -15,6 +17,7 @@ import pytest
 
 import first_domino as fd
 from first_domino import instrument as entrypoint_module
+from first_domino._generated.models import ReplayJobStatus
 from first_domino.client import FirstDominoClient
 from first_domino.providers import AnthropicMessages
 from first_domino.testing import FakeApi, make_job
@@ -504,6 +507,37 @@ async def test_replay_goes_live_after_the_recorded_part_with_the_new_model(
     assert outcome == fd.ReplayOutcome.passed
     assert [r["model"] for r in model.requests] == ["big"]
     assert [s.index for s in api.steps] == [1, 2, 2]
+
+
+async def test_a_replay_nobody_needs_stops_at_its_next_model_call(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    model = FakeModel()
+    llm = openai_client(model)
+    replaying = threading.Event()
+
+    @fd.entrypoint(AGENT, check=lambda answer: "sunny" in answer)
+    def answer(question: str) -> str:
+        if replaying.is_set():
+            time.sleep(0.2)
+        return chat_loop(llm, question)
+
+    answer(QUESTION)
+    run_id = next(iter(api.runs))
+    model.requests.clear()
+    job = make_job(
+        agent_name=AGENT, run_id=run_id, task_input=api.runs[run_id].task_input, from_step=0
+    )
+    api.jobs.append(job)
+    api.job_statuses[job.id] = ReplayJobStatus.expired
+    replaying.set()
+
+    outcome = await fd.worker(AGENT, client=client).run_once()
+
+    assert outcome == fd.ReplayOutcome.errored
+    assert model.requests == []
+    assert api.submitted == []
+    assert api.finished[-1].status == fd.RunOutcome.errored
 
 
 async def test_marked_tools_return_the_recorded_result_inside_the_recorded_part(

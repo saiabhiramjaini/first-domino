@@ -1,8 +1,10 @@
 """Worker: lease replay jobs, run the customer's agent and success check, submit results."""
 
 import asyncio
+import contextlib
 import inspect
 import logging
+import threading
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -14,6 +16,7 @@ from first_domino._generated.models import (
     LeaseReplayJobRequest,
     Message,
     ReplayJob,
+    ReplayJobStatus,
     ReplayOutcome,
     RunOutcome,
     StartRunRequest,
@@ -21,7 +24,7 @@ from first_domino._generated.models import (
     TaskInput,
 )
 from first_domino.client import FirstDominoClient, default_client
-from first_domino.errors import ApiRequestError, ConfigurationError
+from first_domino.errors import ApiRequestError, ConfigurationError, ReplayStopped
 from first_domino.recorder import RecordedRun
 
 log = logging.getLogger("first_domino")
@@ -42,12 +45,14 @@ class ReplayContext:
 
     The agent continues from `messages`. When `replacement_output` is set, it uses that
     as its next step's output instead of calling the model, then continues normally.
-    It may set `final_output` for the replay run.
+    It may set `final_output` for the replay run. `stop` is set once First Domino no longer
+    needs the replay; model calls recorded with the SDK then raise `ReplayStopped`.
     """
 
     job: ReplayJob
     run: RecordedRun
     final_output: str | None = field(default=None)
+    stop: threading.Event = field(default_factory=threading.Event)
 
     @property
     def task_input(self) -> TaskInput:
@@ -185,15 +190,38 @@ class Worker:
         ctx = ReplayContext(
             job=job, run=RecordedRun(self._client, run.id, first_step=job.from_step + 1)
         )
-        outcome, error = await self._replay_and_check(ctx, replay, check)
+        watch = asyncio.create_task(self._watch(ctx))
+        try:
+            outcome, error = await self._replay_and_check(ctx, replay, check)
+        finally:
+            watch.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await watch
         await ctx.run.finish(RunOutcome(outcome.value), final_output=ctx.final_output)
+        if ctx.stop.is_set():
+            log.info("first_domino.replay_stopped job_id=%s", job.id)
+            return outcome
         return await self._submit(job, outcome, run.id, error)
+
+    async def _watch(self, ctx: ReplayContext) -> None:
+        """Sets `ctx.stop` once the job is ended, or leased again after this lease ran out."""
+        while True:
+            await asyncio.sleep(self._client.settings.job_check_seconds)
+            try:
+                job = await self._client.get_replay_job(ctx.job.id)
+            except ApiRequestError:
+                continue
+            if job.status is not ReplayJobStatus.leased or job.attempt != ctx.job.attempt:
+                ctx.stop.set()
+                return
 
     async def _replay_and_check(
         self, ctx: ReplayContext, replay: ReplayAgent[Any], check: SuccessCheck[Any]
     ) -> tuple[ReplayOutcome, WorkerErrorCode | None]:
         try:
             result = await replay(ctx)
+        except ReplayStopped:
+            return ReplayOutcome.errored, None
         except Exception:
             log.exception("first_domino.replay_agent_failed job_id=%s", ctx.job.id)
             return ReplayOutcome.errored, WorkerErrorCode.AGENT_FAILED

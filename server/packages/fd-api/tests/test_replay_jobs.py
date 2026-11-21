@@ -1,11 +1,12 @@
 """The worker protocol: a failed run is diagnosed, its replay jobs are leased and answered."""
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from httpx import AsyncClient
 
 from fd_database.repositories import ReplayJobsRepository
 from fd_database.session import Database
+from fd_database.tables.base import utc_now
 from fd_shared.enums import ApiErrorCode, MessageRole
 from fd_shared.models import Message, TaskInput
 
@@ -118,3 +119,34 @@ async def test_replay_run_needs_a_leased_job(
     )
 
     assert response.json()["code"] == ApiErrorCode.CONFLICT
+
+
+async def test_worker_sees_a_job_ended_while_it_runs(
+    client: AsyncClient, database: Database, person: Headers, api_key: Headers
+) -> None:
+    run = await _finished_run(client, api_key, "passed")
+    project = (await client.get("/v1/projects.self", headers=person)).json()["project"]
+    job_id = await _enqueue(database, run, project["id"])
+    lease = {"agent_names": [AGENT], "wait_seconds": 0}
+    await client.post("/v1/replay-jobs.lease", json=lease, headers=api_key)
+    params = {"replay_job_id": str(job_id)}
+
+    running = await client.get("/v1/replay-jobs.get", params=params, headers=api_key)
+    async with database.transaction() as session:
+        await ReplayJobsRepository(session).expire_unfinished(
+            project_id=UUID(project["id"]), replay_job_ids=[job_id], now=utc_now()
+        )
+    ended = await client.get("/v1/replay-jobs.get", params=params, headers=api_key)
+    late = await client.post(
+        "/v1/replay-jobs.submit", json={**params, "outcome": "passed"}, headers=api_key
+    )
+    unknown = await client.get(
+        "/v1/replay-jobs.get", params={"replay_job_id": str(uuid4())}, headers=api_key
+    )
+    by_person = await client.get("/v1/replay-jobs.get", params=params, headers=person)
+
+    assert running.json()["replay_job"]["status"] == "leased"
+    assert ended.json()["replay_job"]["status"] == "expired"
+    assert late.json()["replay_job"]["status"] == "expired"
+    assert unknown.json()["code"] == ApiErrorCode.NOT_FOUND
+    assert by_person.status_code == 401

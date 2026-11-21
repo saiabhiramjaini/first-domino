@@ -68,10 +68,13 @@ During a replay, `fd.serve()` calls the same function again. Model calls up to t
 queued ──► leased ──► succeeded | failed
    ▲          │
    └──────────┘  lease expired (worker died): back to queued, then expired after the last attempt
+
+queued | leased ──► expired   the check was decided without it
 ```
 
 - A worker leases a job for a fixed time. An expired lease returns it to the queue.
 - An outcome is idempotent by job id: a repeated submit does not count twice.
+- A check stops as soon as its result is known. Its other jobs are ended; the worker skips queued ones and stops running ones at their next model call, so no model calls are spent on outcomes nobody reads.
 - When no worker has picked a diagnosis's jobs up, the web app says it is waiting for the replay worker.
 
 ## The search and the proof

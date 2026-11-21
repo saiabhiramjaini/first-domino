@@ -729,6 +729,15 @@ export const zReplayJob = z.object({
 });
 
 /**
+ * GetReplayJobResponse
+ *
+ * The job as it stands. A worker stops its replay once the job is no longer leased to it.
+ */
+export const zGetReplayJobResponse = z.object({
+    replay_job: zReplayJob
+});
+
+/**
  * LeaseReplayJobResponse
  *
  * The leased job, or null when none arrived in time.
@@ -1073,6 +1082,15 @@ export const zLeaseReplayJobBody = zLeaseReplayJobRequest;
  * Successful Response
  */
 export const zLeaseReplayJobResponse2 = zLeaseReplayJobResponse;
+
+export const zGetReplayJobQuery = z.object({
+    replay_job_id: z.uuid()
+});
+
+/**
+ * Successful Response
+ */
+export const zGetReplayJobResponse2 = zGetReplayJobResponse;
 
 export const zSubmitReplayResultBody = zSubmitReplayResultRequest;
 

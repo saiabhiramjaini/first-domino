@@ -172,6 +172,7 @@ The SDK worker runs on the customer side and only calls out.
 | Operation | Path | Caller | Request | Response |
 | --- | --- | --- | --- | --- |
 | `leaseReplayJob` | `POST /v1/replay-jobs.lease` | K | `agent_names` (list), `wait_seconds` (0 to 20, default 10) | `replay_job` (`ReplayJob` or null when none arrived in time) |
+| `getReplayJob` | `GET /v1/replay-jobs.get` | K | `replay_job_id` | `replay_job` |
 | `submitReplayResult` | `POST /v1/replay-jobs.submit` | K | `replay_job_id`, `outcome` (`ReplayOutcome`), `replay_run_id` (or null), `error_code` (or null) | `replay_job` |
 
 **ReplayJob**: `id`, `run_id` (the original run), `agent_name`, `task_input`, `from_step` (keep steps 1..`from_step`; 0 means start fresh), `messages` (the message list after `from_step`; the task's opening messages when 0), `replacement_output` (`Message` or null; when set, use it as the next step's model output instead of calling the model, then continue), `model_override` (string or null; when set, run the rest with this model), `status` (`ReplayJobStatus`), `lease_expires_at` (or null), `attempt`.
@@ -180,11 +181,12 @@ The worker loop:
 
 1. `leaseReplayJob`. If null, lease again.
 2. `startRun` with the job's `replay_job_id`, so the replay is recorded and visible.
-3. Run the customer's agent from `messages`, honouring `replacement_output` and `model_override`, recording each step.
+3. Run the customer's agent from `messages`, honouring `replacement_output` and `model_override`, recording each step. Meanwhile poll `getReplayJob`; once the job is no longer `leased` at this `attempt`, stop at the next model call, `finishRun` as `errored` and submit nothing.
 4. Run the customer's success check on the result. `finishRun`, then `submitReplayResult` with the outcome.
 5. On a crash inside one job, `submitReplayResult` with `errored` and an `error_code`, then keep looping.
 
 - A lease lasts `FD_API_LEASE_SECONDS` (default 120). A job whose lease ends goes back to `queued`; each lease raises `attempt`. A job whose lease ends after `FD_API_MAX_JOB_ATTEMPTS` (default 3) leases is `expired`.
+- When the engine stops waiting for a check (decided early, or timed out), its jobs without a result, queued or leased, are `expired`.
 - A submitted result ends the job: `succeeded` for a `passed` or `failed` outcome (the replay ran), `failed` for `errored`.
 - `submitReplayResult` is idempotent by `replay_job_id`: the first result for a leased job counts, and any later one (a repeat, or a late result from an earlier lease) changes nothing.
 

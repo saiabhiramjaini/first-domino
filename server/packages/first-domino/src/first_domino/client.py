@@ -14,6 +14,7 @@ from first_domino._generated.models import (
     FinishRunRequest,
     FinishRunResponse,
     GetDiagnosisResponse,
+    GetReplayJobResponse,
     GetRunResponse,
     LeaseReplayJobRequest,
     LeaseReplayJobResponse,
@@ -118,6 +119,11 @@ class FirstDominoClient:
             "replay-jobs.lease", request, LeaseReplayJobResponse, server_wait=request.wait_seconds
         )
         return response.replay_job
+
+    async def get_replay_job(self, replay_job_id: UUID) -> ReplayJob:
+        """Return one replay job as it stands now."""
+        params = {"replay_job_id": str(replay_job_id)}
+        return (await self._get("replay-jobs.get", params, GetReplayJobResponse)).replay_job
 
     async def submit_replay_result(self, request: SubmitReplayResultRequest) -> ReplayJob:
         """Report a replay's outcome. Idempotent by job id."""

@@ -1,15 +1,17 @@
-"""Worker protocol routes: lease a replay job and submit its result."""
+"""Worker protocol routes: lease a replay job, check on it and submit its result."""
 
 import asyncio
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from fd_api.auth.callers import ApiKeyCaller, Caller, get_settings
 from fd_api.database import DbSession, get_database
 from fd_api.errors import error_responses
 from fd_api.models.replay_jobs import (
+    GetReplayJobRequest,
+    GetReplayJobResponse,
     LeaseReplayJobRequest,
     LeaseReplayJobResponse,
     ReplayJob,
@@ -75,6 +77,30 @@ async def lease_replay_job(
         if time.monotonic() >= deadline:
             return LeaseReplayJobResponse(replay_job=None)
         await asyncio.sleep(settings.lease_poll_interval_seconds)
+
+
+@router.get(
+    "/replay-jobs.get",
+    operation_id="getReplayJob",
+    summary="Get a replay job",
+    responses=error_responses(
+        ApiErrorCode.UNAUTHENTICATED, ApiErrorCode.NOT_FOUND, ApiErrorCode.VALIDATION_FAILED
+    ),
+)
+async def get_replay_job(
+    request: Annotated[GetReplayJobRequest, Query()], caller: ApiKeyCaller, session: DbSession
+) -> GetReplayJobResponse:
+    """Returns one replay job of the caller's project.
+
+    A worker polls it while replaying: once the job is `expired` (nobody waits for its result)
+    or leased again by another worker, the replay can stop.
+    """
+    job = await ReplayJobsRepository(session).get(
+        project_id=caller.project_id, replay_job_id=request.replay_job_id
+    )
+    if job is None:
+        raise NotFoundError
+    return GetReplayJobResponse(replay_job=ReplayJob.from_row(job))
 
 
 @router.post(

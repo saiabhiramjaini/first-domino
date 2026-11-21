@@ -1269,6 +1269,10 @@ class GetDiagnosisResponse(BaseModel):
     diagnosis: Diagnosis
 
 
+class GetReplayJobResponse(BaseModel):
+    replay_job: ReplayJob
+
+
 class GetRunResponse(BaseModel):
     run: Run
 

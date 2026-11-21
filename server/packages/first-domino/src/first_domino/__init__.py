@@ -21,7 +21,12 @@ from first_domino._generated.models import (
 )
 from first_domino.client import FirstDominoClient
 from first_domino.diagnose import diagnose, wait_for_diagnosis
-from first_domino.errors import ApiRequestError, ConfigurationError, FirstDominoError
+from first_domino.errors import (
+    ApiRequestError,
+    ConfigurationError,
+    FirstDominoError,
+    ReplayStopped,
+)
 from first_domino.instrument import entrypoint, init, serve, set_outcome, tool, worker
 from first_domino.openai_format import message_from_openai, message_to_openai, messages_to_openai
 from first_domino.recorder import RecordedRun, record, start_recording
@@ -40,6 +45,7 @@ __all__ = [
     "RecordedRun",
     "ReplayContext",
     "ReplayOutcome",
+    "ReplayStopped",
     "RunOutcome",
     "SdkSettings",
     "TaskInput",

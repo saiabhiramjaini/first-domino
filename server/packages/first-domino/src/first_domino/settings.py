@@ -29,6 +29,11 @@ class SdkSettings(BaseSettings):
     diagnosis_poll_seconds: float = Field(
         default=1.0, gt=0, description="Pause between polls while waiting for a diagnosis."
     )
+    job_check_seconds: float = Field(
+        default=3.0,
+        gt=0,
+        description="Pause between checks that a running replay is still needed.",
+    )
     worker_retry_seconds: float = Field(
         default=2.0, ge=0, description="Pause before leasing again after the API failed."
     )

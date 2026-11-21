@@ -14,7 +14,7 @@ from fd_database.repositories import (
     RunsRepository,
     StepsRepository,
 )
-from fd_database.tables import Project, Run
+from fd_database.tables import Project, ReplayJob, Run
 from fd_database.tables.base import utc_now
 from fd_shared.enums import (
     CheckPhase,
@@ -272,29 +272,50 @@ async def test_restarted_diagnoses_end_their_unfinished_replays(
         assert stored.status is ReplayJobStatus.EXPIRED
 
 
-async def test_expire_queued_ends_only_jobs_no_worker_started(
+async def test_expire_unfinished_ends_queued_and_leased_jobs_only(
     session: AsyncSession, project: Project
 ) -> None:
     jobs = ReplayJobsRepository(session)
     run = await _run(session, project)
-    started, waiting = await _enqueue(session, project, run, samples=2)
-    leased = await jobs.lease_next(
-        project_id=project.id,
-        agent_names=["call-assistant"],
-        leased_by_id=run.created_by_id,
-        now=utc_now(),
-        lease_seconds=10,
-    )
-    assert leased is not None
-    started, waiting = (started, waiting) if leased.id == started.id else (waiting, started)
 
-    ended = await jobs.expire_queued(
-        project_id=project.id, replay_job_ids=[started.id, waiting.id], now=utc_now()
+    async def lease() -> ReplayJob:
+        leased = await jobs.lease_next(
+            project_id=project.id,
+            agent_names=["call-assistant"],
+            leased_by_id=run.created_by_id,
+            now=utc_now(),
+            lease_seconds=10,
+        )
+        assert leased is not None
+        return leased
+
+    [finished] = await _enqueue(session, project, run, samples=1)
+    await lease()
+    await jobs.submit(
+        project_id=project.id,
+        replay_job_id=finished.id,
+        outcome=ReplayOutcome.PASSED,
+        replay_run_id=None,
+        error_code=None,
+        now=utc_now(),
+    )
+    first, second = await _enqueue(session, project, run, samples=2)
+    started = await lease()
+    waiting = second if started.id == first.id else first
+
+    ended = await jobs.expire_unfinished(
+        project_id=project.id,
+        replay_job_ids=[started.id, waiting.id, finished.id],
+        now=utc_now(),
     )
 
     statuses = {
         job.id: (await jobs.get(project_id=project.id, replay_job_id=job.id, refresh=True)).status  # type: ignore[union-attr]
-        for job in (started, waiting)
+        for job in (started, waiting, finished)
     }
-    assert ended == 1
-    assert statuses == {started.id: ReplayJobStatus.LEASED, waiting.id: ReplayJobStatus.EXPIRED}
+    assert ended == 2
+    assert statuses == {
+        started.id: ReplayJobStatus.EXPIRED,
+        waiting.id: ReplayJobStatus.EXPIRED,
+        finished.id: ReplayJobStatus.SUCCEEDED,
+    }

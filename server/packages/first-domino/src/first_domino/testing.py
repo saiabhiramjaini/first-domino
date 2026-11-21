@@ -66,8 +66,9 @@ def make_job(**changes: object) -> ReplayJob:
 class FakeApi:
     """Records every request and answers like the real API would.
 
-    Put jobs in `jobs` for the worker to lease, and map an action such as
-    `"steps.record"` to an HTTP status in `fail_paths` to make it fail.
+    Put jobs in `jobs` for the worker to lease, set a job's status in `job_statuses` to end
+    it while it runs, and map an action such as `"steps.record"` to an HTTP status in
+    `fail_paths` to make it fail.
     """
 
     def __init__(self) -> None:
@@ -75,6 +76,7 @@ class FakeApi:
         self.steps: list[RecordStepRequest] = []
         self.finished: list[FinishRunRequest] = []
         self.jobs: list[ReplayJob] = []
+        self.job_statuses: dict[UUID, ReplayJobStatus] = {}
         self.submitted: list[SubmitReplayResultRequest] = []
         self.diagnosis_statuses: list[DiagnosisStatus] = [DiagnosisStatus.queued]
         self.fail_paths: dict[str, int] = {}
@@ -103,6 +105,7 @@ class FakeApi:
             "steps.list": self._list_steps,
             "runs.finish": self._finish,
             "replay-jobs.lease": self._lease,
+            "replay-jobs.get": self._get_job,
             "replay-jobs.submit": self._submit,
             "diagnoses.create": self._diagnosis,
             "diagnoses.get": self._diagnosis,
@@ -173,6 +176,12 @@ class FakeApi:
         payload = json.loads(job.model_dump_json()) if job else None
         return json.dumps({"replay_job": payload})
 
+    def _get_job(self, request: httpx.Request) -> str:
+        job_id = UUID(request.url.params["replay_job_id"])
+        status = self.job_statuses.get(job_id, ReplayJobStatus.leased)
+        job = make_job(id=job_id, status=status)
+        return json.dumps({"replay_job": json.loads(job.model_dump_json())})
+
     def _submit(self, request: httpx.Request) -> str:
         body = SubmitReplayResultRequest.model_validate_json(request.content)
         self.submitted.append(body)
@@ -229,6 +238,7 @@ def fake_client(api: FakeApi, *, key: str | None = "fd_live_test") -> FirstDomin
         lease_wait_seconds=0,
         diagnosis_poll_seconds=0.001,
         worker_retry_seconds=0,
+        job_check_seconds=0.01,
     )
     http = httpx.AsyncClient(transport=httpx.MockTransport(api.handler))
     return FirstDominoClient(settings, http)

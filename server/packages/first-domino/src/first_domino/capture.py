@@ -27,6 +27,7 @@ from types import ModuleType
 from typing import Any
 
 from first_domino._generated.models import Message, MessageRole, RunOutcome, Step
+from first_domino.errors import ReplayStopped
 from first_domino.providers import ModelReply, Provider, provider_for
 from first_domino.recorder import RecordedRun
 
@@ -134,10 +135,12 @@ class Session:
         run: RecordedRun,
         *,
         replay: ReplayPlan | None = None,
+        stop: threading.Event | None = None,
         background: Background = BACKGROUND,
     ) -> None:
         self.run = run
         self.replay = replay
+        self.stop = stop
         self.verdict: Verdict | None = None
         self._background = background
         self._lock = threading.Lock()
@@ -501,6 +504,15 @@ def _begin(module: ModuleType, request: Any) -> _Call | None:
     return _Call(session, provider, module, request, body, session.reserve(), before)
 
 
+def _stop_if_asked() -> None:
+    """Ends a replay at its next model call once nobody needs its result."""
+    if threading.current_thread().name == _THREAD_NAME:
+        return
+    session = current_session()
+    if session is not None and session.stop is not None and session.stop.is_set():
+        raise ReplayStopped
+
+
 def _safely[T](action: str, call: Callable[[], T], fallback: T) -> T:
     try:
         return call()
@@ -516,6 +528,7 @@ def _patch(module: ModuleType) -> None:
     sync_send, async_send = client.send, async_client.send
 
     def send(self: Any, request: Any, **kwargs: Any) -> Any:
+        _stop_if_asked()
         call = _safely("capture", lambda: _begin(module, request), None)
         if call is None:
             return sync_send(self, request, **kwargs)
@@ -530,6 +543,7 @@ def _patch(module: ModuleType) -> None:
         return _safely("receive", lambda: call.received(response), response)
 
     async def asend(self: Any, request: Any, **kwargs: Any) -> Any:
+        _stop_if_asked()
         call = _safely("capture", lambda: _begin(module, request), None)
         if call is None:
             return await async_send(self, request, **kwargs)

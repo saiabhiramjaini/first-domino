@@ -1897,6 +1897,85 @@
         ]
       }
     },
+    "/v1/replay-jobs.get": {
+      "get": {
+        "tags": [
+          "replay-jobs"
+        ],
+        "summary": "Get a replay job",
+        "description": "Returns one replay job of the caller's project.\n\nA worker polls it while replaying: once the job is `expired` (nobody waits for its result)\nor leased again by another worker, the replay can stop.",
+        "operationId": "getReplayJob",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "replay_job_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Replay Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetReplayJobResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/replay-jobs.submit": {
       "post": {
         "tags": [
@@ -3075,6 +3154,19 @@
         ],
         "title": "GetProjectSelfResponse",
         "description": "The caller's project."
+      },
+      "GetReplayJobResponse": {
+        "properties": {
+          "replay_job": {
+            "$ref": "#/components/schemas/ReplayJob"
+          }
+        },
+        "type": "object",
+        "required": [
+          "replay_job"
+        ],
+        "title": "GetReplayJobResponse",
+        "description": "The job as it stands. A worker stops its replay once the job is no longer leased to it."
       },
       "GetRunResponse": {
         "properties": {

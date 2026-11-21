@@ -228,3 +228,29 @@ def test_rank_candidates_nearest_first_within_bounds() -> None:
 def test_verify_threshold_cannot_exceed_samples() -> None:
     with pytest.raises(ValueError, match="verify_pass_threshold"):
         settings(verify_samples=2, verify_pass_threshold=3)
+
+
+@pytest.mark.parametrize(
+    ("fixed", "fixes"),
+    [({3: [P] * 5}, 1), ({}, 1 + 4)],
+    ids=["verified", "fallback"],
+)
+async def test_each_model_call_cost_is_reported_as_it_happens(
+    fixed: dict[int, list[ReplayOutcome]], fixes: int
+) -> None:
+    sink = FakeSink()
+    reader = FakeReader(8)
+    diagnoser = Diagnoser(
+        reader=reader,
+        runner=FakeRunner(plain=break_at(3), fixed=fixed),
+        sink=sink,
+        fixer=FakeFixer(cost_usd=0.01),
+        explainer=FakeExplainer(cost_usd=0.02),
+        settings=settings(),
+        cost_sink=sink,
+    )
+
+    result = await diagnoser.diagnose(reader.run_id, uuid4())
+
+    assert sink.costs == [0.01] * fixes + [0.02]
+    assert sum(sink.costs) == pytest.approx(result.cost_usd)

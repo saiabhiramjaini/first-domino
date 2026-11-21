@@ -98,12 +98,16 @@ class FakeSink:
     started: list[CheckView] = field(default_factory=list)
     finished: list[CheckView] = field(default_factory=list)
     progress_events: list[ProgressEvent] = field(default_factory=list)
+    costs: list[float] = field(default_factory=list)
 
     async def check_started(self, check: CheckView) -> None:
         self.started.append(check)
 
     async def check_finished(self, check: CheckView) -> None:
         self.finished.append(check)
+
+    async def cost_added(self, diagnosis_id: UUID, cost_usd: float) -> None:
+        self.costs.append(cost_usd)
 
     async def progress(
         self,

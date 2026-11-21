@@ -2,9 +2,9 @@
 
 **Contract version: 3** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`)
 
-This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `backend/api/openapi.json` is generated from the API and must match this file.
+This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `server/api/openapi.json` is generated from the API and must match this file.
 
-Only the platform backend workstream (S0) edits this file. Anyone else who needs a change writes it under "Contract requests" in their `docs/status/<stream>.md`. S0 applies it, bumps the version above, regenerates `backend/api/openapi.json` and the SDK models, and merges. Everyone else pulls and regenerates their client.
+Only the platform backend workstream (S0) edits this file. Anyone else who needs a change writes it under "Contract requests" in their `docs/status/<stream>.md`. S0 applies it, bumps the version above, regenerates `server/api/openapi.json` and the SDK models, and merges. Everyone else pulls and regenerates their client.
 
 ## Conventions
 
@@ -16,7 +16,7 @@ Only the platform backend workstream (S0) edits this file. Anyone else who needs
 - Every list is a page. Request: `limit` (1 to 100, default 50) and `cursor` (opaque string or null). Response: `items` and `next_cursor` (null on the last page).
 - Field names are snake_case on the wire.
 - `GET` operations take their request fields as query parameters (`GET /v1/runs.get?run_id=...`).
-- A bearer token starting `fd_live_` is checked as a project API key; anything else as a web session token. For local work without the web app, `make dev-key` in `backend/` prints an API key for a local developer's project.
+- A bearer token starting `fd_live_` is checked as a project API key; anything else as a web session token. For local work without the web app, `make dev-key` in `server/` prints an API key for a local developer's project.
 
 ## Auth
 

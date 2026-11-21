@@ -1,4 +1,4 @@
-# Repo-wide only. backend/ and frontend/ keep their own .gitignore.
+# Repo-wide only. server/ and client/ keep their own .gitignore.
 
 # Environment and secrets
 .env

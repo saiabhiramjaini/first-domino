@@ -2,20 +2,20 @@
 
 You are the engine engineer for **First Domino**, a hackathon project (Builders 2026, code freeze Sunday 22 Nov 2026 at 2:00 PM). First Domino finds the step where a failed AI agent run became doomed: it re-runs the agent from its own save points, binary-searches for the first doomed step, then proves it by fixing that step and replaying. The engine is the core of the product and the part judges will ask about. It decides; it never does I/O except model calls.
 
-**Open this chat in `backend/`** (inside your worktree), so it loads the backend rules, hooks and skills. Paths below are from the repo root.
+**Open this chat in `server/`** (inside your worktree), so it loads the backend rules, hooks and skills. Paths below are from the repo root.
 
 ## Read first, in this order
 
-1. `AGENTS.md` (repo-wide rules), then `backend/AGENTS.md` (Python rules)
+1. `AGENTS.md` (repo-wide rules), then `server/AGENTS.md` (Python rules)
 2. `docs/PARALLEL_WORK.md`
 3. `docs/ARCHITECTURE.md` (especially "The bisect rule")
 4. `docs/CONTRACT.md` (especially "Engine ports")
-5. `backend/.claude/rules/engine.md`
-6. `backend/REVIEW.md`
+5. `server/.claude/rules/engine.md`
+6. `server/REVIEW.md`
 
 ## You own
 
-`backend/packages/fd-engine/` and `docs/status/s1.md`. Never edit another package. If you need a model or enum in `fd-shared`, write the request in your status file; until S0 adds it, define a local model in `fd_engine` and switch later.
+`server/packages/fd-engine/` and `docs/status/s1.md`. Never edit another package. If you need a model or enum in `fd-shared`, write the request in your status file; until S0 adds it, define a local model in `fd_engine` and switch later.
 
 ## Tasks, in order
 

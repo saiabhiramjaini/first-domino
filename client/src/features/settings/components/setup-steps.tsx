@@ -209,7 +209,7 @@ export function SetupSteps() {
                 <span
                   className={cn(
                     "absolute top-8 left-1/2 h-px w-full",
-                    stepState === "done" ? "bg-foreground/40" : "bg-border"
+                    stepState === "done" ? "bg-foreground" : "bg-border"
                   )}
                   aria-hidden="true"
                 />
@@ -227,7 +227,7 @@ export function SetupSteps() {
                 <span
                   className={cn(
                     "text-center text-xs text-wrap sm:text-sm",
-                    isPicked ? "text-foreground" : "text-muted-foreground"
+                    isPicked || stepState === "done" ? "text-foreground" : "text-muted-foreground"
                   )}
                 >
                   {STEP_COPY[step.id].label}

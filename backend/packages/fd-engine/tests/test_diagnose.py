@@ -10,8 +10,9 @@ from fd_engine.checks import CheckRunner
 from fd_engine.diagnose import Diagnoser
 from fd_engine.errors import CheckBudgetError, ReplayUnavailableError
 from fd_engine.fallback import rank_candidates
-from fd_engine.models import CheckPhase, CheckResult, DiagnosisResult, ReplayOutcome, VerdictKind
 from fd_engine.settings import EngineSettings
+from fd_shared.enums import CheckPhase, CheckResult, ReplayOutcome, VerdictKind
+from fd_shared.models import DiagnosisResult
 
 from .fakes import (
     TEST_MODEL,

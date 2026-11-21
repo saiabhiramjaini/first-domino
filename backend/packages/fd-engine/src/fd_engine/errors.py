@@ -1,27 +1,29 @@
-"""Errors the engine raises to stop a diagnosis.
-
-They derive from a local base until `fd_shared.errors` ships `FirstDominoError`,
-`RetryableError` and `UnretryableError`; then these subclass those instead.
-"""
+"""Errors the engine raises to stop a diagnosis. Store `code` as the diagnosis `error_code`."""
 
 from typing import ClassVar
 
-
-class EngineError(Exception):
-    """Base for engine errors. `code` is stable; callers branch on it, never on the message."""
-
-    code: ClassVar[str] = "engine_error"
-    retryable: ClassVar[bool] = False
+from fd_shared.errors import RetryableError, UnretryableError
 
 
-class ReplayUnavailableError(EngineError):
+class ReplayUnavailableError(RetryableError):
     """Every replay in a check errored or timed out, so the check has no verdict."""
 
     code: ClassVar[str] = "replay_unavailable"
-    retryable: ClassVar[bool] = True
 
 
-class CheckBudgetError(EngineError):
+class CheckBudgetError(UnretryableError):
     """The diagnosis needed more checks than `max_checks` allows."""
 
     code: ClassVar[str] = "check_budget_exceeded"
+
+
+class LlmNotConfiguredError(UnretryableError):
+    """The engine needs a model call but `OPENAI_API_KEY` is not set."""
+
+    code: ClassVar[str] = "llm_not_configured"
+
+
+class LlmCallError(RetryableError):
+    """One model call failed before it returned any text."""
+
+    code: ClassVar[str] = "llm_call_failed"

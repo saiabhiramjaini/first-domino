@@ -10,7 +10,8 @@ from fd_engine.explain import LlmExplainer, unexplained
 from fd_engine.fix import LlmStepFixer
 from fd_engine.group import CauseCandidate, CauseGrouper
 from fd_engine.llm import Llm, ReplyQuality
-from fd_engine.models import CauseCategory, Explanation, MessageRole
+from fd_shared.enums import CauseCategory, MessageRole
+from fd_shared.models import Explanation
 
 from .fakes import FakeReader, FakeTransport, settings
 
@@ -123,6 +124,16 @@ async def test_fixer_rejects_tool_arguments_that_are_not_a_json_object() -> None
 
     assert fixed.output is None
     assert fixed.cost_usd > 0
+
+
+async def test_fixer_lists_the_tools_the_run_used() -> None:
+    model, transport = llm(json.dumps({"content": "ok", "tool_calls": []}))
+    reader = FakeReader(step_count=3)
+    run = await reader.get_run(reader.run_id)
+
+    await LlmStepFixer(model).fix(run, await reader.get_steps(reader.run_id), 2)
+
+    assert "Tools the run used: tool_1, tool_2, tool_3" in transport.prompts[0]
 
 
 def candidates(count: int) -> list[CauseCandidate]:

@@ -3,8 +3,8 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from fd_engine.llm import Llm
-from fd_engine.models import RunView, StepView
 from fd_engine.transcript import render_steps, render_task
+from fd_shared.models import RunView, StepView
 
 _SYSTEM = """\
 You review a failed AI agent run. Find the first step where the agent made the mistake that

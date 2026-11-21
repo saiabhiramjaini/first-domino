@@ -3,9 +3,9 @@
 from uuid import UUID
 
 from fd_engine.checks import CheckRequest, CheckRunner
-from fd_engine.models import CheckPhase, CheckResult, DiagnosisStatus
 from fd_engine.ports import CheckSink
 from fd_engine.settings import EngineSettings
+from fd_shared.enums import CheckPhase, CheckResult, DiagnosisStatus
 
 CAN_SUCCEED_PASSES = 1
 """A save point can succeed when any one of its replays passes."""

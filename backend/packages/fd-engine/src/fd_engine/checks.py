@@ -5,9 +5,13 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from fd_engine.errors import CheckBudgetError, ReplayUnavailableError
-from fd_engine.models import Check, CheckPhase, CheckResult, Message, ReplayOutcome
 from fd_engine.ports import CheckSink, ReplayRunner
 from fd_engine.settings import EngineSettings
+from fd_shared.enums import CheckPhase, CheckResult, ReplayOutcome
+from fd_shared.logging import get_logger
+from fd_shared.models import CheckView, Message
+
+log = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +51,7 @@ class CheckRunner:
         """How many more checks the budget allows."""
         return self._settings.max_checks - self.check_count
 
-    async def run(self, request: CheckRequest) -> Check:
+    async def run(self, request: CheckRequest) -> CheckView:
         """Run one check and return it with its passes and result.
 
         Raises:
@@ -56,7 +60,7 @@ class CheckRunner:
         """
         if self.remaining <= 0:
             raise CheckBudgetError
-        pending = Check(
+        pending = CheckView(
             diagnosis_id=self._diagnosis_id,
             index=self.check_count,
             phase=request.phase,
@@ -77,6 +81,16 @@ class CheckRunner:
         )
         finished = pending.model_copy(update={"passes": passes, "result": result})
         await self._sink.check_finished(finished)
+        log.info(
+            "check.finished",
+            diagnosis_id=str(self._diagnosis_id),
+            index=finished.index,
+            phase=finished.phase,
+            save_point=finished.save_point,
+            passes=passes,
+            samples=finished.samples,
+            result=result,
+        )
         return finished
 
     async def _replay(self, request: CheckRequest) -> list[ReplayOutcome]:
@@ -90,4 +104,10 @@ class CheckRunner:
                     replacement_output=request.replacement_output,
                 )
         except TimeoutError:
+            log.warning(
+                "check.replay_timeout",
+                diagnosis_id=str(self._diagnosis_id),
+                save_point=request.save_point,
+                timeout_seconds=self._settings.replay_timeout_seconds,
+            )
             return [ReplayOutcome.ERRORED] * request.samples

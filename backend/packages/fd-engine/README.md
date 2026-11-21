@@ -13,7 +13,6 @@ The core: bisect over save points, verify by replay, fallback, explain, group an
 | --- | --- |
 | `settings` | EngineSettings: samples per check, verify threshold, fallback window, model ids and timeouts. |
 | `ports` | Protocol ports the engine depends on: ReplayRunner, RunReader and CheckSink. |
-| `models` | The data the ports carry and `DiagnosisResult`; local copies until `fd-shared` has them. |
 | `errors` | Errors that stop a diagnosis, each with a stable `code`. |
 | `checks` | Runs one check: replay from a save point, count passes, report it through the sink. |
 | `diagnose` | Runs one diagnosis end to end: bisect, verify or fallback, explain and group. |

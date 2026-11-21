@@ -7,20 +7,13 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 
+from fd_engine.errors import LlmCallError
 from fd_engine.explain import ExplainedStep, unexplained
-from fd_engine.llm import LlmCallError, RawCompletion
-from fd_engine.models import (
-    Check,
-    DiagnosisStatus,
-    Message,
-    MessageRole,
-    ReplayOutcome,
-    RunView,
-    StepView,
-    TaskInput,
-)
+from fd_engine.llm import RawCompletion
 from fd_engine.settings import EngineSettings
 from fd_engine.verify import FixedStep
+from fd_shared.enums import DiagnosisStatus, MessageRole, ReplayOutcome, RunStatus
+from fd_shared.models import CheckView, Message, RunView, StepView, TaskInput, ToolCall
 
 P = ReplayOutcome.PASSED
 F = ReplayOutcome.FAILED
@@ -95,14 +88,14 @@ class ProgressEvent:
 
 @dataclass
 class FakeSink:
-    started: list[Check] = field(default_factory=list)
-    finished: list[Check] = field(default_factory=list)
+    started: list[CheckView] = field(default_factory=list)
+    finished: list[CheckView] = field(default_factory=list)
     progress_events: list[ProgressEvent] = field(default_factory=list)
 
-    async def check_started(self, check: Check) -> None:
+    async def check_started(self, check: CheckView) -> None:
         self.started.append(check)
 
-    async def check_finished(self, check: Check) -> None:
+    async def check_finished(self, check: CheckView) -> None:
         self.finished.append(check)
 
     async def progress(
@@ -126,7 +119,9 @@ class FakeReader:
             id=run_id,
             agent_name="test-agent",
             task_input=TaskInput(prompt="book a visit"),
+            status=RunStatus.FAILED,
             step_count=self.step_count,
+            final_output=None,
         )
 
     async def get_steps(self, run_id: UUID) -> list[StepView]:
@@ -134,7 +129,12 @@ class FakeReader:
             StepView(
                 index=index,
                 model="agent-test-model",
-                output=Message(role=MessageRole.ASSISTANT, content=f"step {index}"),
+                output=Message(
+                    role=MessageRole.ASSISTANT,
+                    content=None,
+                    tool_calls=[ToolCall(id=f"c{index}", name=f"tool_{index}", arguments="{}")],
+                ),
+                tool_results=[],
             )
             for index in range(1, self.step_count + 1)
         ]

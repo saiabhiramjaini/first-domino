@@ -2,16 +2,33 @@ import { cn } from "@/lib/utils";
 
 type DominoMarkProps = { className?: string };
 
-// The logo, identical to the favicon (src/app/icon.svg and public/brand/logo.svg): a ruled-out
-// tile, the first domino with its marker, and a doomed tile, on a dark rounded square.
+// The logo (public/brand/logo.svg): the first domino, fallen, beside the dashed outline of where
+// it stood, which is what the proven fix keeps standing. The favicon (src/app/icon.svg) draws the
+// outline solid, since dashes blur at 16 px.
 export function DominoMark({ className }: DominoMarkProps) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className={cn("size-7 shrink-0", className)}>
-      <rect x=".5" y=".5" width="31" height="31" rx="6.5" fill="#18181B" stroke="#2E2E34" />
-      <rect x="5.5" y="6" width="5" height="15" rx="1.2" fill="#EDEDEF" opacity=".35" />
-      <rect x="13.5" y="6" width="5" height="15" rx="1.2" fill="#8B7CFF" />
-      <rect x="21.5" y="6" width="5" height="15" rx="1.2" fill="#EDEDEF" />
-      <path d="M16 22.5l3.5 4.5h-7z" fill="#8B7CFF" />
+      <rect
+        x="17.3"
+        y="7.3"
+        width="7.4"
+        height="18.4"
+        rx="2"
+        fill="none"
+        stroke="#8B7CFF"
+        strokeWidth="1.6"
+        strokeDasharray="2.2 1.8"
+        opacity=".75"
+      />
+      <rect
+        x="16.5"
+        y="6.5"
+        width="9"
+        height="20"
+        rx="2.6"
+        fill="#8B7CFF"
+        transform="rotate(-34 16.5 26.5)"
+      />
     </svg>
   );
 }

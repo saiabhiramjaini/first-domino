@@ -75,10 +75,25 @@
       .ok .tile {
         background: #26262b;
       }
+      .hit .slot {
+        position: relative;
+        width: 22px;
+        height: 56px;
+      }
+      .hit .slot::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border: 2px dashed rgba(139, 124, 255, 0.7);
+        border-radius: 5px;
+        box-sizing: border-box;
+      }
       .hit .tile {
+        position: absolute;
+        inset: 0;
         background: #8b7cff;
-        transform: rotate(12deg);
-        transform-origin: bottom right;
+        transform: rotate(-34deg);
+        transform-origin: bottom left;
       }
       .hit {
         color: #8b7cff;
@@ -103,12 +118,28 @@
   <body>
     <div class="og">
       <div class="brand">
-        <svg viewBox="0 0 32 32" width="56" height="56" aria-hidden="true">
-          <rect x=".5" y=".5" width="31" height="31" rx="6.5" fill="#18181B" stroke="#2E2E34" />
-          <rect x="5.5" y="6" width="5" height="15" rx="1.2" fill="#EDEDEF" opacity=".35" />
-          <rect x="13.5" y="6" width="5" height="15" rx="1.2" fill="#8B7CFF" />
-          <rect x="21.5" y="6" width="5" height="15" rx="1.2" fill="#EDEDEF" />
-          <path d="M16 22.5l3.5 4.5h-7z" fill="#8B7CFF" />
+        <svg viewBox="0 0 32 32" width="60" height="60" aria-hidden="true">
+          <rect
+            x="17.3"
+            y="7.3"
+            width="7.4"
+            height="18.4"
+            rx="2"
+            fill="none"
+            stroke="#8B7CFF"
+            stroke-width="1.6"
+            stroke-dasharray="2.2 1.8"
+            opacity=".75"
+          />
+          <rect
+            x="16.5"
+            y="6.5"
+            width="9"
+            height="20"
+            rx="2.6"
+            fill="#8B7CFF"
+            transform="rotate(-34 16.5 26.5)"
+          />
         </svg>
         First Domino
       </div>
@@ -131,7 +162,7 @@
             3
           </div>
           <div class="step hit">
-            <div class="tile"></div>
+            <div class="slot"><div class="tile"></div></div>
             4
           </div>
           <div class="step">

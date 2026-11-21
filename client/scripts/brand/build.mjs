@@ -1,5 +1,5 @@
 // Builds the raster brand assets from the SVG sources. Run from client/: bun scripts/brand/build.mjs
-// Needs Google Chrome for the OG image (it renders scripts/brand/og.html with the Geist font).
+// Needs Google Chrome for the OG image (it renders scripts/brand/og.html with the Inter font).
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

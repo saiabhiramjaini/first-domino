@@ -77,6 +77,7 @@ class FakeApi:
         self.diagnosis_statuses: list[DiagnosisStatus] = [DiagnosisStatus.queued]
         self.fail_paths: dict[str, int] = {}
         self.auth_headers: list[str | None] = []
+        self.start_bodies: list[dict[str, object]] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.auth_headers.append(request.headers.get("Authorization"))
@@ -100,6 +101,7 @@ class FakeApi:
         }
 
     def _start(self, request: httpx.Request) -> str:
+        self.start_bodies.append(json.loads(request.content))
         body = StartRunRequest.model_validate_json(request.content)
         run = Run(
             id=uuid4(),

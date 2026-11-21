@@ -58,7 +58,7 @@ async def test_clean_break_is_found_and_verified() -> None:
 
     assert result.verdict_kind is VerdictKind.STEP_VERIFIED
     assert result.first_domino_step == 4
-    assert (result.verify_passes, result.verify_samples) == (4, 5)
+    assert (result.verify_passes, result.verify_samples) == (3, 3)
     assert result.fixed_output is not None
     assert result.fixed_output.content == "fixed step 4"
 
@@ -91,8 +91,8 @@ async def test_task_that_always_fails_blames_no_step() -> None:
     assert result.verdict_kind is VerdictKind.TASK_OR_TOOL_ISSUE
     assert result.first_domino_step is None
     assert result.explanation is None
-    assert result.check_count == 1
-    assert [call.from_step for call in runner.calls] == [0]
+    assert result.check_count == 2
+    assert list(dict.fromkeys(call.from_step for call in runner.calls)) == [4, 0]
 
 
 async def test_flaky_middle_counts_any_pass_as_can_succeed() -> None:
@@ -117,8 +117,8 @@ async def test_verify_that_does_not_flip_reports_partial_passes() -> None:
     assert result.verdict_kind is VerdictKind.MULTIPLE_CAUSES
     assert result.first_domino_step == 4
     assert (result.verify_passes, result.verify_samples) == (2, 5)
-    fallback_steps = [c.from_step + 1 for c in runner.calls if c.replacement_output][1:]
-    assert fallback_steps == [3, 5, 2, 6]
+    fixed_steps = dict.fromkeys(c.from_step + 1 for c in runner.calls if c.replacement_output)
+    assert list(fixed_steps) == [4, 3, 5, 2, 6]
 
 
 async def test_fallback_neighbor_that_flips_is_verified() -> None:
@@ -173,7 +173,7 @@ async def test_sink_sees_each_check_pending_then_finished() -> None:
     assert [c.index for c in sink.started] == list(range(result.check_count))
     assert [c.index for c in sink.finished] == list(range(result.check_count))
     assert all(c.result is CheckResult.PENDING for c in sink.started)
-    assert sink.finished[0].phase is CheckPhase.PRECHECK
+    assert [c.phase for c in sink.finished[:2]] == [CheckPhase.BISECT, CheckPhase.PRECHECK]
     assert sink.finished[-1].phase is CheckPhase.VERIFY
     assert result.replay_count == sum(c.samples for c in sink.finished)
 
@@ -189,7 +189,7 @@ async def test_bisect_model_follows_settings_and_verify_uses_agent_model(
     plain = [c for c in runner.calls if c.replacement_output is None]
     fixed = [c for c in runner.calls if c.replacement_output is not None]
     assert all(c.model_override == bisect_model for c in plain)
-    assert [(c.from_step, c.model_override) for c in fixed] == [(2, None)]
+    assert {(c.from_step, c.model_override) for c in fixed} == {(2, None)}
 
 
 @pytest.mark.parametrize("step_count", range(1, 13))
@@ -228,3 +228,29 @@ def test_rank_candidates_nearest_first_within_bounds() -> None:
 def test_verify_threshold_cannot_exceed_samples() -> None:
     with pytest.raises(ValueError, match="verify_pass_threshold"):
         settings(verify_samples=2, verify_pass_threshold=3)
+
+
+@pytest.mark.parametrize(
+    ("fixed", "fixes"),
+    [({3: [P] * 5}, 1), ({}, 1 + 4)],
+    ids=["verified", "fallback"],
+)
+async def test_each_model_call_cost_is_reported_as_it_happens(
+    fixed: dict[int, list[ReplayOutcome]], fixes: int
+) -> None:
+    sink = FakeSink()
+    reader = FakeReader(8)
+    diagnoser = Diagnoser(
+        reader=reader,
+        runner=FakeRunner(plain=break_at(3), fixed=fixed),
+        sink=sink,
+        fixer=FakeFixer(cost_usd=0.01),
+        explainer=FakeExplainer(cost_usd=0.02),
+        settings=settings(),
+        cost_sink=sink,
+    )
+
+    result = await diagnoser.diagnose(reader.run_id, uuid4())
+
+    assert sink.costs == [0.01] * fixes + [0.02]
+    assert sum(sink.costs) == pytest.approx(result.cost_usd)

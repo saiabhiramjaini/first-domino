@@ -1,4 +1,4 @@
-"""Protocol ports the engine depends on: ReplayRunner, RunReader and CheckSink.
+"""Protocol ports the engine depends on: ReplayRunner, RunReader, CheckSink and CostSink.
 
 The API implements them in `fd_api.adapters`. The engine never reaches storage or HTTP any
 other way.
@@ -71,4 +71,16 @@ class CheckSink(Protocol):
         search_high: int | None,
     ) -> None:
         """Store the diagnosis status and the current bisect range."""
+        ...
+
+
+class CostSink(Protocol):
+    """Receives the cost of each engine model call while a diagnosis runs, for a live total."""
+
+    async def cost_added(self, diagnosis_id: UUID, cost_usd: float) -> None:
+        """Add one model call's cost (a fix or an explanation) to the diagnosis's running total.
+
+        The final `DiagnosisResult.cost_usd` is still the whole total. Grouping runs after the
+        diagnosis, in the API, which adds its cost itself.
+        """
         ...

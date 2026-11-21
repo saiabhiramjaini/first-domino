@@ -31,7 +31,7 @@ from fd_engine.llm import Llm
 from fd_engine.settings import EngineSettings
 from fd_scripts.dataset import LabelledRun, load_dataset
 from fd_scripts.in_process import DatasetReader, DemoReplayRunner, DiscardingSink
-from fd_scripts.scoring import CaseResult, MethodScore, score
+from fd_scripts.scoring import ACCURACY_DEFINITION, CaseResult, MethodScore, score
 from fd_scripts.settings import ScriptsSettings
 from fd_shared.enums import BenchmarkMethod, VerdictKind
 from fd_shared.errors import FirstDominoError
@@ -49,6 +49,7 @@ class BenchmarkReport(BaseModel):
     dataset: str
     agent_model: str
     strong_model: str
+    accuracy_definition: str = ACCURACY_DEFINITION
     scores: list[MethodScore]
     results: list[CaseResult]
 
@@ -157,25 +158,29 @@ async def _score_case(
     return results
 
 
+def stored_rows(results: list[CaseResult]) -> list[NewBenchmarkResult]:
+    """The database rows for the results. A run with no step named keeps a null prediction,
+    which the database scores count as a miss, as `score` does."""
+    return [
+        NewBenchmarkResult(
+            method=result.method,
+            case_id=result.case_id,
+            true_step=result.true_step,
+            predicted_step=result.predicted_step,
+            verified=result.verified,
+            cost_usd=Decimal(str(round(result.cost_usd, 6))),
+            seconds=result.seconds,
+        )
+        for result in results
+    ]
+
+
 async def _store(results: list[CaseResult]) -> None:
     database = Database()
     try:
         await database.create_tables()
         async with database.transaction() as session:
-            await BenchmarkRepository(session).create(
-                results=[
-                    NewBenchmarkResult(
-                        method=result.method,
-                        case_id=result.case_id,
-                        true_step=result.true_step,
-                        predicted_step=result.predicted_step,
-                        verified=result.verified,
-                        cost_usd=Decimal(str(round(result.cost_usd, 6))),
-                        seconds=result.seconds,
-                    )
-                    for result in results
-                ]
-            )
+            await BenchmarkRepository(session).create(results=stored_rows(results))
     finally:
         await database.dispose()
 
@@ -191,6 +196,7 @@ def _print_scores(scores: list[MethodScore]) -> None:
             f"{s.within_one_accuracy:>8.0%} {verified:>8} {replays:>8} {s.mean_cost_usd:>8.4f} "
             f"{s.mean_seconds:>8.1f}"
         )
+    print(ACCURACY_DEFINITION)
 
 
 async def _main(dataset_name: str, limit: int | None, *, store: bool) -> None:

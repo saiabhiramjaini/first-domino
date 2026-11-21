@@ -1,7 +1,13 @@
-"""Runs one check: replay from a save point, count passes, report it through the sink."""
+"""Runs one check: replay from a save point, count passes, report it through the sink.
+
+A check's replays run at once, one replay per call, and the rest are cancelled as soon as the
+result is decided: one pass is enough for `can_succeed` at bisect, and verify stops once its
+threshold is reached or can no longer be reached. A doomed bisect check still waits for every
+replay, because only all of them failing makes it doomed.
+"""
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from fd_engine.errors import CheckBudgetError, ReplayUnavailableError
@@ -26,6 +32,34 @@ class CheckRequest:
     replacement_output: Message | None = None
 
 
+@dataclass(slots=True)
+class _Tally:
+    """The outcomes of one check's replays so far."""
+
+    required_passes: int
+    samples: int
+    outcomes: list[ReplayOutcome] = field(default_factory=list)
+
+    @property
+    def passes(self) -> int:
+        return sum(outcome is ReplayOutcome.PASSED for outcome in self.outcomes)
+
+    @property
+    def decided(self) -> bool:
+        """The result can no longer change. Until a replay completes, keep waiting.
+
+        A check whose finished replays all errored waits for the rest, so a check is only
+        unavailable when every replay errored.
+        """
+        if all(outcome is ReplayOutcome.ERRORED for outcome in self.outcomes):
+            return len(self.outcomes) == self.samples
+        left = self.samples - len(self.outcomes)
+        return self.passes >= self.required_passes or self.passes + left < self.required_passes
+
+    def fill_errored(self) -> None:
+        self.outcomes.extend([ReplayOutcome.ERRORED] * (self.samples - len(self.outcomes)))
+
+
 class CheckRunner:
     """Runs the checks of one diagnosis in order and counts checks and replays."""
 
@@ -45,6 +79,7 @@ class CheckRunner:
         self._settings = settings
         self.check_count = 0
         self.replay_count = 0
+        """Replays that finished; a timed-out one counts as errored, a stopped one not at all."""
 
     @property
     def remaining(self) -> int:
@@ -79,7 +114,9 @@ class CheckRunner:
         result = (
             CheckResult.CAN_SUCCEED if passes >= request.required_passes else CheckResult.DOOMED
         )
-        finished = pending.model_copy(update={"passes": passes, "result": result})
+        finished = pending.model_copy(
+            update={"samples": len(outcomes), "passes": passes, "result": result}
+        )
         await self._sink.check_finished(finished)
         log.info(
             "check.finished",
@@ -89,20 +126,21 @@ class CheckRunner:
             save_point=finished.save_point,
             passes=passes,
             samples=finished.samples,
+            stopped=request.samples - len(outcomes),
             result=result,
         )
         return finished
 
     async def _replay(self, request: CheckRequest) -> list[ReplayOutcome]:
+        """Start every replay, collect outcomes until the result is decided, stop the rest."""
+        tally = _Tally(required_passes=request.required_passes, samples=request.samples)
+        replays = [asyncio.create_task(self._replay_one(request)) for _ in range(request.samples)]
         try:
             async with asyncio.timeout(self._settings.replay_timeout_seconds):
-                return await self._runner.replay(
-                    self._run_id,
-                    from_step=request.save_point,
-                    samples=request.samples,
-                    model_override=request.model_override,
-                    replacement_output=request.replacement_output,
-                )
+                for finished in asyncio.as_completed(replays):
+                    tally.outcomes.append(await finished)
+                    if tally.decided:
+                        break
         except TimeoutError:
             log.warning(
                 "check.replay_timeout",
@@ -110,4 +148,24 @@ class CheckRunner:
                 save_point=request.save_point,
                 timeout_seconds=self._settings.replay_timeout_seconds,
             )
-            return [ReplayOutcome.ERRORED] * request.samples
+            tally.fill_errored()
+        finally:
+            await _stop(replays)
+        return tally.outcomes
+
+    async def _replay_one(self, request: CheckRequest) -> ReplayOutcome:
+        outcomes = await self._runner.replay(
+            self._run_id,
+            from_step=request.save_point,
+            samples=1,
+            model_override=request.model_override,
+            replacement_output=request.replacement_output,
+        )
+        return outcomes[0] if outcomes else ReplayOutcome.ERRORED
+
+
+async def _stop(replays: list[asyncio.Task[ReplayOutcome]]) -> None:
+    """Cancel the replays still running and wait until they have stopped."""
+    for replay in replays:
+        replay.cancel()
+    await asyncio.gather(*replays, return_exceptions=True)

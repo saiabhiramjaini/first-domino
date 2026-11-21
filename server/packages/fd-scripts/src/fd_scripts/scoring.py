@@ -2,7 +2,7 @@
 
 from statistics import fmean
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from fd_demo_agent.bugs import BugKind
 from fd_shared.enums import BenchmarkMethod, VerdictKind
@@ -26,24 +26,42 @@ class CaseResult(BaseModel):
     replays: int | None = None
     """Replays started, including ones stopped early; None for a method that does not replay."""
 
+    @computed_field
+    @property
+    def exact(self) -> bool:
+        """The named step is the labelled step. False when no step was named."""
+        return self.predicted_step == self.true_step
+
+    @computed_field
+    @property
+    def within_one(self) -> bool:
+        """The named step is at most one off. False when no step was named."""
+        return self.predicted_step is not None and abs(self.predicted_step - self.true_step) <= 1
+
+
+ACCURACY_DEFINITION = (
+    "Accuracy is over every labelled run (runs_scored). A run where the method named no step, "
+    "such as a task_or_tool_issue verdict or an error, counts as a miss."
+)
+
 
 class MethodScore(BaseModel):
-    """One method's scores over every labelled run."""
+    """One method's scores over every labelled run. See `ACCURACY_DEFINITION`."""
 
     model_config = ConfigDict(frozen=True)
 
     method: BenchmarkMethod
-    runs_scored: int
-    exact_accuracy: float
-    within_one_accuracy: float
+    runs_scored: int = Field(description="Every labelled run, including ones with no step named.")
+    exact_accuracy: float = Field(
+        description="Runs where the named step is the labelled step, over `runs_scored`."
+    )
+    within_one_accuracy: float = Field(
+        description="Runs where the named step is at most one off, over `runs_scored`."
+    )
     verified_rate: float | None
     mean_cost_usd: float
     mean_seconds: float
     mean_replays: float | None = None
-
-
-def _within_one(result: CaseResult) -> bool:
-    return result.predicted_step is not None and abs(result.predicted_step - result.true_step) <= 1
 
 
 def score(method: BenchmarkMethod, results: list[CaseResult]) -> MethodScore:
@@ -61,8 +79,8 @@ def score(method: BenchmarkMethod, results: list[CaseResult]) -> MethodScore:
     return MethodScore(
         method=method,
         runs_scored=len(mine),
-        exact_accuracy=fmean(result.predicted_step == result.true_step for result in mine),
-        within_one_accuracy=fmean(_within_one(result) for result in mine),
+        exact_accuracy=fmean(result.exact for result in mine),
+        within_one_accuracy=fmean(result.within_one for result in mine),
         verified_rate=fmean(proofs) if proofs else None,
         mean_cost_usd=fmean(result.cost_usd for result in mine),
         mean_seconds=fmean(result.seconds for result in mine),

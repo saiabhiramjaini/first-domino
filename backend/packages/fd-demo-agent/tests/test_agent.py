@@ -9,16 +9,20 @@ from openai.types.chat import (
     ChatCompletionToolUnionParam,
 )
 
+import first_domino as fd
 from fd_demo_agent.agent import AgentStep, CallAgent, StopReason
 from fd_demo_agent.bugs import get_bug
 from fd_demo_agent.llm import ModelTurn
 from fd_demo_agent.prompts import opening_messages
+from fd_demo_agent.recording import run_recorded, task_input_for
 from fd_demo_agent.runner import BugNotReachedError, run_task
 from fd_demo_agent.settings import DemoAgentSettings
 from fd_demo_agent.success import FailureReason, check_call
 from fd_demo_agent.tasks import get_task
 from fd_demo_agent.toolbox import ToolName
+from fd_demo_agent.worker import build_worker
 from fd_demo_agent.world import load_world
+from first_domino.testing import FakeApi, fake_client, make_job
 
 CLINIC = get_task("t01")
 
@@ -159,7 +163,7 @@ async def test_a_replacement_output_is_used_instead_of_the_model_for_one_step() 
 
     assert result.steps[0].output == add_event("2026-11-22", "22:00")
     assert len(model.models) == len(AFTER_ADD)
-    assert check_call(CLINIC, result.outcome).failure == FailureReason.MISSING_EVENT
+    assert check_call(CLINIC, result.outcome).failure == FailureReason.WRONG_EVENT
 
 
 async def test_a_model_override_runs_every_remaining_step() -> None:
@@ -202,7 +206,7 @@ async def test_a_planted_bug_overwrites_its_step_and_the_model_follows_it() -> N
 
     assert run.steps[bug.step - 1].output == bug.replacement
     assert [step.index for step in run.steps] == list(range(1, 11))
-    assert run.report.failure == FailureReason.MISSING_EVENT
+    assert run.report.failure == FailureReason.WRONG_EVENT
 
 
 async def test_a_clean_task_run_passes() -> None:
@@ -215,3 +219,69 @@ async def test_a_clean_task_run_passes() -> None:
 async def test_a_bug_after_the_run_ends_is_reported() -> None:
     with pytest.raises(BugNotReachedError):
         await run_task(agent_for(ScriptedModel([LOOKUP, DONE])), CLINIC, bug=get_bug("b01"))
+
+
+async def test_a_recorded_run_sends_every_step_and_its_verdict() -> None:
+    api = FakeApi()
+
+    result = await run_recorded(agent_for(ScriptedModel(GOLDEN)), CLINIC, client=fake_client(api))
+
+    (run,) = api.runs.values()
+    assert run.agent_name == "call-assistant"
+    assert run.task_input.metadata == {"task_id": "t01"}
+    assert "+91 40 2311 4455" in run.task_input.prompt
+    assert [s.index for s in api.steps] == list(range(1, 11))
+    assert (api.steps[2].tool_results or [])[0].role == fd.MessageRole.tool
+    assert len(api.steps[-1].messages) == 21
+    assert [f.status for f in api.finished] == [fd.RunOutcome.passed]
+    assert result.report.passed
+
+
+async def test_a_recorded_bug_run_carries_its_label_and_fails() -> None:
+    api = FakeApi()
+    model = ScriptedModel(
+        [LOOKUP, MEMORY, ASK, CONFIRM, add_event("2026-11-23", "10:00"), *AFTER_ADD]
+    )
+
+    await run_recorded(agent_for(model), CLINIC, bug=get_bug("b01"), client=fake_client(api))
+
+    (run,) = api.runs.values()
+    assert run.task_input.metadata == {"task_id": "t01", "bug_id": "b01", "planted_step": "4"}
+    assert [f.status for f in api.finished] == [fd.RunOutcome.failed]
+
+
+async def test_the_worker_replays_from_a_save_point_with_a_replacement() -> None:
+    before_add = (await run_golden())[4].messages
+    api = FakeApi()
+    api.jobs.append(
+        make_job(
+            task_input=task_input_for(CLINIC),
+            from_step=5,
+            messages=[fd.message_from_openai(m) for m in before_add],
+            replacement_output=fd.message_from_openai(add_event("2026-11-22", "22:00")),
+        )
+    )
+    worker = build_worker(agent_for(ScriptedModel(AFTER_ADD)), client=fake_client(api))
+
+    assert await worker.run_once() == fd.ReplayOutcome.failed
+    assert [s.index for s in api.steps] == [6, 7, 8, 9, 10]
+    assert "22:00" in (api.steps[0].output.tool_calls or [])[0].arguments
+    assert api.submitted[0].outcome == fd.ReplayOutcome.failed
+
+
+async def test_the_worker_replays_a_fresh_run_with_a_model_override() -> None:
+    api = FakeApi()
+    api.jobs.append(
+        make_job(
+            task_input=task_input_for(CLINIC),
+            from_step=0,
+            messages=[fd.message_from_openai(m) for m in opening()],
+            model_override="strong-model",
+        )
+    )
+    model = ScriptedModel(GOLDEN)
+    worker = build_worker(agent_for(model), client=fake_client(api))
+
+    assert await worker.run_once() == fd.ReplayOutcome.passed
+    assert set(model.models) == {"strong-model"}
+    assert api.finished[0].final_output == "Handled the clinic call."

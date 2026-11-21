@@ -3,7 +3,7 @@
 | Part | Where | Address |
 | --- | --- | --- |
 | Web app | Vercel (deploys itself from GitHub) | `https://first-domino.abhiramtech.in` |
-| API + demo worker | One EC2 server, Docker Compose, Caddy for HTTPS | `https://api-first-domino.abhiramtech.in` |
+| API + demo worker | One EC2 server: Docker Compose, nginx + certbot for HTTPS | `https://api-first-domino.abhiramtech.in` |
 | Database | Neon Postgres | private |
 | Server image | Docker Hub `saiabhiramjaini/api-first-domino` | public |
 
@@ -25,7 +25,7 @@ Non-secret settings are committed; only secrets live in Vercel and GitHub.
 
 1. **Neon.** Create a project. Copy the **direct** connection string (not the `-pooler` one) and turn it into `postgresql+asyncpg://USER:PASSWORD@HOST/neondb?ssl=require` (drop `sslmode` and `channel_binding`). The API creates the tables on its first start.
 2. **Docker Hub.** Create an access token (Account settings → Personal access tokens, Read & Write).
-3. **EC2.** Ubuntu 24.04, `t3.small`, 20 GB disk, an Elastic IP. Security group: 22 from your IP, 80 and 443 from anywhere. Copy `server/deploy/bootstrap-ec2.sh` to it and run it once.
+3. **EC2.** Ubuntu 24.04, `t3.small`, 20 GB disk, an Elastic IP. Security group: 22 from your IP, 80 and 443 from anywhere. Run `server/deploy/bootstrap-ec2.sh` on it once (Docker, nginx, certbot), then set up nginx as in "nginx and HTTPS" below.
 4. **DNS** for `abhiramtech.in`:
    - `api-first-domino` → `A` (DNS only, proxy off) → the Elastic IP
    - `first-domino` → `CNAME` → the value Vercel shows when you add the domain
@@ -45,6 +45,20 @@ gh secret set SERVER_ENV < server/deploy/.env.production
 ```
 
 `server/deploy/.env.production` is ignored by git; delete it after setting the secret.
+
+## nginx and HTTPS
+
+nginx runs on the server itself (not in Docker) and forwards to the API on `127.0.0.1:8000`.
+
+```bash
+sudo cp nginx.conf /etc/nginx/sites-available/api-first-domino
+sudo ln -sf /etc/nginx/sites-available/api-first-domino /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d api-first-domino.abhiramtech.in --redirect --agree-tos -m <your-email>
+```
+
+certbot adds the HTTPS part to the file and renews the certificate by itself.
 
 ## Demo customer in production
 

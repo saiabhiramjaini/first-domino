@@ -1,6 +1,7 @@
-# Production stack on the EC2 server: the API, the demo customer's replay worker, and Caddy
-# for HTTPS. The deploy workflow copies this file and the Caddyfile to ~/first-domino and
-# writes ~/first-domino/.env from config.env plus the SERVER_ENV secret (see .env.example).
+# Production stack on the EC2 server: the API and the demo customer's replay worker. nginx on
+# the host serves HTTPS and forwards to the API on 127.0.0.1:8000 (see nginx.conf). The deploy
+# workflow copies this file to ~/first-domino and writes ~/first-domino/.env from config.env
+# plus the SERVER_ENV secret (see .env.example).
 name: first-domino
 
 x-server-image: &server-image "${IMAGE:?set IMAGE in .env}:${IMAGE_TAG:-latest}"
@@ -9,6 +10,8 @@ services:
   api:
     image: *server-image
     env_file: .env
+    ports:
+      - "127.0.0.1:8000:8000"
     restart: unless-stopped
     healthcheck:
       test:
@@ -33,23 +36,3 @@ services:
         condition: service_healthy
     restart: unless-stopped
     profiles: [demo]
-
-  caddy:
-    image: caddy:2.10-alpine
-    environment:
-      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      api:
-        condition: service_healthy
-    restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:

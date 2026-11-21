@@ -89,7 +89,7 @@ jobs:
         run: |
           remote="$EC2_USER@$EC2_HOST"
           ssh -i ~/.ssh/ec2 "$remote" 'mkdir -p ~/first-domino'
-          scp -i ~/.ssh/ec2 deploy/compose.yaml deploy/Caddyfile "$remote:first-domino/"
+          scp -i ~/.ssh/ec2 deploy/compose.yaml "$remote:first-domino/"
           # Committed settings first, then the secrets (later values win), then the image.
           { cat deploy/config.env; printf '\n%s\n' "$SERVER_ENV"; printf 'IMAGE=%s\nIMAGE_TAG=%s\n' "$IMAGE" "$GITHUB_SHA"; } \
             | ssh -i ~/.ssh/ec2 "$remote" 'umask 077 && cat > ~/first-domino/.env'

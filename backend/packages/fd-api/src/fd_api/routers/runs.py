@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fd_api.auth.callers import AnyCaller, ApiKeyCaller, Caller, PersonCaller
@@ -24,6 +24,7 @@ from fd_api.models.runs import (
 )
 from fd_api.pagination import decode_cursor, paginate
 from fd_api.services.diagnoses import can_diagnose, create_diagnosis
+from fd_api.services.diagnosis_runner import DiagnosisRunner, get_diagnosis_runner
 from fd_database import tables
 from fd_database.pages import TimeKey
 from fd_database.repositories import ReplayJobsRepository, RunsRepository
@@ -109,7 +110,11 @@ async def start_run(
     ),
 )
 async def finish_run(
-    body: FinishRunRequest, caller: ApiKeyCaller, session: DbSession
+    body: FinishRunRequest,
+    caller: ApiKeyCaller,
+    session: DbSession,
+    background: BackgroundTasks,
+    runner: Annotated[DiagnosisRunner, Depends(get_diagnosis_runner)],
 ) -> FinishRunResponse:
     """Finishes a running run (`409` when already finished).
 
@@ -129,7 +134,10 @@ async def finish_run(
     )
     log.info("runs.finished", run_id=str(run.id), status=run.status)
     if can_diagnose(run):
-        await create_diagnosis(session, run=run, created_by_id=None)
+        diagnosis = await create_diagnosis(session, run=run, created_by_id=None)
+        background.add_task(
+            runner.start, project_id=caller.project_id, run_id=run.id, diagnosis_id=diagnosis.id
+        )
     return FinishRunResponse(run=Run.from_row(run))
 
 

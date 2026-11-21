@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 
 from fd_api.auth.callers import AnyCaller, PersonCaller
 from fd_api.database import DbSession
@@ -20,6 +20,7 @@ from fd_api.models.diagnoses import (
 )
 from fd_api.pagination import decode_cursor, paginate
 from fd_api.services.diagnoses import create_diagnosis
+from fd_api.services.diagnosis_runner import DiagnosisRunner, get_diagnosis_runner
 from fd_database.pages import TimeKey
 from fd_database.repositories import DiagnosesRepository, RunsRepository
 from fd_shared.enums import ApiErrorCode
@@ -41,7 +42,11 @@ router = APIRouter(prefix="/v1", tags=["diagnoses"])
     ),
 )
 async def create_diagnosis_route(
-    body: CreateDiagnosisRequest, caller: AnyCaller, session: DbSession
+    body: CreateDiagnosisRequest,
+    caller: AnyCaller,
+    session: DbSession,
+    background: BackgroundTasks,
+    runner: Annotated[DiagnosisRunner, Depends(get_diagnosis_runner)],
 ) -> CreateDiagnosisResponse:
     """Starts diagnosing a failed recorded run.
 
@@ -53,6 +58,9 @@ async def create_diagnosis_route(
     if run is None:
         raise NotFoundError
     diagnosis = await create_diagnosis(session, run=run, created_by_id=caller.actor_id)
+    background.add_task(
+        runner.start, project_id=caller.project_id, run_id=run.id, diagnosis_id=diagnosis.id
+    )
     return CreateDiagnosisResponse(diagnosis=Diagnosis.from_row(diagnosis))
 
 

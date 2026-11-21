@@ -18,13 +18,25 @@ TASK = {
 AGENT = "call-assistant-replays"
 
 
-async def _failed_run(client: AsyncClient, api_key: Headers) -> dict:
+async def _finished_run(client: AsyncClient, api_key: Headers, status: str) -> dict:
     started = await client.post(
         "/v1/runs.start", json={"agent_name": AGENT, "task_input": TASK}, headers=api_key
     )
     run_id = started.json()["run"]["id"]
+    message = {"role": "assistant", "content": "On it."}
+    step = {
+        "run_id": run_id,
+        "index": 1,
+        "model": "agent-model",
+        "output": message,
+        "messages": [{"role": "user", "content": TASK["prompt"]}, message],
+        "tokens_in": 1,
+        "tokens_out": 1,
+        "latency_ms": 1,
+    }
+    await client.post("/v1/steps.record", json=step, headers=api_key)
     finished = await client.post(
-        "/v1/runs.finish", json={"run_id": run_id, "status": "failed"}, headers=api_key
+        "/v1/runs.finish", json={"run_id": run_id, "status": status}, headers=api_key
     )
     return finished.json()["run"]
 
@@ -34,7 +46,7 @@ async def _enqueue(database: Database, run: dict, project_id: str) -> UUID:
         [job] = await ReplayJobsRepository(session).enqueue(
             project_id=UUID(project_id),
             run_id=UUID(run["id"]),
-            diagnosis_id=UUID(run["latest_diagnosis_id"]),
+            diagnosis_id=None,
             agent_name=AGENT,
             task_input=TaskInput.model_validate(TASK),
             from_step=0,
@@ -46,17 +58,17 @@ async def _enqueue(database: Database, run: dict, project_id: str) -> UUID:
     return job.id
 
 
-async def test_failed_run_is_diagnosed_once(
+async def test_failed_run_is_diagnosed_once_at_a_time(
     client: AsyncClient, person: Headers, api_key: Headers
 ) -> None:
-    run = await _failed_run(client, api_key)
+    run = await _finished_run(client, api_key, "failed")
 
     diagnosis = await client.get(
         "/v1/diagnoses.get", params={"diagnosis_id": run["latest_diagnosis_id"]}, headers=person
     )
     second = await client.post("/v1/diagnoses.create", json={"run_id": run["id"]}, headers=person)
 
-    assert diagnosis.json()["diagnosis"]["status"] == "queued"
+    assert diagnosis.json()["diagnosis"]["status"] in {"queued", "bisecting"}
     assert diagnosis.json()["diagnosis"]["created_by_id"] is None
     assert second.json()["code"] == ApiErrorCode.CONFLICT
 
@@ -64,7 +76,7 @@ async def test_failed_run_is_diagnosed_once(
 async def test_worker_leases_replays_and_submits_once(
     client: AsyncClient, database: Database, person: Headers, api_key: Headers
 ) -> None:
-    run = await _failed_run(client, api_key)
+    run = await _finished_run(client, api_key, "passed")
     project = (await client.get("/v1/projects.self", headers=person)).json()["project"]
     job_id = await _enqueue(database, run, project["id"])
     lease = {"agent_names": [AGENT], "wait_seconds": 0}
@@ -94,7 +106,7 @@ async def test_worker_leases_replays_and_submits_once(
 async def test_replay_run_needs_a_leased_job(
     client: AsyncClient, database: Database, person: Headers, api_key: Headers
 ) -> None:
-    run = await _failed_run(client, api_key)
+    run = await _finished_run(client, api_key, "passed")
     project = (await client.get("/v1/projects.self", headers=person)).json()["project"]
     job_id = await _enqueue(database, run, project["id"])
 

@@ -1,6 +1,6 @@
 # fd-demo-agent
 
-The demo customer: a booking agent with mock tools, a success check and a replay worker, using only the public SDK.
+The demo customer: an AI call assistant with mock tools, scripted callers, a success check and a replay worker, using only the public SDK. Its SDK agent name is `call-assistant`.
 
 - **Layer:** Demo customer
 - **May import:** `first-domino` and third-party libraries
@@ -11,13 +11,31 @@ The demo customer: a booking agent with mock tools, a success check and a replay
 
 | Module | Job |
 | --- | --- |
-| `settings` | DemoAgentSettings: agent model, maximum steps and the fixed today. |
-| `agent` | The agent loop: one model turn plus its tool results per step. |
-| `tools` | Mock tools: pure functions over the world data and a per-run booking sandbox. |
-| `world/` | Loads the mock world data into typed models. |
-| `tasks` | Demo tasks and their expected outcomes. |
-| `success` | Success check: compare the final booking with the expected booking. |
-| `bugs` | Planted bug definitions used to build the benchmark dataset. |
-| `worker` | Entry point for the demo customer's replay worker. |
+| `settings` | DemoAgentSettings: agent model, step limit and the OpenAI key. |
+| `world/` | Loads the mock world JSON (the user and fixed now, contacts, memory, calendar, spam numbers) into typed models. |
+| `tools` | Mock tools as pure functions over the world and the call sandbox. |
+| `sandbox` | The per-call sandbox: the scripted caller and every event, reminder, callback, block and summary the run makes. |
+| `toolbox` | Tool definitions for OpenAI and dispatch of a tool call to its function. |
+| `messages` | Helpers over OpenAI message params, the agent's conversation format. |
+| `prompts` | The system prompt and a call's opening messages. |
+| `llm` | The `ChatModel` port and its OpenAI implementation. |
+| `agent` | The agent loop: one model turn plus its tool results per step; runs from any save point. |
+| `tasks` | The 10 demo calls: number, scripted caller lines and expected end state. |
+| `expected` | Models of the expected end state. |
+| `success` | Success check: compare the final sandbox with the expected end state. Plain code. |
+| `bugs` | Eight planted bugs as data: call, step to overwrite, replacement output. |
+| `runner` | Run one call, optionally with a planted bug, and check the result. |
+| `local` | Command line to run calls against OpenAI and log every step. |
+| `worker` | Entry point for the demo customer's replay worker (after the SDK lands). |
 
-Status: layout only. Modules hold a docstring that states their job; no code yet.
+## Run locally
+
+Needs `OPENAI_API_KEY` and `FD_DEMO_AGENT_MODEL` in `backend/.env`. From `backend/`:
+
+```bash
+uv run python -m fd_demo_agent.local --task t01
+uv run python -m fd_demo_agent.local --bug b01
+uv run python -m fd_demo_agent.local --all
+```
+
+The user is Arjun Rao in Hyderabad, and now is fixed at Saturday 21 Nov 2026, 11:00 AM IST. The caller is scripted: `reply_to_caller` returns the call's next line by turn number, so replays hear the same caller. Every person, caller and business is fictional.

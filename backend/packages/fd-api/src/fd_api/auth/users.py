@@ -64,9 +64,15 @@ def verify_web_token(token: str, settings: ApiSettings) -> WebTokenClaims:
 
 
 async def sign_in(session: AsyncSession, claims: WebTokenClaims) -> Person:
-    """Finds or creates the person by `sub`, and their project on first sign-in."""
+    """Finds or creates the person by `sub`, and their project on first sign-in.
+
+    A person invited by email (`make seed-demo`) is claimed on their first sign-in, so they
+    land in the project prepared for them.
+    """
     projects = ProjectsRepository(session)
-    user = await projects.upsert_user(google_sub=claims.sub, email=claims.email, name=claims.name)
+    user = await projects.claim_pending_user(
+        email=claims.email, google_sub=claims.sub, name=claims.name
+    ) or await projects.upsert_user(google_sub=claims.sub, email=claims.email, name=claims.name)
     project = await projects.get_owned(owner_id=user.id)
     if project is None:
         project = await projects.create(owner_id=user.id, name=f"{claims.name}'s project")

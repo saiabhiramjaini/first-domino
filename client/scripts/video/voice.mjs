@@ -34,7 +34,7 @@ async function speak(segment, file) {
   });
   if (!response.ok) throw new Error(`Speech failed for ${segment.id}: ${response.status}`);
   writeFileSync(file, Buffer.from(await response.arrayBuffer()));
-  console.log(`voiced ${segment.id}`);
+  process.stdout.write(`voiced ${segment.id}\n`);
 }
 
 // Speech models leave half a second of silence around a line and long pauses inside it.
@@ -106,6 +106,6 @@ const timing = {
   segments: segments.map(({ id, text, start, end }) => ({ id, text, start, end })),
 };
 writeFileSync(join(OUT, "timing.js"), `window.TIMING = ${JSON.stringify(timing, null, 2)};\n`);
-console.log(
-  `narration ${total}s: ${segments.map((s) => `${s.id}@${s.start.toFixed(1)}`).join(" ")}`
+process.stdout.write(
+  `narration ${total}s: ${segments.map((s) => `${s.id}@${s.start.toFixed(1)}`).join(" ")}\n`
 );

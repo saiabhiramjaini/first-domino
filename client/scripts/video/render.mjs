@@ -100,7 +100,7 @@ try {
     for (const seconds of stillTimes) {
       writeFileSync(join(output, `still_${seconds}s.png`), await capture(seconds));
     }
-    console.log(`Wrote ${stillTimes.length} stills to ${output}`);
+    process.stdout.write(`Wrote ${stillTimes.length} stills to ${output}\n`);
   } else {
     await renderVideo();
   }
@@ -147,5 +147,5 @@ async function renderVideo() {
     ],
     { stdio: "inherit" }
   );
-  console.log(`Wrote ${output}`);
+  process.stdout.write(`Wrote ${output}\n`);
 }

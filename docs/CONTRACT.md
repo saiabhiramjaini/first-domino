@@ -1,6 +1,6 @@
 # Contract
 
-**Contract version: 1 (draft, not yet implemented)**
+**Contract version: 1 (implemented with example data; real handlers land resource by resource without changing it)**
 
 This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `api/openapi.json` is generated from the API and must match this file.
 
@@ -15,6 +15,8 @@ Only the platform backend workstream (S0) edits this file. Anyone else who needs
 - Ids we mint are UUIDs. Timestamps are UTC RFC 3339 strings. Money is `cost_usd` as a number with up to 6 decimals.
 - Every list is a page. Request: `limit` (1 to 100, default 50) and `cursor` (opaque string or null). Response: `items` and `next_cursor` (null on the last page).
 - Field names are snake_case on the wire.
+- `GET` operations take their request fields as query parameters (`GET /v1/runs.get?run_id=...`).
+- Until real auth lands, any bearer token is accepted: one starting `fd_live_` acts as an API key, anything else as a person, both in one example project.
 
 ## Auth
 
@@ -47,6 +49,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | Enum | Values |
 | --- | --- |
 | `RunStatus` | `running`, `passed`, `failed`, `errored` |
+| `RunOutcome` | `passed`, `failed`, `errored` (how `finishRun` ends a run) |
 | `RunSource` | `recorded`, `replay` |
 | `MessageRole` | `system`, `user`, `assistant`, `tool` |
 | `DiagnosisStatus` | `queued`, `bisecting`, `verifying`, `explaining`, `done`, `failed` |
@@ -56,6 +59,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `ReplayJobStatus` | `queued`, `leased`, `succeeded`, `failed`, `expired` |
 | `ReplayOutcome` | `passed`, `failed`, `errored` |
 | `CauseCategory` | `wrong_date`, `wrong_entity`, `wrong_filter`, `bad_tool_args`, `hallucination`, `tool_issue`, `other` |
+| `BenchmarkMethod` | `first_domino`, `read_trace_judge` |
 | `ApiErrorCode` | the `code` values in the table above |
 
 ## Shared objects
@@ -94,9 +98,9 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | Operation | Path | Caller | Request | Response |
 | --- | --- | --- | --- | --- |
 | `startRun` | `POST /v1/runs.start` | K | `agent_name`, `task_input`, `replay_job_id` (or null) | `run` |
-| `finishRun` | `POST /v1/runs.finish` | K | `run_id`, `status` (`passed`, `failed` or `errored`), `final_output` (or null) | `run` |
+| `finishRun` | `POST /v1/runs.finish` | K | `run_id`, `status` (`RunOutcome`), `final_output` (or null) | `run` |
 | `getRun` | `GET /v1/runs.get` | P/K | `run_id` | `run` |
-| `listRuns` | `POST /v1/runs.list` | P | page, `statuses` (list or null), `sources` (list or null, default `recorded` only), `agent_name` (or null) | page of `Run` |
+| `listRuns` | `POST /v1/runs.list` | P | page, `statuses` (list or null), `sources` (list, default `["recorded"]`; null means every source), `agent_name` (or null) | page of `Run` |
 | `countRuns` | `POST /v1/runs.count` | P | same filters as `listRuns` | `count` |
 
 - `startRun` with a `replay_job_id` creates a `replay` run linked to the job's original run.
@@ -116,7 +120,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 
 ### Diagnosis
 
-`id`, `run_id`, `status` (`DiagnosisStatus`), `verdict_kind` (or null until done), `first_domino_step` (int or null), `search_low` and `search_high` (current bisect range, for the live view), `verify_passes` and `verify_samples` (or null), `fixed_output` (`Message` or null; the rewritten step), `explanation` (`Explanation` or null), `cause_id` (or null), `check_count`, `replay_count`, `cost_usd`, `error_code` (or null), `created_by_id`, `created_at`, `finished_at` (or null).
+`id`, `run_id`, `status` (`DiagnosisStatus`), `verdict_kind` (or null until done), `first_domino_step` (int or null), `search_low` and `search_high` (current bisect range, for the live view; null before the search starts), `verify_passes` and `verify_samples` (or null), `fixed_output` (`Message` or null; the rewritten step), `explanation` (`Explanation` or null), `cause_id` (or null), `check_count`, `replay_count`, `cost_usd`, `error_code` (or null), `created_by_id` (the person or API key; null for auto-diagnosis), `created_at`, `finished_at` (or null).
 
 **Explanation**: `title`, `summary`, `suggested_fix`, `category` (`CauseCategory`).
 
@@ -152,7 +156,7 @@ The runs of a cause come from `listDiagnoses` with `cause_ids`.
 
 ### Benchmark
 
-**BenchmarkScore**: `method` (`first_domino`, `read_trace_judge`), `runs_scored`, `exact_accuracy`, `within_one_accuracy`, `verified_rate` (or null for methods without proof), `mean_cost_usd`, `mean_seconds`.
+**BenchmarkScore**: `method` (`BenchmarkMethod`), `runs_scored`, `exact_accuracy`, `within_one_accuracy`, `verified_rate` (or null for methods without proof), `mean_cost_usd`, `mean_seconds`.
 
 | Operation | Path | Caller | Request | Response |
 | --- | --- | --- | --- | --- |
@@ -162,7 +166,7 @@ The benchmark is run by `fd-scripts`, which writes results to the database. Ther
 
 ### Health
 
-`GET /health` (no auth, not under `/v1`) returns `{"ok": true}`.
+`GET /health` (operation `getHealth`, no auth, not under `/v1`) returns `{"ok": true}`.
 
 ## Worker protocol
 
@@ -183,8 +187,9 @@ The worker loop:
 4. Run the customer's success check on the result. `finishRun`, then `submitReplayResult` with the outcome.
 5. On a crash inside one job, `submitReplayResult` with `errored` and an `error_code`, then keep looping.
 
-- A lease lasts `FD_API_LEASE_SECONDS` (default 120). An expired job goes back to `queued` and its `attempt` goes up. After 3 attempts it is `failed`.
-- `submitReplayResult` is idempotent by `replay_job_id`. A late result for a job leased again is ignored.
+- A lease lasts `FD_API_LEASE_SECONDS` (default 120). A job whose lease ends goes back to `queued`; each lease raises `attempt`. A job whose lease ends after `FD_API_MAX_JOB_ATTEMPTS` (default 3) leases is `expired`.
+- A submitted result ends the job: `succeeded` for a `passed` or `failed` outcome (the replay ran), `failed` for `errored`.
+- `submitReplayResult` is idempotent by `replay_job_id`: the first result for a leased job counts, and any later one (a repeat, or a late result from an earlier lease) changes nothing.
 
 ## Engine ports
 
@@ -198,7 +203,14 @@ Defined in `fd_engine/ports.py` by the engine workstream (S1); implemented in `f
 | `CheckSink` | `check_started(check) -> None`, `check_finished(check) -> None` | Persist each check so the web app can show it live |
 | `CheckSink` | `progress(diagnosis_id, *, status, search_low, search_high) -> None` | Persist the live search range and status |
 
-`RunView`, `StepView` and the check model are `fd-shared` models. The engine returns a `DiagnosisResult` (verdict kind, first domino step, verify counts, fixed output, explanation, cost, counts) that the API stores.
+These are `fd-shared` models (`fd_shared.models`), frozen Pydantic models:
+
+- **RunView**: `id`, `agent_name`, `task_input`, `status`, `step_count`, `final_output`.
+- **StepView**: `index`, `model`, `output` (`Message`), `tool_results` (list of `Message`).
+- **CheckView**: `diagnosis_id`, `index`, `phase`, `save_point`, `samples`, `passes`, `result`. A check is identified by (`diagnosis_id`, `index`); reporting the same pair again updates it.
+- **DiagnosisResult**: `verdict_kind`, `first_domino_step`, `verify_passes`, `verify_samples`, `fixed_output`, `explanation` (`Explanation`), `check_count`, `replay_count`, `cost_usd`. The API stores it on the diagnosis.
+
+Errors the engine raises derive from `fd_shared.errors` (`RetryableError` or `UnretryableError`); a diagnosis that stops on one stores its `code` in `error_code`.
 
 ## SDK public surface
 

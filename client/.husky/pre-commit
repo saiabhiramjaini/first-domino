@@ -5,16 +5,16 @@ export PATH="$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
-backend_files=$(printf '%s\n' "$staged" | grep -E '^server/.*\.py$' | sed 's#^server/##' || true)
-if [ -n "$backend_files" ]; then
-  echo "ruff (backend)"
-  (cd server && uv run --quiet ruff format --force-exclude $backend_files && uv run --quiet ruff check --fix --force-exclude $backend_files)
-  printf '%s\n' "$backend_files" | sed 's#^#server/#' | xargs git add
+server_files=$(printf '%s\n' "$staged" | grep -E '^server/.*\.py$' | sed 's#^server/##' || true)
+if [ -n "$server_files" ]; then
+  echo "ruff (server)"
+  (cd server && uv run --quiet ruff format --force-exclude $server_files && uv run --quiet ruff check --fix --force-exclude $server_files)
+  printf '%s\n' "$server_files" | sed 's#^#server/#' | xargs git add
 fi
 
-frontend_files=$(printf '%s\n' "$staged" | grep -E '^client/.*\.(ts|tsx|js|jsx|mjs|cjs|json|css|md)$' | grep -v '^client/src/api/generated/' | sed 's#^client/##' || true)
-if [ -n "$frontend_files" ]; then
-  echo "prettier (frontend)"
-  (cd client && bunx prettier --write --log-level warn $frontend_files)
-  printf '%s\n' "$frontend_files" | sed 's#^#client/#' | xargs git add
+client_files=$(printf '%s\n' "$staged" | grep -E '^client/.*\.(ts|tsx|js|jsx|mjs|cjs|json|css|md)$' | grep -v '^client/src/api/generated/' | sed 's#^client/##' || true)
+if [ -n "$client_files" ]; then
+  echo "prettier (client)"
+  (cd client && bunx prettier --write --log-level warn $client_files)
+  printf '%s\n' "$client_files" | sed 's#^#client/#' | xargs git add
 fi

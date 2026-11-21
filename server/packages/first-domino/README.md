@@ -44,7 +44,8 @@ async def answer_call(call_text: str, task_id: str) -> None:
             if not reply.tool_calls:
                 break
             for call in reply.tool_calls:
-                messages.append({"role": "tool", "tool_call_id": call.id, "content": run_tool(call)})
+                result = run_tool(call)
+                messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
         outcome = fd.RunOutcome.passed if call_handled(task_id) else fd.RunOutcome.failed
         await run.finish(outcome, final_output=reply.content)
 ```

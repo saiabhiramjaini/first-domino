@@ -270,3 +270,31 @@ async def test_restarted_diagnoses_end_their_unfinished_replays(
         stored = await jobs.get(project_id=project.id, replay_job_id=job.id, refresh=True)
         assert stored is not None
         assert stored.status is ReplayJobStatus.EXPIRED
+
+
+async def test_expire_queued_ends_only_jobs_no_worker_started(
+    session: AsyncSession, project: Project
+) -> None:
+    jobs = ReplayJobsRepository(session)
+    run = await _run(session, project)
+    started, waiting = await _enqueue(session, project, run, samples=2)
+    leased = await jobs.lease_next(
+        project_id=project.id,
+        agent_names=["call-assistant"],
+        leased_by_id=run.created_by_id,
+        now=utc_now(),
+        lease_seconds=10,
+    )
+    assert leased is not None
+    started, waiting = (started, waiting) if leased.id == started.id else (waiting, started)
+
+    ended = await jobs.expire_queued(
+        project_id=project.id, replay_job_ids=[started.id, waiting.id], now=utc_now()
+    )
+
+    statuses = {
+        job.id: (await jobs.get(project_id=project.id, replay_job_id=job.id, refresh=True)).status  # type: ignore[union-attr]
+        for job in (started, waiting)
+    }
+    assert ended == 1
+    assert statuses == {started.id: ReplayJobStatus.LEASED, waiting.id: ReplayJobStatus.EXPIRED}

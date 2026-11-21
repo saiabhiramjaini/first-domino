@@ -109,6 +109,27 @@ class ReplayJobsRepository:
             .values(status=ReplayJobStatus.EXPIRED, lease_expires_at=None, finished_at=now)
         )
 
+    async def expire_queued(
+        self, *, project_id: UUID, replay_job_ids: Sequence[UUID], now: datetime
+    ) -> int:
+        """Ends the jobs no worker has picked up yet; nobody waits for them any more.
+
+        A leased job is left alone: a worker is already running it. Returns how many ended.
+        """
+        if not replay_job_ids:
+            return 0
+        ended = await self._session.scalars(
+            update(ReplayJob)
+            .where(
+                ReplayJob.project_id == project_id,
+                ReplayJob.id.in_(replay_job_ids),
+                ReplayJob.status == ReplayJobStatus.QUEUED,
+            )
+            .values(status=ReplayJobStatus.EXPIRED, finished_at=now)
+            .returning(ReplayJob.id)
+        )
+        return len(ended.all())
+
     async def expire_leases(self, *, project_id: UUID, now: datetime, max_attempts: int) -> None:
         """Returns jobs whose lease ended to the queue, or ends them after `max_attempts`."""
         expired = (

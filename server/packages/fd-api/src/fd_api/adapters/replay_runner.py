@@ -63,7 +63,9 @@ class QueueReplayRunner:
     ) -> list[ReplayOutcome]:
         """Queues `samples` replays and waits until each has a result.
 
-        The engine bounds the wait with its own replay timeout and cancels this call.
+        The engine cancels this call when the check is decided early or times out. Then the
+        jobs no worker has started are ended, so the customer's worker does not run replays
+        whose outcome nobody will read.
         """
         job_ids = await self._enqueue(
             run_id,
@@ -73,7 +75,19 @@ class QueueReplayRunner:
             replacement_output=replacement_output,
         )
         log.info("replays.queued", diagnosis_id=str(self._diagnosis_id), from_step=from_step)
-        return await self._wait(job_ids)
+        try:
+            return await self._wait(job_ids)
+        except asyncio.CancelledError:
+            await asyncio.shield(self._end_unstarted(job_ids))
+            raise
+
+    async def _end_unstarted(self, job_ids: Sequence[UUID]) -> None:
+        async with self._database.transaction() as session:
+            ended = await ReplayJobsRepository(session).expire_queued(
+                project_id=self._project_id, replay_job_ids=job_ids, now=utc_now()
+            )
+        if ended:
+            log.info("replays.ended_unstarted", diagnosis_id=str(self._diagnosis_id), count=ended)
 
     async def _enqueue(
         self,

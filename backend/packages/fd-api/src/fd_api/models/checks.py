@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from fd_api.pagination import PageRequest, PageResponse
+from fd_database import tables
 from fd_shared.enums import CheckPhase, CheckResult
 
 
@@ -26,6 +27,22 @@ class Check(BaseModel):
     finished_at: datetime | None = Field(
         description="Time the check finished, in UTC RFC 3339 format. Null while pending."
     )
+
+    @classmethod
+    def from_row(cls, row: tables.Check) -> "Check":
+        """Maps a stored check to the contract."""
+        return cls(
+            id=row.id,
+            diagnosis_id=row.diagnosis_id,
+            index=row.index,
+            phase=row.phase,
+            save_point=row.save_point,
+            samples=row.samples,
+            passes=row.passes,
+            result=row.result,
+            created_at=row.created_at,
+            finished_at=row.finished_at,
+        )
 
 
 class ListChecksRequest(PageRequest):

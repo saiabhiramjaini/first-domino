@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from fd_api.pagination import CountResponse, PageRequest, PageResponse
+from fd_database import tables
 from fd_shared.enums import RunOutcome, RunSource, RunStatus
 from fd_shared.models import TaskInput
 
@@ -35,6 +36,26 @@ class Run(BaseModel):
     finished_at: datetime | None = Field(
         description="Time the run finished, in UTC RFC 3339 format. Null while running."
     )
+
+    @classmethod
+    def from_row(cls, row: tables.Run) -> "Run":
+        """Maps a stored run to the contract."""
+        return cls(
+            id=row.id,
+            agent_name=row.agent_name,
+            source=row.source,
+            parent_run_id=row.parent_run_id,
+            replay_job_id=row.replay_job_id,
+            replay_from_step=row.replay_from_step,
+            task_input=row.task_input,
+            status=row.status,
+            step_count=row.step_count,
+            final_output=row.final_output,
+            latest_diagnosis_id=row.latest_diagnosis_id,
+            created_by_id=row.created_by_id,
+            started_at=row.started_at,
+            finished_at=row.finished_at,
+        )
 
 
 class RunFilter(BaseModel):

@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from fd_api.pagination import CountResponse, PageRequest, PageResponse
+from fd_database import tables
 from fd_shared.enums import DiagnosisStatus, VerdictKind
 from fd_shared.models import Explanation, Message
 
@@ -50,6 +51,31 @@ class Diagnosis(BaseModel):
     finished_at: datetime | None = Field(
         description="Time it reached `done` or `failed`, in UTC RFC 3339 format."
     )
+
+    @classmethod
+    def from_row(cls, row: tables.Diagnosis) -> "Diagnosis":
+        """Maps a stored diagnosis to the contract."""
+        return cls(
+            id=row.id,
+            run_id=row.run_id,
+            status=row.status,
+            verdict_kind=row.verdict_kind,
+            first_domino_step=row.first_domino_step,
+            search_low=row.search_low,
+            search_high=row.search_high,
+            verify_passes=row.verify_passes,
+            verify_samples=row.verify_samples,
+            fixed_output=row.fixed_output,
+            explanation=row.explanation,
+            cause_id=row.cause_id,
+            check_count=row.check_count,
+            replay_count=row.replay_count,
+            cost_usd=float(row.cost_usd),
+            error_code=row.error_code,
+            created_by_id=row.created_by_id,
+            created_at=row.created_at,
+            finished_at=row.finished_at,
+        )
 
 
 class DiagnosisFilter(BaseModel):

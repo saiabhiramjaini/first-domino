@@ -826,7 +826,7 @@
           "steps"
         ],
         "summary": "Record a step",
-        "description": "Records one step of a running run (`409` when the run is finished).\n\nIdempotent on (`run_id`, `index`): a repeat returns the stored step and changes nothing.",
+        "description": "Records one step of a running run (`409` when the run is finished).\n\nIdempotent on (`run_id`, `index`): a repeat returns the stored step and changes nothing,\neven after the run finished.",
         "operationId": "recordStep",
         "requestBody": {
           "content": {
@@ -1863,7 +1863,7 @@
           "replay-jobs"
         ],
         "summary": "Submit a replay result",
-        "description": "Reports how a replay ended.\n\nIdempotent by `replay_job_id`. A late result for a job that was leased again is ignored.",
+        "description": "Reports how a replay ended.\n\nIdempotent by `replay_job_id`: the first result for a leased job counts, and any later\none (a repeat, or a late result from an earlier lease) changes nothing.",
         "operationId": "submitReplayResult",
         "requestBody": {
           "content": {

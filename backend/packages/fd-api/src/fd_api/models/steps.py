@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from fd_api.pagination import PageRequest, PageResponse
+from fd_database import tables
 from fd_shared.models import Message
 
 
@@ -24,6 +25,22 @@ class Step(BaseModel):
     tokens_out: int = Field(ge=0, description="Completion tokens of the model call.")
     latency_ms: int = Field(ge=0, description="Duration of the model call, in milliseconds.")
     created_at: datetime = Field(description="Time the step was recorded, in UTC RFC 3339 format.")
+
+    @classmethod
+    def from_row(cls, row: tables.Step) -> "Step":
+        """Maps a stored step to the contract. The snapshot is served on its own."""
+        return cls(
+            id=row.id,
+            run_id=row.run_id,
+            index=row.index,
+            model=row.model,
+            output=row.output,
+            tool_results=row.tool_results,
+            tokens_in=row.tokens_in,
+            tokens_out=row.tokens_out,
+            latency_ms=row.latency_ms,
+            created_at=row.created_at,
+        )
 
 
 class StepSnapshot(BaseModel):

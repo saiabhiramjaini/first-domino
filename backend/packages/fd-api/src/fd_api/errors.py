@@ -17,6 +17,7 @@ from fd_shared.errors import (
     NotFoundError,
     PermissionDeniedError,
     UnauthenticatedError,
+    UnretryableError,
 )
 from fd_shared.logging import get_logger
 
@@ -50,6 +51,17 @@ class ApiInternalError(ApiError):
     """The body of a `500` response."""
 
     request_id: str = Field(description="Id to quote when reporting the error.")
+
+
+class InvalidFieldError(UnretryableError):
+    """A request field passed schema validation but is still unusable, such as a stale cursor."""
+
+    code = ApiErrorCode.VALIDATION_FAILED
+
+    def __init__(self, field: str, message: str) -> None:
+        super().__init__(field)
+        self.field = field
+        self.message = message
 
 
 _STATUS_BY_CODE: dict[ApiErrorCode, HTTPStatus] = {
@@ -120,6 +132,8 @@ def _simple_error(code: ApiErrorCode, detail: str | None = None) -> JSONResponse
 
 
 async def _handle_domain_error(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, InvalidFieldError):
+        return _validation_failed([FieldError(field=exc.field, message=exc.message)])
     code = next(
         (code for kind, code in _CODE_BY_ERROR.items() if isinstance(exc, kind)),
         None,
@@ -135,12 +149,13 @@ async def _handle_validation_error(request: Request, exc: Exception) -> JSONResp
     errors = exc.errors()
     if any(error.get("type") == JSON_INVALID_ERROR_TYPE for error in errors):
         return _simple_error(ApiErrorCode.BAD_REQUEST)
+    return _validation_failed([_field_error(error) for error in errors])
+
+
+def _validation_failed(errors: list[FieldError]) -> JSONResponse:
     code = ApiErrorCode.VALIDATION_FAILED
     body = ApiValidationError(
-        code=code,
-        title=_TITLE_BY_CODE[code],
-        detail=_DETAIL_BY_CODE[code],
-        errors=[_field_error(error) for error in errors],
+        code=code, title=_TITLE_BY_CODE[code], detail=_DETAIL_BY_CODE[code], errors=errors
     )
     return _error_response(code, body)
 

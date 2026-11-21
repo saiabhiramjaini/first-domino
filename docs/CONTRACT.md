@@ -16,7 +16,7 @@ Only the platform backend workstream (S0) edits this file. Anyone else who needs
 - Every list is a page. Request: `limit` (1 to 100, default 50) and `cursor` (opaque string or null). Response: `items` and `next_cursor` (null on the last page).
 - Field names are snake_case on the wire.
 - `GET` operations take their request fields as query parameters (`GET /v1/runs.get?run_id=...`).
-- Until real auth lands, any bearer token is accepted: one starting `fd_live_` acts as an API key, anything else as a person, both in one example project.
+- A bearer token starting `fd_live_` is checked as a project API key; anything else as a web session token. For local work without the web app, `make dev-key` in `backend/` prints an API key for a local developer's project.
 
 ## Auth
 

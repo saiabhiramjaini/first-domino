@@ -10,6 +10,7 @@ Example:
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 import httpx
@@ -23,6 +24,7 @@ from first_domino._generated.models import (
     DiagnosisStatus,
     FinishRunRequest,
     LeaseReplayJobRequest,
+    ListStepsRequest,
     Message,
     MessageRole,
     RecordStepRequest,
@@ -86,6 +88,11 @@ class FakeApi:
             status = self.fail_paths[action]
             body = ApiError(code=ApiErrorCode.conflict, title="Conflict", detail="busy")
             return httpx.Response(status, content=body.model_dump_json())
+        if action == "steps.record" and _has_null_tool_calls(json.loads(request.content)):
+            body = ApiError(
+                code=ApiErrorCode.validation_failed, title="Validation failed", detail="tool_calls"
+            )
+            return httpx.Response(422, content=body.model_dump_json())
         route = self._routes()[action]
         return httpx.Response(200, json=json.loads(route(request)))
 
@@ -93,6 +100,7 @@ class FakeApi:
         return {
             "runs.start": self._start,
             "steps.record": self._record,
+            "steps.list": self._list_steps,
             "runs.finish": self._finish,
             "replay-jobs.lease": self._lease,
             "replay-jobs.submit": self._submit,
@@ -126,7 +134,10 @@ class FakeApi:
     def _record(self, request: httpx.Request) -> str:
         body = RecordStepRequest.model_validate_json(request.content)
         self.steps.append(body)
-        step = Step(
+        return json.dumps({"step": json.loads(self._step(body).model_dump_json())})
+
+    def _step(self, body: RecordStepRequest) -> Step:
+        return Step(
             id=uuid4(),
             run_id=body.run_id,
             index=body.index,
@@ -138,7 +149,15 @@ class FakeApi:
             latency_ms=body.latency_ms,
             created_at=NOW,
         )
-        return json.dumps({"step": json.loads(step.model_dump_json())})
+
+    def _list_steps(self, request: httpx.Request) -> str:
+        run_id = ListStepsRequest.model_validate_json(request.content).run_id
+        items = [
+            json.loads(self._step(body).model_dump_json())
+            for body in self.steps
+            if body.run_id == run_id
+        ]
+        return json.dumps({"items": items, "next_cursor": None})
 
     def _finish(self, request: httpx.Request) -> str:
         body = FinishRunRequest.model_validate_json(request.content)
@@ -188,6 +207,18 @@ class FakeApi:
             finished_at=None,
         )
         return json.dumps({"diagnosis": json.loads(diagnosis.model_dump_json())})
+
+
+def _has_null_tool_calls(body: dict[str, Any]) -> bool:
+    """The real API rejects `tool_calls: null`; it must be a list."""
+    messages: list[Any] = [
+        body.get("output"),
+        *(body.get("messages") or []),
+        *(body.get("tool_results") or []),
+    ]
+    return any(
+        isinstance(m, dict) and "tool_calls" in m and m["tool_calls"] is None for m in messages
+    )
 
 
 def fake_client(api: FakeApi, *, key: str | None = "fd_live_test") -> FirstDominoClient:

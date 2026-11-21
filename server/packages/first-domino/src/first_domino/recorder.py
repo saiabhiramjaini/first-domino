@@ -63,6 +63,14 @@ class RecordedRun:
         known += [name for name in names if name not in known]
         self._start = self._start.model_copy(update={"tool_names": known})
 
+    async def start(self) -> None:
+        """Start the run on the API now, so it shows as running before its first step.
+
+        Example:
+            >>> await run.start()
+        """
+        await self._started()
+
     async def _started(self) -> UUID | None:
         start, self._start = self._start, None
         if start is not None:
@@ -106,10 +114,10 @@ class RecordedRun:
         request = RecordStepRequest(
             run_id=run_id,
             index=step_index,
-            model=model,
-            output=output,
-            tool_results=list(tool_results),
-            messages=list(messages),
+            model=model or "unknown",
+            output=_listed(output),
+            tool_results=[_listed(m) for m in tool_results],
+            messages=[_listed(m) for m in messages],
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             latency_ms=latency_ms,
@@ -132,6 +140,13 @@ class RecordedRun:
             return
         request = FinishRunRequest(run_id=run_id, status=status, final_output=final_output)
         await _quietly("finish_run", lambda: self._client.finish_run(request))
+
+
+def _listed(message: Message) -> Message:
+    """The API wants `tool_calls` as a list, never null."""
+    if message.tool_calls is None:
+        return message.model_copy(update={"tool_calls": []})
+    return message
 
 
 async def _quietly[T](action: str, call: Callable[[], Awaitable[T]]) -> T | None:

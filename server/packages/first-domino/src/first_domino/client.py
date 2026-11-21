@@ -17,6 +17,8 @@ from first_domino._generated.models import (
     GetRunResponse,
     LeaseReplayJobRequest,
     LeaseReplayJobResponse,
+    ListStepsRequest,
+    ListStepsResponse,
     RecordStepRequest,
     RecordStepResponse,
     ReplayJob,
@@ -88,6 +90,18 @@ class FirstDominoClient:
     async def get_run(self, run_id: UUID) -> Run:
         """Return one run."""
         return (await self._get("runs.get", {"run_id": str(run_id)}, GetRunResponse)).run
+
+    async def list_steps(self, run_id: UUID) -> list[Step]:
+        """Return every step of a run, in order."""
+        steps: list[Step] = []
+        cursor: str | None = None
+        while True:
+            request = ListStepsRequest(run_id=run_id, limit=100, cursor=cursor)
+            page = await self._post("steps.list", request, ListStepsResponse)
+            steps += page.items
+            if page.next_cursor is None:
+                return sorted(steps, key=lambda step: step.index)
+            cursor = page.next_cursor
 
     async def create_diagnosis(self, request: CreateDiagnosisRequest) -> Diagnosis:
         """Start a diagnosis of a failed recorded run."""

@@ -35,6 +35,19 @@ pytestmark = pytest.mark.skipif(
 
 BROKEN_STEP = 3
 CLINIC_PHONE = "+91 98490 11223"
+CALL_ASSISTANT_TOOLS = [
+    "lookup_contact",
+    "search_memory",
+    "check_calendar",
+    "reply_to_caller",
+    "add_calendar_event",
+    "move_calendar_event",
+    "set_reminder",
+    "schedule_callback",
+    "block_caller",
+    "send_call_summary",
+    "end_call",
+]
 
 
 def _call(call_id: str, name: str, **arguments: object) -> ToolCall:
@@ -67,6 +80,7 @@ def clinic_call() -> tuple[RunView, list[StepView]]:
         step_count=5,
         status=RunStatus.FAILED,
         final_output=None,
+        tool_names=CALL_ASSISTANT_TOOLS,
     )
     steps = [
         _step(
@@ -127,6 +141,7 @@ def spam_call() -> tuple[RunView, list[StepView]]:
         step_count=3,
         status=RunStatus.FAILED,
         final_output=None,
+        tool_names=CALL_ASSISTANT_TOOLS,
     )
     steps = [
         _step(
@@ -174,11 +189,6 @@ async def test_fixer_rewrites_the_wrong_date(llm: Llm) -> None:
     assert json.loads(calls[0].arguments)["date"] == "2026-11-22"
 
 
-@pytest.mark.xfail(
-    reason="The engine does not see the agent's tool list until RunView carries tool_names, so "
-    "the model may guess a tool name the run never used.",
-    strict=False,
-)
 async def test_fixer_can_switch_to_a_tool_the_run_never_used(llm: Llm) -> None:
     run, steps = spam_call()
 

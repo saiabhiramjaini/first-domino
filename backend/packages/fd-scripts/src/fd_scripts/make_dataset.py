@@ -28,6 +28,7 @@ from fd_demo_agent.runner import TaskRun, run_task
 from fd_demo_agent.settings import DemoAgentSettings
 from fd_demo_agent.success import check_call
 from fd_demo_agent.tasks import CallTask, get_task
+from fd_demo_agent.toolbox import ToolName
 from fd_demo_agent.world import load_world
 from fd_scripts.convert import step_view
 from fd_scripts.dataset import Dataset, LabelledRun, save_dataset
@@ -108,6 +109,7 @@ async def _plant(
             status=RunStatus.FAILED,
             step_count=len(steps),
             final_output=result.final_output,
+            tool_names=[tool.value for tool in ToolName],
         ),
         steps=steps,
     )

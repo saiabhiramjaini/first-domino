@@ -19,8 +19,8 @@ can still complete the task.
 - Change only what is wrong. Keep the same tool and every correct argument unless the wrong tool
   was the mistake. Copy the exact argument names and value formats (dates, times, ids) the run
   already uses.
-- Prefer the tools the run already used, listed with the task. Call another tool only when the
-  right action needs it, named in the same style as the others.
+- Call only the tools the agent has, listed with the task. When only the tools the run used are
+  listed, prefer those and name any other tool in the same style.
 - Do not finish the task in this one turn unless the original turn was the last one.
 - Check the facts the turn depends on against the task and the tool results before it:
   - Relative dates and times ("tomorrow", "this Friday", "day after tomorrow, evening", "after
@@ -80,14 +80,23 @@ class LlmStepFixer:
             fallback=FixReply(),
         )
         cost = reply.usage.cost_usd
-        if reply.quality is not ReplyQuality.PARSED or not _usable(reply.value):
+        if reply.quality is not ReplyQuality.PARSED or not _usable(reply.value, run):
             return FixedStep(output=None, cost_usd=cost)
         return FixedStep(output=_to_message(reply.value), cost_usd=cost)
 
 
-def _usable(fix: FixReply) -> bool:
-    """A fix says or calls something."""
-    return bool(fix.content or fix.tool_calls)
+def _usable(fix: FixReply, run: RunView) -> bool:
+    """A fix says or calls something, and calls only tools the agent has when they are known."""
+    if not (fix.content or fix.tool_calls):
+        return False
+    known = set(run.tool_names)
+    return not known or all(call.name in known for call in fix.tool_calls)
+
+
+def _tools_line(run: RunView, steps: list[StepView]) -> str:
+    if run.tool_names:
+        return f"Tools the agent has: {', '.join(run.tool_names)}"
+    return f"Tools the run used: {', '.join(tools_seen(steps)) or '(none)'}"
 
 
 def _prompt(run: RunView, steps: list[StepView], step_index: int) -> str:
@@ -97,7 +106,7 @@ def _prompt(run: RunView, steps: list[StepView], step_index: int) -> str:
     return "\n\n".join(
         [
             render_task(run),
-            f"Tools the run used: {', '.join(tools_seen(steps)) or '(none)'}",
+            _tools_line(run, steps),
             "# Steps before the mistake",
             render_steps(before) or "(none)",
             "# The turn to rewrite",

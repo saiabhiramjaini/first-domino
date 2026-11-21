@@ -62,6 +62,25 @@ class VerdictKind(StrEnum):
     TASK_OR_TOOL_ISSUE = "task_or_tool_issue"
 
 
+class DiagnosisErrorCode(StrEnum):
+    """Why a diagnosis ended `failed`.
+
+    `replay_unavailable`: every replay of a check errored or timed out (is a worker running?).
+    `check_budget_exceeded`: the search needed more checks than allowed.
+    `llm_not_configured`: the engine has no model key or model id.
+    `llm_call_failed`: a model call failed before returning anything.
+    `interrupted`: the API restarted while the diagnosis ran.
+    `internal_error`: anything else; see the API logs.
+    """
+
+    REPLAY_UNAVAILABLE = "replay_unavailable"
+    CHECK_BUDGET_EXCEEDED = "check_budget_exceeded"
+    LLM_NOT_CONFIGURED = "llm_not_configured"
+    LLM_CALL_FAILED = "llm_call_failed"
+    INTERRUPTED = "interrupted"
+    INTERNAL_ERROR = "internal_error"
+
+
 class CheckPhase(StrEnum):
     """The part of a diagnosis a check belongs to."""
 

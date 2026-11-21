@@ -17,13 +17,19 @@ from fd_database import tables
 from fd_database.repositories import DiagnosesRepository, ProjectsRepository
 from fd_database.session import Database
 from fd_database.tables.base import utc_now
-from fd_shared.enums import ApiErrorCode
+from fd_shared.enums import DiagnosisErrorCode
 from fd_shared.errors import FirstDominoError
 from fd_shared.logging import get_logger
 
 log = get_logger(__name__)
 
-INTERRUPTED_ERROR_CODE = "interrupted"
+
+def diagnosis_error_code(error: FirstDominoError) -> DiagnosisErrorCode:
+    """The stored code for an error that stopped a diagnosis. Unknown codes are internal."""
+    try:
+        return DiagnosisErrorCode(error.code)
+    except ValueError:
+        return DiagnosisErrorCode.INTERNAL_ERROR
 
 
 class DiagnosisRunner:
@@ -58,7 +64,7 @@ class DiagnosisRunner:
         """Fails diagnoses a previous process left unfinished. Call once at startup."""
         async with self._database.transaction() as session:
             count = await DiagnosesRepository(session).fail_all_active(
-                error_code=INTERRUPTED_ERROR_CODE, finished_at=utc_now()
+                error_code=DiagnosisErrorCode.INTERRUPTED, finished_at=utc_now()
             )
         if count:
             log.warning("diagnoses.interrupted", count=count)
@@ -79,10 +85,10 @@ class DiagnosisRunner:
         try:
             await self._diagnose(project_id=project_id, run_id=run_id, diagnosis_id=diagnosis_id)
         except FirstDominoError as error:
-            await self._fail(project_id, diagnosis_id, error.code)
+            await self._fail(project_id, diagnosis_id, diagnosis_error_code(error))
         except Exception:
             log.exception("diagnoses.crashed", diagnosis_id=str(diagnosis_id))
-            await self._fail(project_id, diagnosis_id, ApiErrorCode.INTERNAL_ERROR)
+            await self._fail(project_id, diagnosis_id, DiagnosisErrorCode.INTERNAL_ERROR)
 
     async def _diagnose(self, *, project_id: UUID, run_id: UUID, diagnosis_id: UUID) -> None:
         diagnoser = self._engine.diagnoser(
@@ -118,7 +124,9 @@ class DiagnosisRunner:
             timeout_seconds=self._settings.slack_timeout_seconds,
         )
 
-    async def _fail(self, project_id: UUID, diagnosis_id: UUID, error_code: str) -> None:
+    async def _fail(
+        self, project_id: UUID, diagnosis_id: UUID, error_code: DiagnosisErrorCode
+    ) -> None:
         async with self._database.transaction() as session:
             diagnoses = DiagnosesRepository(session)
             diagnosis = await diagnoses.get(project_id=project_id, diagnosis_id=diagnosis_id)

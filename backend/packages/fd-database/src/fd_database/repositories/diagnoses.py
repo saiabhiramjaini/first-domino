@@ -13,7 +13,13 @@ from fd_database.pages import IndexKey, TimeKey
 from fd_database.tables import Check, Diagnosis
 from fd_database.tables.base import utc_now
 from fd_database.tables.diagnoses import ACTIVE_DIAGNOSIS_STATUSES
-from fd_shared.enums import CheckPhase, CheckResult, DiagnosisStatus, VerdictKind
+from fd_shared.enums import (
+    CheckPhase,
+    CheckResult,
+    DiagnosisErrorCode,
+    DiagnosisStatus,
+    VerdictKind,
+)
 from fd_shared.models import Explanation, Message
 
 
@@ -108,7 +114,7 @@ class DiagnosesRepository:
         return diagnosis
 
     async def fail(
-        self, *, diagnosis: Diagnosis, error_code: str, finished_at: datetime
+        self, *, diagnosis: Diagnosis, error_code: DiagnosisErrorCode, finished_at: datetime
     ) -> Diagnosis:
         """Moves the diagnosis to `failed` with a stable error code."""
         diagnosis.status = DiagnosisStatus.FAILED
@@ -117,7 +123,9 @@ class DiagnosesRepository:
         await self._session.flush()
         return diagnosis
 
-    async def fail_all_active(self, *, error_code: str, finished_at: datetime) -> int:
+    async def fail_all_active(
+        self, *, error_code: DiagnosisErrorCode, finished_at: datetime
+    ) -> int:
         """Fails every unfinished diagnosis in every project. Returns how many.
 
         The one cross-project write: it runs at startup, when no diagnosis task can be alive,

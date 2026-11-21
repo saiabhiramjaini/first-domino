@@ -229,6 +229,15 @@ class CreateDiagnosisRequest(BaseModel):
     run_id: Annotated[UUID, Field(title="Run Id")]
 
 
+class DiagnosisErrorCode(StrEnum):
+    replay_unavailable = "replay_unavailable"
+    check_budget_exceeded = "check_budget_exceeded"
+    llm_not_configured = "llm_not_configured"
+    llm_call_failed = "llm_call_failed"
+    interrupted = "interrupted"
+    internal_error = "internal_error"
+
+
 class DiagnosisStatus(StrEnum):
     queued = "queued"
     bisecting = "bisecting"
@@ -1212,11 +1221,8 @@ class Diagnosis(BaseModel):
         ),
     ]
     error_code: Annotated[
-        str | None,
-        Field(
-            description="Stable code of the error that stopped the diagnosis, when `failed`.",
-            title="Error Code",
-        ),
+        DiagnosisErrorCode | None,
+        Field(description="Why the diagnosis failed. Null unless `failed`."),
     ]
     created_by_id: Annotated[
         UUID | None,

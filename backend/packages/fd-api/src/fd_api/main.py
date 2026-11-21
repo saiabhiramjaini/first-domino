@@ -17,7 +17,7 @@ from fd_shared.logging import configure_logging, get_logger
 
 log = get_logger(__name__)
 
-CONTRACT_VERSION = "2"
+CONTRACT_VERSION = "3"
 
 
 def _lifespan(settings: ApiSettings, database: Database | None, engine: EngineFactory | None):

@@ -15,6 +15,7 @@ from fd_shared.enums import (
     CauseCategory,
     CheckPhase,
     CheckResult,
+    DiagnosisErrorCode,
     DiagnosisStatus,
     ReplayJobStatus,
     ReplayOutcome,
@@ -38,6 +39,14 @@ REPLAY_JOB_STATUS = _pg_enum(ReplayJobStatus, "replay_job_status")
 REPLAY_OUTCOME = _pg_enum(ReplayOutcome, "replay_outcome")
 CAUSE_CATEGORY = _pg_enum(CauseCategory, "cause_category")
 BENCHMARK_METHOD = _pg_enum(BenchmarkMethod, "benchmark_method")
+
+# Stored as text (not a Postgres enum) so adding a code never needs a schema change.
+DIAGNOSIS_ERROR_CODE = SqlEnum(
+    DiagnosisErrorCode,
+    native_enum=False,
+    length=128,
+    values_callable=lambda members: [m.value for m in members],
+)
 
 
 class PydanticJson(TypeDecorator[Any]):

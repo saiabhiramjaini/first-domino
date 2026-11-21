@@ -3,7 +3,7 @@
   "info": {
     "title": "First Domino API",
     "summary": "Finds the step where a failed AI agent run became doomed, and proves it.",
-    "version": "2"
+    "version": "3"
   },
   "paths": {
     "/health": {
@@ -2822,14 +2822,13 @@
           "error_code": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/DiagnosisErrorCode"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Error Code",
-            "description": "Stable code of the error that stopped the diagnosis, when `failed`."
+            "description": "Why the diagnosis failed. Null unless `failed`."
           },
           "created_by_id": {
             "anyOf": [
@@ -2888,6 +2887,19 @@
         ],
         "title": "Diagnosis",
         "description": "One search for the first domino step of a failed run, and its proof."
+      },
+      "DiagnosisErrorCode": {
+        "type": "string",
+        "enum": [
+          "replay_unavailable",
+          "check_budget_exceeded",
+          "llm_not_configured",
+          "llm_call_failed",
+          "interrupted",
+          "internal_error"
+        ],
+        "title": "DiagnosisErrorCode",
+        "description": "Why a diagnosis ended `failed`.\n\n`replay_unavailable`: every replay of a check errored or timed out (is a worker running?).\n`check_budget_exceeded`: the search needed more checks than allowed.\n`llm_not_configured`: the engine has no model key or model id.\n`llm_call_failed`: a model call failed before returning anything.\n`interrupted`: the API restarted while the diagnosis ran.\n`internal_error`: anything else; see the API logs."
       },
       "DiagnosisStatus": {
         "type": "string",

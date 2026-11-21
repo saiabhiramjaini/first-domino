@@ -504,12 +504,15 @@ def _begin(module: ModuleType, request: Any) -> _Call | None:
     return _Call(session, provider, module, request, body, session.reserve(), before)
 
 
-def _stop_if_asked() -> None:
-    """Ends a replay at its next model call once nobody needs its result."""
-    if threading.current_thread().name == _THREAD_NAME:
-        return
-    session = current_session()
-    if session is not None and session.stop is not None and session.stop.is_set():
+def _stop_if_asked(call: _Call) -> None:
+    """Ends a replay at its next model call once nobody needs its result.
+
+    Only model calls stop: the worker's own API calls must go on, even when they find this
+    session as the only active one.
+    """
+    stop = call.session.stop
+    if stop is not None and stop.is_set():
+        call.failed()
         raise ReplayStopped
 
 
@@ -528,10 +531,10 @@ def _patch(module: ModuleType) -> None:
     sync_send, async_send = client.send, async_client.send
 
     def send(self: Any, request: Any, **kwargs: Any) -> Any:
-        _stop_if_asked()
         call = _safely("capture", lambda: _begin(module, request), None)
         if call is None:
             return sync_send(self, request, **kwargs)
+        _stop_if_asked(call)
         served = _safely("serve", call.served_response, None)
         if served is not None:
             return served
@@ -543,10 +546,10 @@ def _patch(module: ModuleType) -> None:
         return _safely("receive", lambda: call.received(response), response)
 
     async def asend(self: Any, request: Any, **kwargs: Any) -> Any:
-        _stop_if_asked()
         call = _safely("capture", lambda: _begin(module, request), None)
         if call is None:
             return await async_send(self, request, **kwargs)
+        _stop_if_asked(call)
         served = _safely("serve", call.served_response, None)
         if served is not None:
             return served

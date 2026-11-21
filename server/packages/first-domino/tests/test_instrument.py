@@ -16,10 +16,12 @@ import openai
 import pytest
 
 import first_domino as fd
+from first_domino import capture
 from first_domino import instrument as entrypoint_module
 from first_domino._generated.models import ReplayJobStatus
 from first_domino.client import FirstDominoClient
 from first_domino.providers import AnthropicMessages
+from first_domino.recorder import RecordedRun
 from first_domino.testing import FakeApi, make_job
 
 AGENT = "weather-bot"
@@ -538,6 +540,26 @@ async def test_a_replay_nobody_needs_stops_at_its_next_model_call(
     assert model.requests == []
     assert api.submitted == []
     assert api.finished[-1].status == fd.RunOutcome.errored
+
+
+async def test_a_stopped_replay_lets_other_requests_through(client: FirstDominoClient) -> None:
+    stop = threading.Event()
+    stop.set()
+    session = capture.Session(RecordedRun(client, None), replay=None, stop=stop)
+    capture.install()
+    capture.activate(session)
+    try:
+        http = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(204)))
+        api_call = await http.post("http://first-domino.test/v1/runs.finish", json={})
+        with pytest.raises(fd.ReplayStopped):
+            await http.post(
+                "http://model.test/v1/chat/completions",
+                json={"model": "small", "messages": [{"role": "user", "content": "hi"}]},
+            )
+    finally:
+        capture.deactivate(session)
+
+    assert api_call.status_code == 204
 
 
 async def test_marked_tools_return_the_recorded_result_inside_the_recorded_part(

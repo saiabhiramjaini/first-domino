@@ -91,6 +91,7 @@ async def _enqueue(session: AsyncSession, project: Project, run: Run, samples: i
         project_id=project.id,
         run_id=run.id,
         diagnosis_id=None,
+        check_id=None,
         agent_name=run.agent_name,
         task_input=run.task_input,
         from_step=0,

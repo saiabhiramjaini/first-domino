@@ -15,13 +15,15 @@ class SlackMessage(BaseModel):
     text: str
 
 
-def new_cause_message(cause: tables.Cause) -> SlackMessage:
-    """The message for a cause group seen for the first time."""
+def new_cause_message(cause: tables.Cause, *, web_app_url: str) -> SlackMessage:
+    """The message for a cause group seen for the first time, linking to its page."""
+    link = f"{web_app_url.rstrip('/')}/causes/{cause.id}"
+    proven = "proven by replay" if cause.verified_count else "not yet proven"
     return SlackMessage(
         text=(
             f"New root cause found by First Domino: *{cause.title}* "
-            f"({cause.category.value}, at `{cause.step_name}`)\n"
-            f"{cause.summary}\nSuggested fix: {cause.suggested_fix}"
+            f"({cause.category.value}, at `{cause.step_name}`, {proven})\n"
+            f"{cause.summary}\nSuggested fix: {cause.suggested_fix}\n<{link}|Open in First Domino>"
         )
     )
 

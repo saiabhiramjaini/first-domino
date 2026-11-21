@@ -1,9 +1,10 @@
 """Run contract models."""
 
 from datetime import datetime
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from fd_api.pagination import CountResponse, PageRequest, PageResponse
 from fd_database import tables
@@ -27,6 +28,10 @@ class Run(BaseModel):
     replay_from_step: int | None = Field(
         description="For a replay, the last step kept from the parent run (0 means none)."
     )
+    check_id: UUID | None = Field(
+        default=None,
+        description="For a replay run for a diagnosis, the check it was replayed for.",
+    )
     task_input: TaskInput
     tool_names: list[str] = Field(description="Names of the tools the agent was given.")
     status: RunStatus
@@ -49,6 +54,7 @@ class Run(BaseModel):
             parent_run_id=row.parent_run_id,
             replay_job_id=row.replay_job_id,
             replay_from_step=row.replay_from_step,
+            check_id=row.check_id,
             task_input=row.task_input,
             tool_names=row.tool_names,
             status=row.status,
@@ -69,11 +75,24 @@ class RunFilter(BaseModel):
     )
     sources: list[RunSource] | None = Field(
         default_factory=lambda: [RunSource.RECORDED],
-        description="Only runs from one of these sources. Recorded runs only unless set.",
+        description=(
+            "Only runs from one of these sources. Unless set: recorded runs only, or replay "
+            "runs only when `check_id` is set."
+        ),
     )
     agent_name: str | None = Field(
         default=None, max_length=AGENT_NAME_MAX_LENGTH, description="Only runs of this agent."
     )
+    check_id: UUID | None = Field(
+        default=None,
+        description="Only the replay runs made for this check, oldest first.",
+    )
+
+    @model_validator(mode="after")
+    def _replays_for_a_check(self) -> Self:
+        if self.check_id is not None and "sources" not in self.model_fields_set:
+            self.sources = [RunSource.REPLAY]
+        return self
 
 
 class StartRunRequest(BaseModel):

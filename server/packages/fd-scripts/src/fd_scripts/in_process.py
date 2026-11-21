@@ -5,7 +5,7 @@ real agent loop with the real model and the call's own success check.
 """
 
 import asyncio
-from collections import defaultdict
+from collections import Counter, defaultdict
 from uuid import UUID
 
 from openai import OpenAIError
@@ -85,6 +85,11 @@ class DemoReplayRunner:
         self._engine_settings = engine_settings
         self._scripts_settings = scripts_settings
         self._usage: defaultdict[UUID, LlmUsage] = defaultdict(LlmUsage)
+        self._replays_run: Counter[UUID] = Counter()
+
+    def replays_run(self, run_id: UUID) -> int:
+        """How many replays of the run started, including ones the engine stopped early."""
+        return self._replays_run[run_id]
 
     def usage(self, run_id: UUID) -> LlmUsage:
         """Tokens and cost of every replay of `run_id` so far."""
@@ -118,6 +123,7 @@ class DemoReplayRunner:
         start = conversation(opening_messages(task, load_world().user), case.steps[:from_step])
         replacement = assistant_param(replacement_output) if replacement_output else None
         async with self._limit:
+            self._replays_run[run_id] += 1
             try:
                 result = await self._agent.run(
                     task, start, replacement_output=replacement, model_override=model_override

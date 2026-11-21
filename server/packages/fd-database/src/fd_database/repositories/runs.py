@@ -32,6 +32,7 @@ class RunsRepository:
         parent_run_id: UUID | None = None,
         replay_job_id: UUID | None = None,
         replay_from_step: int | None = None,
+        check_id: UUID | None = None,
     ) -> Run:
         """Starts a run in `running`."""
         run = Run(
@@ -41,6 +42,7 @@ class RunsRepository:
             parent_run_id=parent_run_id,
             replay_job_id=replay_job_id,
             replay_from_step=replay_from_step,
+            check_id=check_id,
             task_input=task_input,
             tool_names=tool_names,
             status=RunStatus.RUNNING,
@@ -88,14 +90,20 @@ class RunsRepository:
         statuses: Sequence[RunStatus] | None,
         sources: Sequence[RunSource] | None,
         agent_name: str | None,
+        check_id: UUID | None,
         limit: int,
         after: TimeKey | None,
+        oldest_first: bool,
     ) -> list[Run]:
-        """A page of matching runs, newest first."""
-        statement = select(Run).where(*_filters(project_id, statuses, sources, agent_name))
+        """A page of matching runs, newest first unless `oldest_first`."""
+        conditions = _filters(project_id, statuses, sources, agent_name, check_id)
+        statement = select(Run).where(*conditions)
+        key = tuple_(Run.started_at, Run.id)
         if after is not None:
-            statement = statement.where(tuple_(Run.started_at, Run.id) < (after.at, after.id))
-        statement = statement.order_by(Run.started_at.desc(), Run.id.desc()).limit(limit)
+            position = (after.at, after.id)
+            statement = statement.where(key > position if oldest_first else key < position)
+        order = (Run.started_at, Run.id) if oldest_first else (Run.started_at.desc(), Run.id.desc())
+        statement = statement.order_by(*order).limit(limit)
         return list(await self._session.scalars(statement))
 
     async def count_filtered(
@@ -105,10 +113,11 @@ class RunsRepository:
         statuses: Sequence[RunStatus] | None,
         sources: Sequence[RunSource] | None,
         agent_name: str | None,
+        check_id: UUID | None,
     ) -> int:
         """The number of matching runs."""
         statement = select(func.count()).select_from(Run)
-        statement = statement.where(*_filters(project_id, statuses, sources, agent_name))
+        statement = statement.where(*_filters(project_id, statuses, sources, agent_name, check_id))
         return (await self._session.scalar(statement)) or 0
 
 
@@ -117,8 +126,11 @@ def _filters(
     statuses: Sequence[RunStatus] | None,
     sources: Sequence[RunSource] | None,
     agent_name: str | None,
+    check_id: UUID | None,
 ) -> list[ColumnElement[bool]]:
     conditions = [Run.project_id == project_id]
+    if check_id is not None:
+        conditions.append(Run.check_id == check_id)
     if statuses is not None:
         conditions.append(Run.status.in_(statuses))
     if sources is not None:

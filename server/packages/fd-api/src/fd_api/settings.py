@@ -22,6 +22,10 @@ class ApiSettings(SettingsBase):
     lease_poll_interval_seconds: float = Field(default=0.5, gt=0)
     replay_poll_interval_seconds: float = Field(default=1.0, gt=0)
     slack_timeout_seconds: float = Field(default=5.0, gt=0)
+    cause_export_max_cases: int = Field(default=100, ge=1)
+    web_app_url: str = Field(
+        default="http://localhost:3000", description="Base URL of the web app, for links in Slack."
+    )
     diagnosis_heartbeat_seconds: float = Field(default=10.0, gt=0)
     diagnosis_abandoned_after_seconds: float = Field(
         default=60.0,

@@ -47,6 +47,7 @@ async def _enqueue(database: Database, run: dict, project_id: str) -> UUID:
             project_id=UUID(project_id),
             run_id=UUID(run["id"]),
             diagnosis_id=None,
+            check_id=None,
             agent_name=AGENT,
             task_input=TaskInput.model_validate(TASK),
             from_step=0,

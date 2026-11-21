@@ -111,7 +111,8 @@ async def test_failed_run_is_diagnosed_and_proven_by_replay(
     run_id = await _record_failed_run(client, api_key)
     run = (await client.get("/v1/runs.get", params={"run_id": run_id}, headers=person)).json()
 
-    diagnosis = await _work_until_done(client, api_key, person, run["run"]["latest_diagnosis_id"])
+    diagnosis_id = run["run"]["latest_diagnosis_id"]
+    diagnosis = await _work_until_done(client, api_key, person, diagnosis_id)
 
     assert diagnosis["status"] == "done", diagnosis
     assert diagnosis["verdict_kind"] == "step_verified"
@@ -135,3 +136,37 @@ async def test_failed_run_is_diagnosed_and_proven_by_replay(
 
     replays = await client.post("/v1/runs.count", json={"sources": ["replay"]}, headers=person)
     assert replays.json()["count"] == diagnosis["replay_count"]
+
+
+async def test_each_check_lists_its_replays_and_the_cause_exports_as_tests(
+    client: AsyncClient, person: Headers, api_key: Headers
+) -> None:
+    run_id = await _record_failed_run(client, api_key)
+    run = (await client.get("/v1/runs.get", params={"run_id": run_id}, headers=person)).json()
+    diagnosis = await _work_until_done(client, api_key, person, run["run"]["latest_diagnosis_id"])
+    checks = (
+        await client.post("/v1/checks.list", json={"diagnosis_id": diagnosis["id"]}, headers=person)
+    ).json()["items"]
+
+    for check in checks:
+        replays = (
+            await client.post("/v1/runs.list", json={"check_id": check["id"]}, headers=person)
+        ).json()["items"]
+        counted = await client.post(
+            "/v1/runs.count", json={"check_id": check["id"]}, headers=person
+        )
+        assert len(replays) == check["samples"] == counted.json()["count"]
+        assert {replay["check_id"] for replay in replays} == {check["id"]}
+        assert {replay["parent_run_id"] for replay in replays} == {run_id}
+        assert [r["started_at"] for r in replays] == sorted(r["started_at"] for r in replays)
+
+    exported = await client.post(
+        "/v1/causes.export", json={"cause_id": diagnosis["cause_id"]}, headers=person
+    )
+    [case] = exported.json()["export"]["cases"]
+    assert case["run_id"] == run_id
+    assert case["first_domino_step"] == DOOMED_STEP
+    assert case["original_output"]["tool_calls"][0]["name"] == TOOLS[DOOMED_STEP - 1]
+    assert [m["role"] for m in case["messages"]] == ["system", "user", "assistant", "tool"]
+    assert case["fixed_output"]["content"] == "fixed"
+    assert case["verified"] is True

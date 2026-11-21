@@ -8,6 +8,7 @@ import httpx
 from fastapi import Request
 
 from fd_api.adapters.check_sink import DatabaseCheckSink
+from fd_api.adapters.check_tracker import CheckTracker
 from fd_api.adapters.replay_runner import QueueReplayRunner
 from fd_api.adapters.run_reader import DatabaseRunReader
 from fd_api.services.engine import EngineFactory
@@ -136,15 +137,17 @@ class DiagnosisRunner:
             await self._fail(project_id, diagnosis_id, DiagnosisErrorCode.INTERNAL_ERROR)
 
     async def _diagnose(self, *, project_id: UUID, run_id: UUID, diagnosis_id: UUID) -> None:
+        tracker = CheckTracker()
         diagnoser = self._engine.diagnoser(
             reader=DatabaseRunReader(self._database, project_id),
             runner=QueueReplayRunner(
                 self._database,
                 project_id=project_id,
                 diagnosis_id=diagnosis_id,
+                tracker=tracker,
                 settings=self._settings,
             ),
-            sink=DatabaseCheckSink(self._database, project_id),
+            sink=DatabaseCheckSink(self._database, project_id, tracker),
         )
         result = await diagnoser.diagnose(run_id, diagnosis_id)
         stored = await store_verdict(
@@ -165,7 +168,7 @@ class DiagnosisRunner:
         await send_slack_message(
             self._http,
             project.slack_webhook_url,
-            new_cause_message(cause),
+            new_cause_message(cause, web_app_url=self._settings.web_app_url),
             timeout_seconds=self._settings.slack_timeout_seconds,
         )
 

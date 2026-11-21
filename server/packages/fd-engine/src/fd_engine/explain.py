@@ -15,9 +15,13 @@ Replays point to step {step} as the first mistake: before it the run can still s
 with it kept the run is doomed. You get the run, the original step and the rewritten step that
 was replayed to test a fix. The difference between the two is usually the mistake.
 Return JSON:
-- "title": at most 8 words naming the kind of mistake so the same mistake in another run gets
-  the same title. Name the pattern, not this run's details: "Resolved 'tomorrow' one day late",
-  not "Booked Dr. Mehta on 23 Nov".
+- "title": at most 8 words naming the concrete mistake: the action and what was wrong, with the
+  wrong and right value when they are short. Start with a past-tense verb for what the agent
+  did. Good: "Booked 22:00 instead of 10:00", "Read the OTP aloud to a scam caller", "Set the
+  reminder a day early", "Left the reports note off the booking", "Scheduled a callback for a
+  spam caller". Bad: "Failed to confirm caller request", "Incorrect event details", "Mishandled
+  the call". Never start with "Failed to", "Incorrect" or "Wrong", and leave out names of people
+  and calendar dates.
 - "summary": two sentences. First what the agent did at step {step} and what it should have
   done, with the concrete values. Then why that doomed the run.
 - "suggested_fix": one or two sentences on what to change in the agent: its prompt, a tool, or a

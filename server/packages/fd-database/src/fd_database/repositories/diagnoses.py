@@ -5,6 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import ColumnElement, exists, func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,15 @@ from fd_shared.enums import (
     VerdictKind,
 )
 from fd_shared.models import Explanation, Message
+
+
+class DetachedCause(BaseModel):
+    """A cause group that one detached diagnosis was counted in."""
+
+    model_config = ConfigDict(frozen=True)
+
+    cause_id: UUID
+    verified: bool
 
 
 class DiagnosesRepository:
@@ -80,6 +90,48 @@ class DiagnosesRepository:
         diagnosis.search_high = search_high
         await self._session.flush()
         return diagnosis
+
+    async def detach_earlier(
+        self, *, project_id: UUID, run_id: UUID, keep_diagnosis_id: UUID
+    ) -> list[DetachedCause]:
+        """Takes the run's other diagnoses out of their cause groups.
+
+        A run belongs to the cause of its latest diagnosis only, so a re-diagnosis never counts
+        the same run in two groups. Returns what each detached diagnosis counted toward.
+        """
+        statement = (
+            select(Diagnosis)
+            .where(
+                Diagnosis.project_id == project_id,
+                Diagnosis.run_id == run_id,
+                Diagnosis.id != keep_diagnosis_id,
+                Diagnosis.cause_id.is_not(None),
+            )
+            .with_for_update()
+        )
+        detached: list[DetachedCause] = []
+        for diagnosis in await self._session.scalars(statement):
+            cause_id = diagnosis.cause_id
+            if cause_id is None:
+                continue
+            verified = diagnosis.verdict_kind is VerdictKind.STEP_VERIFIED
+            detached.append(DetachedCause(cause_id=cause_id, verified=verified))
+            diagnosis.cause_id = None
+        await self._session.flush()
+        return detached
+
+    async def count_progress(
+        self, *, project_id: UUID, diagnosis_id: UUID, checks_at_least: int, replays_added: int
+    ) -> None:
+        """Keeps the live counts current while the engine runs. The verdict overwrites them."""
+        await self._session.execute(
+            update(Diagnosis)
+            .where(Diagnosis.project_id == project_id, Diagnosis.id == diagnosis_id)
+            .values(
+                check_count=func.greatest(Diagnosis.check_count, checks_at_least),
+                replay_count=Diagnosis.replay_count + replays_added,
+            )
+        )
 
     async def finish(
         self,

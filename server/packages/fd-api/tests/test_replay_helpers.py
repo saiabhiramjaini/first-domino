@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from fd_api.adapters.replay_runner import opening_messages
+from fd_api.services.snapshots import opening_messages
 from fd_api.services.verdicts import step_label
 from fd_database import tables
 from fd_shared.enums import MessageRole

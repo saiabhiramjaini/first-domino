@@ -14,7 +14,9 @@ from fd_shared.models import DiagnosisResult, Explanation, TaskInput
 
 
 class NeverMatch:
-    async def match(self, explanation: Explanation, candidates: list[CauseCandidate]) -> CauseMatch:
+    async def match(
+        self, explanation: Explanation, candidates: list[CauseCandidate], *, step_name: str
+    ) -> CauseMatch:
         return CauseMatch(cause_id=None, cost_usd=0.0)
 
 

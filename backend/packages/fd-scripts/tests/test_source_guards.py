@@ -26,6 +26,8 @@ MODEL_ID = re.compile(r"^(gpt-|chatgpt-|o[1-9](-|$)|claude-|gemini-)")
 GENERATED_DIR = "_generated"
 MIXED_DICT_EXCEPTIONS: dict[str, str] = {
     "fd_api.errors.error_responses": "FastAPI's `responses=` parameter takes exactly this type",
+    "first_domino.openai_format.message_from_openai": "parses a raw OpenAI message param at the "
+    "SDK edge; `openai` is optional for the SDK, so its TypedDicts cannot be required",
 }
 
 

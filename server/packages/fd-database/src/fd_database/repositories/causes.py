@@ -55,6 +55,17 @@ class CausesRepository:
         await self._session.flush()
         return cause
 
+    async def remove_run(self, *, cause: Cause, verified: bool) -> Cause | None:
+        """Counts one run fewer in the group. Deletes the group when no run is left in it."""
+        cause.run_count -= 1
+        cause.verified_count -= int(verified)
+        if cause.run_count <= 0:
+            await self._session.delete(cause)
+            await self._session.flush()
+            return None
+        await self._session.flush()
+        return cause
+
     async def get(
         self, *, project_id: UUID, cause_id: UUID, for_update: bool = False
     ) -> Cause | None:

@@ -18,8 +18,15 @@ class DatabaseCheckSink:
         self._project_id = project_id
 
     async def check_started(self, check: CheckView) -> None:
-        """Stores a new `pending` check."""
+        """Stores a new `pending` check and counts it on the diagnosis."""
         await self._save(check, finished=False)
+        async with self._database.transaction() as session:
+            await DiagnosesRepository(session).count_progress(
+                project_id=self._project_id,
+                diagnosis_id=check.diagnosis_id,
+                checks_at_least=check.index + 1,
+                replays_added=0,
+            )
 
     async def check_finished(self, check: CheckView) -> None:
         """Stores a check's passes and result over the pending one with the same index."""

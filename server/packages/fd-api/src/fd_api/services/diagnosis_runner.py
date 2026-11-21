@@ -165,7 +165,7 @@ class DiagnosisRunner:
         await send_slack_message(
             self._http,
             project.slack_webhook_url,
-            new_cause_message(cause),
+            new_cause_message(cause, web_app_url=self._settings.web_app_url),
             timeout_seconds=self._settings.slack_timeout_seconds,
         )
 

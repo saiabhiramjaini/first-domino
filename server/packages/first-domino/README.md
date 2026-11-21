@@ -1,25 +1,75 @@
 # first-domino
 
-Find the step where a failed AI agent run became doomed, and prove it.
+Find the step where a failed AI agent run went wrong, and prove it.
 
-First Domino records every step of your agent's runs. When a run fails, it replays the run from its own save points to find the first step after which the run always fails (the first domino), then rewrites that one step and replays again to prove the fix. Replays run in a worker on your side, so your code, tools and secrets never leave your machines.
+First Domino records every run of your agent, live. When a run fails, it replays the run from its own save points to find the first step after which the run always fails (the first domino), then rewrites that one step and replays again to prove the fix. Replays run in a worker on your side, so your code, tools and secrets never leave your machines.
 
-## 1. Install
+Works with any agent that calls a model through the OpenAI or Anthropic SDK, or a framework built on them: LangChain, the OpenAI Agents SDK, LlamaIndex, CrewAI, or a plain loop. Sync or async, streaming or not, and any OpenAI-compatible API.
 
-```bash
-pip install "first-domino[openai] @ git+<repo-url>#subdirectory=server/packages/first-domino"
-```
-
-Python 3.12+. Depends on `httpx`, `pydantic` and `pydantic-settings`. The `openai` extra is for `fd.wrap`; the `agents` extra is for the OpenAI Agents SDK adapter.
+## Install
 
 ```bash
-export FIRST_DOMINO_API_KEY=fd_live_...                # from Settings > API keys
-export FIRST_DOMINO_BASE_URL=https://api.example.com   # default http://localhost:8000
+pip install first-domino
 ```
 
-Without an API key the SDK does nothing, so the same code runs in tests and in production.
+Python 3.12+. Set the key from your project's Settings page:
 
-## 2. Record runs
+```bash
+export FIRST_DOMINO_API_KEY=fd_live_...
+```
+
+Without a key the SDK does nothing, so the same code runs in tests and in production.
+
+## 1. Record your agent: two lines
+
+Mark the function that runs your agent. Each call becomes one run, and every model call inside it becomes a step, as it happens.
+
+```python
+import first_domino as fd
+
+@fd.entrypoint("support-bot", check=lambda question, answer: "refund" in answer)
+def answer(question: str) -> str:
+    ...  # your agent, unchanged
+```
+
+- `check(output)` or `check(input, output)` says whether the run passed. A run that raises is recorded as `errored`, and your exception continues.
+- Already know the answer inside your code? Call `fd.set_outcome(passed=False, reason="...")`; it wins over `check`.
+- The function's arguments are saved with the run so it can be replayed. Use JSON-friendly types: text, numbers, lists, dicts, dataclasses or pydantic models.
+- Recording never raises into your agent. If First Domino is unreachable, your code behaves exactly as without it.
+- Failed runs are diagnosed on their own.
+
+### Tools with side effects
+
+During a replay, the steps before the one being tested come from the recording. Mark a tool that must not run twice (sends an email, moves money) so it returns its recorded result there instead:
+
+```python
+@fd.tool
+def send_refund(order_id: str, amount: float) -> str:
+    ...
+```
+
+Put it under your framework's own decorator (`@function_tool`, `@tool`). Read-only tools need no marking.
+
+## 2. Start the replay worker
+
+Run this next to your agent, with the same code and keys:
+
+```python
+import first_domino as fd
+import my_agent  # the module with your @fd.entrypoint
+
+fd.serve()
+```
+
+The worker only connects outward. When First Domino needs a replay, the worker calls your function again: model calls up to the save point are answered from the recording, the next one with the fixed step when there is one, and the rest by the model. Your `check` decides whether the replay passed.
+
+Async code can run `await fd.worker().run()` instead.
+
+## Advanced
+
+The two lines above cover most agents. These lower-level APIs remain for full control.
+
+### Record runs by hand
 
 Wrap your OpenAI client inside `fd.record`. Each completion becomes a step (the model turn plus the tool results it led to), and the tools you pass become the run's tool list. This is a complete call assistant loop:
 
@@ -75,7 +125,7 @@ async def replay(ctx: fd.ReplayContext) -> RunResult:
 
 Replays resume from the recorded messages; your tools only see new calls, so restore any state they need for the save point first. Streamed turns (`Runner.run_streamed`) are not recorded.
 
-## 3. Run the replay worker
+### Write the replay worker by hand
 
 The worker only calls out. It leases replay jobs, runs your agent from the save point it is given, runs your success check, and reports the outcome.
 
@@ -105,7 +155,7 @@ await worker.run()  # leases forever, several jobs at a time
 - The worker refuses to start without an API key or without both handlers for each agent name.
 - `FIRST_DOMINO_WORKER_CONCURRENCY` (default 4) sets how many replays run at once.
 
-## 4. Diagnose from code
+## Diagnose from code
 
 Failed runs are diagnosed automatically. To start one yourself and wait for the verdict:
 
@@ -136,7 +186,7 @@ assert await worker.run_once() == fd.ReplayOutcome.passed
 | Setting | Meaning | Default |
 | --- | --- | --- |
 | `FIRST_DOMINO_API_KEY` | Project API key. Without it, recording does nothing. | none |
-| `FIRST_DOMINO_BASE_URL` | The First Domino API. | `http://localhost:8000` |
+| `FIRST_DOMINO_BASE_URL` | The First Domino API. Point it at your own server if you self-host. | `https://api-first-domino.abhiramtech.in` |
 | `FIRST_DOMINO_WORKER_CONCURRENCY` | Replays one worker runs at once. | `4` |
 | `FIRST_DOMINO_LEASE_WAIT_SECONDS` | How long one lease call waits for a job (0 to 20). | `10` |
 | `FIRST_DOMINO_TIMEOUT_SECONDS` | Timeout of one API call. | `30` |
@@ -145,6 +195,9 @@ Settings can also live in a `.env` file in the working directory.
 
 | Module | Job |
 | --- | --- |
+| `instrument` | `entrypoint()`, `tool()`, `set_outcome()`, `serve()`, `worker()` and `init()`: the two-line integration. |
+| `capture` | Records model calls at the HTTP layer (`httpx` and `httpx2`) and answers them during a replay. |
+| `providers` | The OpenAI Chat Completions, OpenAI Responses and Anthropic Messages wire formats. |
 | `recorder` | `record()`, `start_recording()` and `RecordedRun`: send each step without ever raising into the agent. |
 | `wrap` | `wrap()`: record every completion made through an async OpenAI client. |
 | `worker` | `Worker` and `ReplayContext`: lease, replay, check, submit. |

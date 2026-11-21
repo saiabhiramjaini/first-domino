@@ -1,0 +1,73 @@
+name: sdk-release
+
+# Publishes the first-domino SDK to PyPI when a tag like sdk-v0.1.0 is pushed.
+# test -> build -> publish. The tag must match the version in
+# server/packages/first-domino/pyproject.toml. Publishing uses PyPI trusted publishing:
+# GitHub proves its identity to PyPI, so no PyPI token is stored anywhere. See docs/RELEASE.md.
+
+on:
+  push:
+    tags: ["sdk-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+      - run: uv sync --locked
+      - run: uv run ruff check packages/first-domino
+      - run: uv run pyright packages/first-domino
+      - run: uv run pytest packages/first-domino
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Check the tag matches the package version
+        run: |
+          version=$(grep -m1 '^version = ' packages/first-domino/pyproject.toml | cut -d'"' -f2)
+          if [ "sdk-v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the package version $version" >&2
+            exit 1
+          fi
+      - run: uv build --package first-domino --out-dir dist
+      - run: uvx twine check --strict dist/*
+      - name: Install the wheel alone and import it
+        run: |
+          uv venv /tmp/wheel-test
+          uv pip install --python /tmp/wheel-test/bin/python dist/*.whl
+          /tmp/wheel-test/bin/python -I -c "import first_domino as fd; print(len(fd.__all__), 'exports')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-dist
+          path: server/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/first-domino/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

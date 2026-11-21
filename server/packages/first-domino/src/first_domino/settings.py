@@ -16,7 +16,9 @@ class SdkSettings(BaseSettings):
     api_key: SecretStr | None = Field(
         default=None, description="Project API key. Without it, recording is a no-op."
     )
-    base_url: str = Field(default="http://localhost:8000", description="First Domino API URL.")
+    base_url: str = Field(
+        default="https://api-first-domino.abhiramtech.in", description="First Domino API URL."
+    )
     timeout_seconds: float = Field(default=30.0, gt=0, description="Timeout of one API call.")
     lease_wait_seconds: int = Field(
         default=10, ge=0, le=20, description="How long one lease call waits for a job."

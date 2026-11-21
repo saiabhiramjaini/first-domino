@@ -97,6 +97,7 @@ class CauseCategory(StrEnum):
 
 
 class CheckPhase(StrEnum):
+    calibrate = "calibrate"
     precheck = "precheck"
     bisect = "bisect"
     verify = "verify"
@@ -164,6 +165,8 @@ class DiagnosisErrorCode(StrEnum):
     check_budget_exceeded = "check_budget_exceeded"
     llm_not_configured = "llm_not_configured"
     llm_call_failed = "llm_call_failed"
+    check_inconsistent = "check_inconsistent"
+    replay_not_faithful = "replay_not_faithful"
     interrupted = "interrupted"
     internal_error = "internal_error"
 
@@ -361,6 +364,35 @@ class Project(BaseModel):
     ]
 
 
+class ToolName(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description="The tool whose result differed or was not sent back. Null when unknown.",
+            max_length=128,
+            title="Tool Name",
+        ),
+    ]
+
+
+class ReplayDrift(BaseModel):
+    step: Annotated[
+        int,
+        Field(
+            description="The kept step whose tool results came back different.",
+            ge=1,
+            title="Step",
+        ),
+    ]
+    tool_name: Annotated[
+        ToolName | None,
+        Field(
+            description="The tool whose result differed or was not sent back. Null when unknown.",
+            title="Tool Name",
+        ),
+    ] = None
+
+
 class ReplayJobStatus(StrEnum):
     queued = "queued"
     leased = "leased"
@@ -451,6 +483,12 @@ class SubmitReplayResultRequest(BaseModel):
         Field(
             description="The worker's own code for a crash, when `outcome` is `errored`.",
             title="Error Code",
+        ),
+    ] = None
+    drift: Annotated[
+        ReplayDrift | None,
+        Field(
+            description="The first kept step whose tool results differed from the recording. Such a replay does not count as evidence for its check."
         ),
     ] = None
 
@@ -609,6 +647,21 @@ class Check(BaseModel):
         ),
     ]
     result: CheckResult
+    drifted: Annotated[
+        int,
+        Field(
+            description="Replays that did not reproduce the kept steps. They count toward neither `samples` nor `passes`.",
+            ge=0,
+            title="Drifted",
+        ),
+    ]
+    drift_tool_name: Annotated[
+        str | None,
+        Field(
+            description="The tool whose result differed in the first drifted replay, if any.",
+            title="Drift Tool Name",
+        ),
+    ]
     created_at: Annotated[
         AwareDatetime,
         Field(
@@ -964,6 +1017,12 @@ class ReplayJob(BaseModel):
             description="Number of times the job has been leased.",
             ge=0,
             title="Attempt",
+        ),
+    ]
+    drift: Annotated[
+        ReplayDrift | None,
+        Field(
+            description="Where the submitted replay stopped matching the recording. Null when it matched."
         ),
     ]
 

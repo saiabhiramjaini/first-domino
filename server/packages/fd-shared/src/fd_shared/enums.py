@@ -69,6 +69,10 @@ class DiagnosisErrorCode(StrEnum):
     `check_budget_exceeded`: the search needed more checks than allowed.
     `llm_not_configured`: the engine has no model key or model id.
     `llm_call_failed`: a model call failed before returning anything.
+    `check_inconsistent`: the success check passed a replay that kept every recorded step, so it
+    does not reliably fail this run and no step can be blamed.
+    `replay_not_faithful`: replays could not reproduce the recorded steps they kept, because a tool
+    returned different data than in the recording (mark it with `@fd.tool`).
     `interrupted`: the API process running it stopped heartbeating (for example, it restarted).
     `internal_error`: anything else; see the API logs.
     """
@@ -77,13 +81,20 @@ class DiagnosisErrorCode(StrEnum):
     CHECK_BUDGET_EXCEEDED = "check_budget_exceeded"
     LLM_NOT_CONFIGURED = "llm_not_configured"
     LLM_CALL_FAILED = "llm_call_failed"
+    CHECK_INCONSISTENT = "check_inconsistent"
+    REPLAY_NOT_FAITHFUL = "replay_not_faithful"
     INTERRUPTED = "interrupted"
     INTERNAL_ERROR = "internal_error"
 
 
 class CheckPhase(StrEnum):
-    """The part of a diagnosis a check belongs to."""
+    """The part of a diagnosis a check belongs to.
 
+    `calibrate`: replay keeping every recorded step; the success check must fail it.
+    `precheck`: a fresh run, kept only when the search narrows to step 1.
+    """
+
+    CALIBRATE = "calibrate"
     PRECHECK = "precheck"
     BISECT = "bisect"
     VERIFY = "verify"

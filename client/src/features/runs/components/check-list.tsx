@@ -1,6 +1,6 @@
 import type { CheckPhase } from "@/api/generated";
 import { StatusBadge } from "@/components/status/status-badge";
-import { CHECK_PHASE, CHECK_RESULT } from "@/components/status/status-tones";
+import { CHECK_PHASE } from "@/components/status/status-tones";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -11,7 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import type { CheckRow } from "./check-rows";
+import { driftText } from "../replay-drift";
+import { checkResultStatus, type CheckRow } from "./check-rows";
 
 type CheckListProps = {
   checks: CheckRow[];
@@ -20,6 +21,9 @@ type CheckListProps = {
 };
 
 export function savePointText(phase: CheckPhase, savePoint: number): string {
+  if (phase === "calibrate" && savePoint > 0) {
+    return savePoint === 1 ? "Keep the only step" : `Keep all ${savePoint} steps`;
+  }
   const kept =
     savePoint === 0
       ? "Fresh run"
@@ -72,9 +76,12 @@ export function CheckList({ checks, selectedCheckId, onViewReplays }: CheckListP
               </TableCell>
               <TableCell className="text-right font-mono text-xs tabular-nums">
                 {check.passes}/{check.samples}
+                {check.drifted > 0 && (
+                  <span className="block text-muted-foreground">{driftText(check)}</span>
+                )}
               </TableCell>
               <TableCell className="text-right">
-                <StatusBadge status={CHECK_RESULT[check.result]} />
+                <StatusBadge status={checkResultStatus(check)} />
               </TableCell>
               <TableCell className="text-right">
                 <Button

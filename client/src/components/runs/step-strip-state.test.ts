@@ -26,6 +26,10 @@ describe("stepState", () => {
     expect(strip(2, diagnosis({ status: "queued" }))).toEqual(["idle", "idle"]);
   });
 
+  it("leaves steps idle while calibrating, before the search sets a range", () => {
+    expect(strip(3, diagnosis({ status: "bisecting" }))).toEqual(["idle", "idle", "idle"]);
+  });
+
   it("marks the search range and rules out the rest while bisecting", () => {
     expect(strip(6, diagnosis({ search_low: 2, search_high: 4 }))).toEqual([
       "ruled_out",

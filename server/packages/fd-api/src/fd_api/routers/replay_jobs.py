@@ -134,9 +134,15 @@ async def submit_replay_result(
         outcome=body.outcome,
         replay_run_id=body.replay_run_id,
         error_code=body.error_code,
+        drift=body.drift,
         now=utc_now(),
     )
     if job is None:
         raise NotFoundError
-    log.info("replay_jobs.submitted", replay_job_id=str(job.id), outcome=job.outcome)
+    log.info(
+        "replay_jobs.submitted",
+        replay_job_id=str(job.id),
+        outcome=job.outcome,
+        drift_step=job.drift_step,
+    )
     return SubmitReplayResultResponse(replay_job=ReplayJob.from_row(job))

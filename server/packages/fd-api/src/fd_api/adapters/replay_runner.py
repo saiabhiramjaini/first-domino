@@ -18,7 +18,7 @@ from fd_database.tables.base import utc_now
 from fd_shared.enums import ReplayJobStatus, ReplayOutcome
 from fd_shared.errors import NotFoundError
 from fd_shared.logging import get_logger
-from fd_shared.models import Message
+from fd_shared.models import Message, ReplayDrift, ReplayResult
 
 log = get_logger(__name__)
 
@@ -27,11 +27,18 @@ _FINAL_STATUSES = frozenset(
 )
 
 
-def outcome_of(job: tables.ReplayJob) -> ReplayOutcome | None:
-    """The job's replay outcome, `errored` for a job that never ran, or None while it is open."""
+def result_of(job: tables.ReplayJob) -> ReplayResult | None:
+    """The job's replay result, `errored` for a job that never ran, or None while it is open."""
     if job.status not in _FINAL_STATUSES:
         return None
-    return job.outcome or ReplayOutcome.ERRORED
+    if job.outcome is None:
+        return ReplayResult(outcome=ReplayOutcome.ERRORED)
+    drift = (
+        ReplayDrift(step=job.drift_step, tool_name=job.drift_tool_name)
+        if job.drift_step is not None
+        else None
+    )
+    return ReplayResult(outcome=job.outcome, drift=drift)
 
 
 class QueueReplayRunner:
@@ -60,7 +67,7 @@ class QueueReplayRunner:
         samples: int,
         model_override: str | None,
         replacement_output: Message | None,
-    ) -> list[ReplayOutcome]:
+    ) -> list[ReplayResult]:
         """Queues `samples` replays and waits until each has a result.
 
         The engine cancels this call when the check is decided early or times out. Then the
@@ -125,15 +132,15 @@ class QueueReplayRunner:
             )
         return [job.id for job in jobs]
 
-    async def _wait(self, job_ids: Sequence[UUID]) -> list[ReplayOutcome]:
+    async def _wait(self, job_ids: Sequence[UUID]) -> list[ReplayResult]:
         while True:
-            outcomes = await self._outcomes(job_ids)
-            finished = [outcome for outcome in outcomes if outcome is not None]
+            results = await self._results(job_ids)
+            finished = [result for result in results if result is not None]
             if len(finished) == len(job_ids):
                 return finished
             await asyncio.sleep(self._settings.replay_poll_interval_seconds)
 
-    async def _outcomes(self, job_ids: Sequence[UUID]) -> list[ReplayOutcome | None]:
+    async def _results(self, job_ids: Sequence[UUID]) -> list[ReplayResult | None]:
         async with self._database.transaction() as session:
             jobs = ReplayJobsRepository(session)
             await jobs.expire_leases(
@@ -142,4 +149,4 @@ class QueueReplayRunner:
                 max_attempts=self._settings.max_job_attempts,
             )
             rows = await jobs.get_many(project_id=self._project_id, replay_job_ids=job_ids)
-        return [outcome_of(row) for row in rows]
+        return [result_of(row) for row in rows]

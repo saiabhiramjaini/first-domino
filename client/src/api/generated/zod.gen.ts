@@ -93,8 +93,12 @@ export const zCause = z.object({
  * CheckPhase
  *
  * The part of a diagnosis a check belongs to.
+ *
+ * `calibrate`: replay keeping every recorded step; the success check must fail it.
+ * `precheck`: a fresh run, kept only when the search narrows to step 1.
  */
 export const zCheckPhase = z.enum([
+    'calibrate',
     'precheck',
     'bisect',
     'verify',
@@ -126,6 +130,8 @@ export const zCheck = z.object({
     samples: z.int().gte(0),
     passes: z.int().gte(0),
     result: zCheckResult,
+    drifted: z.int().gte(0),
+    drift_tool_name: z.string().nullable(),
     created_at: z.iso.datetime(),
     finished_at: z.iso.datetime().nullable()
 });
@@ -203,6 +209,10 @@ export const zCreateDiagnosisRequest = z.object({
  * `check_budget_exceeded`: the search needed more checks than allowed.
  * `llm_not_configured`: the engine has no model key or model id.
  * `llm_call_failed`: a model call failed before returning anything.
+ * `check_inconsistent`: the success check passed a replay that kept every recorded step, so it
+ * does not reliably fail this run and no step can be blamed.
+ * `replay_not_faithful`: replays could not reproduce the recorded steps they kept, because a tool
+ * returned different data than in the recording (mark it with `@fd.tool`).
  * `interrupted`: the API process running it stopped heartbeating (for example, it restarted).
  * `internal_error`: anything else; see the API logs.
  */
@@ -211,6 +221,8 @@ export const zDiagnosisErrorCode = z.enum([
     'check_budget_exceeded',
     'llm_not_configured',
     'llm_call_failed',
+    'check_inconsistent',
+    'replay_not_faithful',
     'interrupted',
     'internal_error'
 ]);
@@ -408,6 +420,20 @@ export const zGetProjectSelfResponse = z.object({
 });
 
 /**
+ * ReplayDrift
+ *
+ * The first kept step a replay could not reproduce.
+ *
+ * A replay keeps steps 1 to `from_step` as recorded. When a tool gives a different result
+ * there than it did in the recording, the replay is no longer the run being diagnosed, so
+ * its outcome says nothing about the save point.
+ */
+export const zReplayDrift = z.object({
+    step: z.int().gte(1),
+    tool_name: z.string().max(128).nullish()
+});
+
+/**
  * ReplayJobStatus
  *
  * Where a replay job stands in the queue. `succeeded`, `failed` and `expired` are final.
@@ -543,7 +569,8 @@ export const zSubmitReplayResultRequest = z.object({
     replay_job_id: z.uuid(),
     outcome: zReplayOutcome,
     replay_run_id: z.uuid().nullish(),
-    error_code: z.string().max(128).nullish()
+    error_code: z.string().max(128).nullish(),
+    drift: zReplayDrift.nullish()
 });
 
 /**
@@ -725,7 +752,8 @@ export const zReplayJob = z.object({
     model_override: z.string().nullable(),
     status: zReplayJobStatus,
     lease_expires_at: z.iso.datetime().nullable(),
-    attempt: z.int().gte(0)
+    attempt: z.int().gte(0),
+    drift: zReplayDrift.nullable()
 });
 
 /**

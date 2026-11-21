@@ -64,7 +64,7 @@ def main() -> None:
 async def _seed_with_new_database(seed: DemoSeed) -> str:
     database = Database()
     try:
-        await database.create_tables()
+        await database.migrate()
         return await seed_demo(database, seed)
     finally:
         await database.dispose()

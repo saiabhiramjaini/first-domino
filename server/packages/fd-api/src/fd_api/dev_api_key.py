@@ -20,7 +20,7 @@ async def create_dev_api_key() -> str:
     """Returns a new API key for the local developer's project."""
     database = Database()
     try:
-        await database.create_tables()
+        await database.migrate()
         async with database.transaction() as session:
             person = await sign_in(session, LOCAL_PERSON)
             created = await create_api_key(

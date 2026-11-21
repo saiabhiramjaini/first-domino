@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Check, CheckPhase, CheckResult } from "@/api/generated";
 
-import { checkRows } from "./check-rows";
+import { checkResultStatus, checkRows } from "./check-rows";
 
 function check(
   index: number,
@@ -10,7 +10,8 @@ function check(
   savePoint: number,
   passes: number,
   samples: number,
-  result: CheckResult
+  result: CheckResult,
+  drift: Pick<Check, "drifted" | "drift_tool_name"> = { drifted: 0, drift_tool_name: null }
 ): Check {
   return {
     id: `c${index}`,
@@ -21,6 +22,7 @@ function check(
     samples,
     passes,
     result,
+    ...drift,
     created_at: "2026-11-21T18:00:00Z",
   } as Check;
 }
@@ -69,5 +71,33 @@ describe("checkRows", () => {
     ]);
 
     expect(rows).toHaveLength(2);
+  });
+
+  it("adds up drifted replays across rounds and keeps the latest drifted tool", () => {
+    const [row] = checkRows([
+      check(0, "bisect", 4, 0, 2, "doomed", { drifted: 1, drift_tool_name: "lookup_order" }),
+      check(1, "bisect", 4, 0, 3, "doomed", { drifted: 2, drift_tool_name: "get_time" }),
+      check(2, "bisect", 4, 0, 3, "doomed"),
+    ]);
+
+    expect([row?.drifted, row?.drift_tool_name]).toEqual([3, "get_time"]);
+  });
+});
+
+describe("checkResultStatus", () => {
+  it("shows a running check as running", () => {
+    expect(checkResultStatus({ result: "pending", finished_at: null }).label).toBe("Running");
+  });
+
+  it("shows a finished check with no usable replay as no verdict", () => {
+    expect(
+      checkResultStatus({ result: "pending", finished_at: "2026-11-21T18:00:05Z" }).label
+    ).toBe("No verdict");
+  });
+
+  it("shows a decided check by its result", () => {
+    expect(checkResultStatus({ result: "doomed", finished_at: "2026-11-21T18:00:05Z" }).label).toBe(
+      "Doomed"
+    );
   });
 });

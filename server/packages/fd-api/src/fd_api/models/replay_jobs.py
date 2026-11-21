@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from fd_database import tables
 from fd_shared.enums import ReplayJobStatus, ReplayOutcome
-from fd_shared.models import Message, TaskInput
+from fd_shared.models import Message, ReplayDrift, TaskInput
 
 MAX_LEASE_WAIT_SECONDS = 20
 DEFAULT_LEASE_WAIT_SECONDS = 10
@@ -37,6 +37,11 @@ class ReplayJob(BaseModel):
         description="Time the current lease ends, in UTC RFC 3339 format. Null unless leased."
     )
     attempt: int = Field(ge=0, description="Number of times the job has been leased.")
+    drift: ReplayDrift | None = Field(
+        description=(
+            "Where the submitted replay stopped matching the recording. Null when it matched."
+        )
+    )
 
     @classmethod
     def from_row(cls, row: tables.ReplayJob) -> "ReplayJob":
@@ -53,6 +58,11 @@ class ReplayJob(BaseModel):
             status=row.status,
             lease_expires_at=row.lease_expires_at,
             attempt=row.attempt,
+            drift=(
+                ReplayDrift(step=row.drift_step, tool_name=row.drift_tool_name)
+                if row.drift_step is not None
+                else None
+            ),
         )
 
 
@@ -100,6 +110,13 @@ class SubmitReplayResultRequest(BaseModel):
         default=None,
         max_length=128,
         description="The worker's own code for a crash, when `outcome` is `errored`.",
+    )
+    drift: ReplayDrift | None = Field(
+        default=None,
+        description=(
+            "The first kept step whose tool results differed from the recording. Such a replay "
+            "does not count as evidence for its check."
+        ),
     )
 
 

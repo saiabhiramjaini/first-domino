@@ -65,8 +65,10 @@ The one exception is a **computed row**: an aggregate (`group_by` with `func.cou
 
 ## Schema changes
 
-- Tables are created at startup by `create_all`. There is no migration tool yet; see `docs/DECISIONS.md`.
-- A schema change therefore means dropping the local database. Say so in the change.
+- Alembic owns the schema. The API runs `Database.migrate()` at startup: upgrade to head under a Postgres advisory lock, after stamping a database that `create_all` made before Alembic at the baseline (`0001`).
+- A table change ships with a revision in the same change: `make migration MSG="..."`, then read and fix the generated file (enum values, `use_alter` foreign keys, partial indexes and server defaults need a human look). `test_migrations.py` fails while the tables and the revisions disagree.
+- Revisions never import application code (tables, enums, helpers): they freeze the schema as it was.
+- A new value in a Postgres enum is `ALTER TYPE ... ADD VALUE IF NOT EXISTS` inside `op.get_context().autocommit_block()`.
 
 ## Settings
 

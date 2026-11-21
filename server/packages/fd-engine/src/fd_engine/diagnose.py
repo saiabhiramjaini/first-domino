@@ -1,4 +1,4 @@
-"""Runs one diagnosis end to end: bisect, verify or fallback, then explain.
+"""Runs one diagnosis end to end: calibrate, bisect, verify or fallback, then explain.
 
 Grouping is a separate call (`fd_engine.group.CauseGrouper`) because the API owns the causes.
 """
@@ -6,6 +6,7 @@ Grouping is a separate call (`fd_engine.group.CauseGrouper`) because the API own
 from uuid import UUID
 
 from fd_engine.bisect import Bisector
+from fd_engine.calibrate import Calibrator
 from fd_engine.checks import CheckRunner
 from fd_engine.explain import LlmExplainer, StepExplainer
 from fd_engine.fallback import Fallback, FallbackOutcome
@@ -73,6 +74,8 @@ class Diagnoser:
         """Diagnose one failed run and return the verdict for the API to store.
 
         Raises:
+            CheckInconsistentError: The success check passed a replay keeping every step.
+            ReplayNotFaithfulError: A check's replays drifted from the steps they kept.
             ReplayUnavailableError: A check got no completed replay.
             CheckBudgetError: Bisect needed more than `max_checks` checks.
         """
@@ -104,6 +107,9 @@ class Diagnoser:
             sink=self._sink,
             settings=self._settings,
         )
+        await Calibrator(
+            diagnosis_id=diagnosis_id, checks=checks, sink=self._sink, settings=self._settings
+        ).calibrate(len(steps))
         bisector = Bisector(
             diagnosis_id=diagnosis_id, checks=checks, sink=self._sink, settings=self._settings
         )

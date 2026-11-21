@@ -273,6 +273,18 @@ export type Check = {
     passes: number;
     result: CheckResult;
     /**
+     * Drifted
+     *
+     * Replays that did not reproduce the kept steps. They count toward neither `samples` nor `passes`.
+     */
+    drifted: number;
+    /**
+     * Drift Tool Name
+     *
+     * The tool whose result differed in the first drifted replay, if any.
+     */
+    drift_tool_name: string | null;
+    /**
      * Created At
      *
      * Time the check started, in UTC RFC 3339 format.
@@ -290,8 +302,11 @@ export type Check = {
  * CheckPhase
  *
  * The part of a diagnosis a check belongs to.
+ *
+ * `calibrate`: replay keeping every recorded step; the success check must fail it.
+ * `precheck`: a fresh run, kept only when the search narrows to step 1.
  */
-export type CheckPhase = 'precheck' | 'bisect' | 'verify' | 'fallback';
+export type CheckPhase = 'calibrate' | 'precheck' | 'bisect' | 'verify' | 'fallback';
 
 /**
  * CheckResult
@@ -604,10 +619,14 @@ export type Diagnosis = {
  * `check_budget_exceeded`: the search needed more checks than allowed.
  * `llm_not_configured`: the engine has no model key or model id.
  * `llm_call_failed`: a model call failed before returning anything.
+ * `check_inconsistent`: the success check passed a replay that kept every recorded step, so it
+ * does not reliably fail this run and no step can be blamed.
+ * `replay_not_faithful`: replays could not reproduce the recorded steps they kept, because a tool
+ * returned different data than in the recording (mark it with `@fd.tool`).
  * `interrupted`: the API process running it stopped heartbeating (for example, it restarted).
  * `internal_error`: anything else; see the API logs.
  */
-export type DiagnosisErrorCode = 'replay_unavailable' | 'check_budget_exceeded' | 'llm_not_configured' | 'llm_call_failed' | 'interrupted' | 'internal_error';
+export type DiagnosisErrorCode = 'replay_unavailable' | 'check_budget_exceeded' | 'llm_not_configured' | 'llm_call_failed' | 'check_inconsistent' | 'replay_not_faithful' | 'interrupted' | 'internal_error';
 
 /**
  * DiagnosisStatus
@@ -1309,6 +1328,30 @@ export type RegressionCase = {
 };
 
 /**
+ * ReplayDrift
+ *
+ * The first kept step a replay could not reproduce.
+ *
+ * A replay keeps steps 1 to `from_step` as recorded. When a tool gives a different result
+ * there than it did in the recording, the replay is no longer the run being diagnosed, so
+ * its outcome says nothing about the save point.
+ */
+export type ReplayDrift = {
+    /**
+     * Step
+     *
+     * The kept step whose tool results came back different.
+     */
+    step: number;
+    /**
+     * Tool Name
+     *
+     * The tool whose result differed or was not sent back. Null when unknown.
+     */
+    tool_name?: string | null;
+};
+
+/**
  * ReplayJob
  *
  * A request to replay a run from a save point on the customer's worker.
@@ -1366,6 +1409,10 @@ export type ReplayJob = {
      * Number of times the job has been leased.
      */
     attempt: number;
+    /**
+     * Where the submitted replay stopped matching the recording. Null when it matched.
+     */
+    drift: ReplayDrift | null;
 };
 
 /**
@@ -1673,6 +1720,10 @@ export type SubmitReplayResultRequest = {
      * The worker's own code for a crash, when `outcome` is `errored`.
      */
     error_code?: string | null;
+    /**
+     * The first kept step whose tool results differed from the recording. Such a replay does not count as evidence for its check.
+     */
+    drift?: ReplayDrift | null;
 };
 
 /**

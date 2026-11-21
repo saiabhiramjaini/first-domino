@@ -29,6 +29,8 @@ Run from `server/`.
 ```bash
 make install     # uv sync, all packages and dev tools
 make db-up       # start local Postgres
+make migrate     # upgrade the database to the latest revision (the API also does at startup)
+make migration MSG="add runs.note"  # write a revision for a table change, then review it
 make api         # run the API on :8000 with reload
 make dev-key     # print an API key for local work without the web app
 make check       # ruff, pyright, pytest

@@ -51,4 +51,6 @@ class ReplayJob(IdMixin, TimestampMixin, Base):
     outcome: Mapped[ReplayOutcome | None] = mapped_column(REPLAY_OUTCOME)
     replay_run_id: Mapped[UUID | None]
     error_code: Mapped[str | None] = mapped_column(String(128))
+    drift_step: Mapped[int | None]
+    drift_tool_name: Mapped[str | None] = mapped_column(String(128))
     finished_at: Mapped[datetime | None] = optional_timestamp()

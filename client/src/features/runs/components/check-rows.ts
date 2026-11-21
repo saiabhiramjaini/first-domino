@@ -1,4 +1,6 @@
 import type { Check } from "@/api/generated";
+import { CHECK_NO_VERDICT, CHECK_RESULT } from "@/components/status/status-tones";
+import type { ToneLabel } from "@/components/status/tone";
 
 // One row of the Checks table. A save point with no passing replay is run again before it
 // counts as doomed; those rounds are one check to a reader, so they share a row.
@@ -23,6 +25,8 @@ export function checkRows(checks: readonly Check[]): CheckRow[] {
         number: last.number,
         passes: last.passes + check.passes,
         samples: last.samples + check.samples,
+        drifted: last.drifted + check.drifted,
+        drift_tool_name: check.drift_tool_name ?? last.drift_tool_name,
         rounds,
       };
     } else {
@@ -30,4 +34,9 @@ export function checkRows(checks: readonly Check[]): CheckRow[] {
     }
   }
   return rows;
+}
+
+export function checkResultStatus(check: Pick<Check, "result" | "finished_at">): ToneLabel {
+  if (check.result === "pending" && check.finished_at) return CHECK_NO_VERDICT;
+  return CHECK_RESULT[check.result];
 }

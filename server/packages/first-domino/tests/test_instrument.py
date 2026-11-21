@@ -4,7 +4,9 @@ A fake model API stands in for OpenAI and Anthropic: it asks for the `get_weathe
 once, then answers. The agents below call it the ways real agents do.
 """
 
+import inspect
 import json
+import logging
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -18,11 +20,12 @@ import pytest
 import first_domino as fd
 from first_domino import capture
 from first_domino import instrument as entrypoint_module
-from first_domino._generated.models import ReplayJobStatus
+from first_domino._generated.models import ReplayJob, ReplayJobStatus, ToolName
 from first_domino.client import FirstDominoClient
 from first_domino.providers import AnthropicMessages
 from first_domino.recorder import RecordedRun
 from first_domino.testing import FakeApi, make_job
+from first_domino.worker import WorkerErrorCode
 
 AGENT = "weather-bot"
 QUESTION = "What is the weather in Paris?"
@@ -38,11 +41,12 @@ def recorder(client: FirstDominoClient) -> Iterator[None]:
 
 
 class FakeModel:
-    """A model API: calls `get_weather` until it has a result, then answers."""
+    """A model API: calls `get_weather` until it has `rounds` results, then answers."""
 
-    def __init__(self) -> None:
+    def __init__(self, rounds: int = 1) -> None:
         self.requests: list[dict[str, Any]] = []
         self.fail_next = 0
+        self.rounds = rounds
 
     def handle(self, path: str, body: dict[str, Any]) -> tuple[int, bytes, str]:
         self.requests.append(body)
@@ -56,12 +60,13 @@ class FakeModel:
         return self._anthropic(body)
 
     def _chat(self, body: dict[str, Any]) -> tuple[int, bytes, str]:
-        answered = any(m["role"] == "tool" for m in body["messages"])
+        results = sum(m["role"] == "tool" for m in body["messages"])
+        answered = results >= self.rounds
         if body.get("stream"):
             return 200, _chat_stream(answered), "text/event-stream"
         message: dict[str, Any] = {"role": "assistant", "content": ANSWER if answered else None}
         if not answered:
-            message["tool_calls"] = [_chat_call()]
+            message["tool_calls"] = [_chat_call(f"call_{results + 1}")]
         data = {
             "id": "c1",
             "object": "chat.completion",
@@ -124,10 +129,10 @@ def _call(call_id: str = "call_1") -> fd.ToolCall:
     return fd.ToolCall(id=call_id, name="get_weather", arguments='{"city": "Paris"}')
 
 
-def _chat_call() -> dict[str, Any]:
+def _chat_call(call_id: str = "call_1") -> dict[str, Any]:
     arguments = '{"city": "Paris"}'
     return {
-        "id": "call_1",
+        "id": call_id,
         "type": "function",
         "function": {"name": "get_weather", "arguments": arguments},
     }
@@ -177,7 +182,13 @@ TOOLS: list[Any] = [
     }
 ]
 
+RESPONSES_TOOLS: list[Any] = [
+    {"type": "function", "name": "get_weather", "parameters": {"type": "object", "properties": {}}}
+]
+
 weather_calls: list[str] = []
+
+type Tool = Callable[[str], str]
 
 
 def get_weather(city: str) -> str:
@@ -185,7 +196,9 @@ def get_weather(city: str) -> str:
     return json.dumps({"city": city, "sky": "sunny"})
 
 
-def chat_loop(client: openai.OpenAI, question: str, *, stream: bool = False) -> str:
+def chat_loop(
+    client: openai.OpenAI, question: str, *, stream: bool = False, tool: Tool = get_weather
+) -> str:
     """A plain tool-calling loop on Chat Completions."""
     messages: list[Any] = [
         {"role": "system", "content": "Answer weather questions."},
@@ -205,9 +218,66 @@ def chat_loop(client: openai.OpenAI, question: str, *, stream: bool = False) -> 
             return reply["content"]
         for call in reply["tool_calls"]:
             city = json.loads(call["function"]["arguments"])["city"]
-            messages.append(
-                {"role": "tool", "tool_call_id": call["id"], "content": get_weather(city)}
+            messages.append({"role": "tool", "tool_call_id": call["id"], "content": tool(city)})
+
+
+async def responses_loop(client: openai.AsyncOpenAI, question: str, tool: Tool) -> str:
+    """A plain tool-calling loop on the Responses API."""
+    items: list[Any] = [{"role": "user", "content": question}]
+    while True:
+        response = await client.responses.create(
+            model="small", instructions="Be brief.", input=items, tools=RESPONSES_TOOLS
+        )
+        calls = [item for item in response.output if item.type == "function_call"]
+        if not calls:
+            return response.output_text
+        for call in calls:
+            items.append(
+                {
+                    "type": "function_call",
+                    "call_id": call.call_id,
+                    "name": call.name,
+                    "arguments": call.arguments,
+                }
             )
+            items.append(
+                {"type": "function_call_output", "call_id": call.call_id, "output": tool("Paris")}
+            )
+
+
+async def anthropic_loop(
+    http: httpx.AsyncClient, question: str, tool: Tool, *, stream: bool = False
+) -> str:
+    """A plain tool-calling loop on the Anthropic Messages API."""
+
+    async def create(messages: list[Any]) -> dict[str, Any]:
+        body = {
+            "model": "claude-x",
+            "system": "Be brief.",
+            "messages": messages,
+            "tools": [{"name": "get_weather"}],
+            "max_tokens": 100,
+            "stream": stream,
+        }
+        response = await http.post("/v1/messages", json=body)
+        if not stream:
+            return response.json()
+        return AnthropicMessages().build_response(
+            AnthropicMessages().parse_stream(response.content).message, "claude-x"
+        )
+
+    messages: list[Any] = [{"role": "user", "content": question}]
+    while True:
+        reply = await create(messages)
+        messages.append({"role": "assistant", "content": reply["content"]})
+        uses = [b for b in reply["content"] if b["type"] == "tool_use"]
+        if not uses:
+            return "".join(b["text"] for b in reply["content"] if b["type"] == "text")
+        results = [
+            {"type": "tool_result", "tool_use_id": u["id"], "content": tool(u["input"]["city"])}
+            for u in uses
+        ]
+        messages.append({"role": "user", "content": results})
 
 
 def _streamed(client: openai.OpenAI, messages: list[Any]) -> dict[str, Any]:
@@ -239,14 +309,29 @@ def openai_client(model: FakeModel) -> openai.OpenAI:
     )
 
 
+def async_openai_client(model: FakeModel) -> openai.AsyncOpenAI:
+    http = httpx2.AsyncClient(transport=model.httpx2_transport())
+    return openai.AsyncOpenAI(api_key="test", base_url="http://model.test/v1", http_client=http)
+
+
+def anthropic_http(model: FakeModel) -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        transport=model.httpx_transport(), base_url="https://api.anthropic.test"
+    )
+
+
 def bot(
-    model: FakeModel, *, stream: bool = False, check: Callable[..., bool] | None = None
+    model: FakeModel,
+    *,
+    stream: bool = False,
+    check: Callable[..., bool] | None = None,
+    tool: Tool = get_weather,
 ) -> Callable[[str], str]:
     client = openai_client(model)
 
     @fd.entrypoint(AGENT, check=check or (lambda question, answer: "sunny" in answer))
     def answer(question: str) -> str:
-        return chat_loop(client, question, stream=stream)
+        return chat_loop(client, question, stream=stream, tool=tool)
 
     return answer
 
@@ -332,45 +417,11 @@ def test_model_calls_outside_an_entrypoint_are_not_recorded(api: FakeApi) -> Non
 
 
 async def test_async_agent_on_the_responses_api(api: FakeApi) -> None:
-    client = openai.AsyncOpenAI(
-        api_key="test",
-        base_url="http://model.test/v1",
-        http_client=httpx2.AsyncClient(transport=FakeModel().httpx2_transport()),
-    )
-    tools: list[Any] = [
-        {
-            "type": "function",
-            "name": "get_weather",
-            "parameters": {"type": "object", "properties": {}},
-        }
-    ]
+    client = async_openai_client(FakeModel())
 
     @fd.entrypoint(AGENT)
     async def answer(question: str) -> str:
-        items: list[Any] = [{"role": "user", "content": question}]
-        while True:
-            response = await client.responses.create(
-                model="small", instructions="Be brief.", input=items, tools=tools
-            )
-            calls = [item for item in response.output if item.type == "function_call"]
-            if not calls:
-                return response.output_text
-            for call in calls:
-                items.append(
-                    {
-                        "type": "function_call",
-                        "call_id": call.call_id,
-                        "name": call.name,
-                        "arguments": call.arguments,
-                    }
-                )
-                items.append(
-                    {
-                        "type": "function_call_output",
-                        "call_id": call.call_id,
-                        "output": get_weather("Paris"),
-                    }
-                )
+        return await responses_loop(client, question, get_weather)
 
     assert await answer(QUESTION) == ANSWER
 
@@ -382,44 +433,11 @@ async def test_async_agent_on_the_responses_api(api: FakeApi) -> None:
 
 @pytest.mark.parametrize("stream", [False, True])
 async def test_async_agent_on_the_anthropic_api(api: FakeApi, stream: bool) -> None:
-    http = httpx.AsyncClient(
-        transport=FakeModel().httpx_transport(), base_url="https://api.anthropic.test"
-    )
-
-    async def create(messages: list[Any]) -> dict[str, Any]:
-        body = {
-            "model": "claude-x",
-            "system": "Be brief.",
-            "messages": messages,
-            "tools": [{"name": "get_weather"}],
-            "max_tokens": 100,
-            "stream": stream,
-        }
-        response = await http.post("/v1/messages", json=body)
-        if not stream:
-            return response.json()
-        return AnthropicMessages().build_response(
-            AnthropicMessages().parse_stream(response.content).message, "claude-x"
-        )
+    http = anthropic_http(FakeModel())
 
     @fd.entrypoint(AGENT)
     async def answer(question: str) -> str:
-        messages: list[Any] = [{"role": "user", "content": question}]
-        while True:
-            reply = await create(messages)
-            messages.append({"role": "assistant", "content": reply["content"]})
-            uses = [b for b in reply["content"] if b["type"] == "tool_use"]
-            if not uses:
-                return "".join(b["text"] for b in reply["content"] if b["type"] == "text")
-            results = [
-                {
-                    "type": "tool_result",
-                    "tool_use_id": u["id"],
-                    "content": get_weather(u["input"]["city"]),
-                }
-                for u in uses
-            ]
-            messages.append({"role": "user", "content": results})
+        return await anthropic_loop(http, question, get_weather, stream=stream)
 
     assert await answer(QUESTION) == ANSWER
 
@@ -633,3 +651,176 @@ async def test_replay_rebuilds_typed_arguments(api: FakeApi, client: FirstDomino
 
     assert await fd.worker(AGENT, client=client).run_once() == fd.ReplayOutcome.passed
     assert seen[-1] == Ticket(question=QUESTION, priority=2)
+
+
+# --- drift ----------------------------------------------------------------------------------
+
+
+class LiveWeather:
+    """`get_weather` backed by live data: the test changes the sky between record and replay."""
+
+    def __init__(self, *skies: str) -> None:
+        self.skies = list(skies) or ["sunny"]
+        self.calls = 0
+        self.render: Callable[[dict[str, str]], str] = json.dumps
+
+    def __call__(self, city: str) -> str:
+        sky = self.skies[min(self.calls, len(self.skies) - 1)]
+        self.calls += 1
+        return self.render({"city": city, "sky": sky})
+
+    def change(self, *skies: str) -> None:
+        self.skies = list(skies)
+        self.calls = 0
+
+
+API_KINDS = ["chat", "responses", "anthropic"]
+
+
+def agent_on(kind: str, model: FakeModel, tool: Tool) -> Callable[[str], Any]:
+    """The weather agent on one model API, recorded with `@fd.entrypoint`."""
+    if kind == "chat":
+        return bot(model, tool=tool)
+    if kind == "responses":
+        client = async_openai_client(model)
+
+        @fd.entrypoint(AGENT, check=lambda answer: "sunny" in answer)
+        async def on_responses(question: str) -> str:
+            return await responses_loop(client, question, tool)
+
+        return on_responses
+    http = anthropic_http(model)
+
+    @fd.entrypoint(AGENT, check=lambda answer: "sunny" in answer)
+    async def on_anthropic(question: str) -> str:
+        return await anthropic_loop(http, question, tool)
+
+    return on_anthropic
+
+
+async def record_once(answer: Callable[[str], Any]) -> None:
+    result = answer(QUESTION)
+    if inspect.isawaitable(result):
+        await result
+
+
+def replay_of_the_run(api: FakeApi, from_step: int) -> ReplayJob:
+    run_id = next(iter(api.runs))
+    return make_job(
+        agent_name=AGENT, run_id=run_id, task_input=api.runs[run_id].task_input, from_step=from_step
+    )
+
+
+@pytest.mark.parametrize("kind", API_KINDS)
+async def test_a_tool_that_returns_other_data_drifts_and_stops_the_replay(
+    api: FakeApi, client: FirstDominoClient, kind: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    model, weather = FakeModel(), LiveWeather("sunny")
+    await record_once(agent_on(kind, model, weather))
+    model.requests.clear()
+    weather.change("rainy")
+    api.jobs.append(replay_of_the_run(api, from_step=1))
+
+    with caplog.at_level(logging.WARNING, logger="first_domino"):
+        outcome = await fd.worker(AGENT, client=client).run_once()
+
+    assert outcome == fd.ReplayOutcome.errored
+    assert model.requests == []
+    (submitted,) = api.submitted
+    assert submitted.outcome == fd.ReplayOutcome.errored
+    assert submitted.drift == fd.ReplayDrift(step=1, tool_name=ToolName("get_weather"))
+    assert submitted.error_code is not None
+    assert submitted.error_code.root == WorkerErrorCode.REPLAY_DRIFTED
+    assert submitted.replay_run_id is not None
+    assert api.finished[-1].status == fd.RunOutcome.errored
+    (warning,) = [r for r in caplog.records if "replay_drifted" in r.getMessage()]
+    assert "get_weather" in warning.getMessage()
+    assert "@fd.tool" in warning.getMessage()
+
+
+@pytest.mark.parametrize("kind", API_KINDS)
+async def test_a_tool_that_returns_the_same_data_does_not_drift(
+    api: FakeApi, client: FirstDominoClient, kind: str
+) -> None:
+    model = FakeModel()
+    await record_once(agent_on(kind, model, LiveWeather("sunny")))
+    model.requests.clear()
+    api.jobs.append(replay_of_the_run(api, from_step=1))
+
+    assert await fd.worker(AGENT, client=client).run_once() == fd.ReplayOutcome.passed
+
+    assert len(model.requests) == 1
+    (submitted,) = api.submitted
+    assert (submitted.drift, submitted.error_code) == (None, None)
+
+
+async def test_the_same_json_in_another_key_order_does_not_drift(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    weather = LiveWeather("sunny")
+    await record_once(agent_on("chat", FakeModel(), weather))
+    weather.change("sunny")
+    weather.render = lambda value: json.dumps(dict(reversed(value.items())), indent=2)
+    api.jobs.append(replay_of_the_run(api, from_step=1))
+
+    assert await fd.worker(AGENT, client=client).run_once() == fd.ReplayOutcome.passed
+    assert api.submitted[0].drift is None
+
+
+async def test_a_marked_tool_does_not_drift(api: FakeApi, client: FirstDominoClient) -> None:
+    weather = LiveWeather("sunny")
+
+    @fd.tool(name="get_weather")
+    def marked(city: str) -> str:
+        return weather(city)
+
+    await record_once(agent_on("chat", FakeModel(), marked))
+    weather.change("rainy")
+    api.jobs.append(replay_of_the_run(api, from_step=1))
+
+    assert await fd.worker(AGENT, client=client).run_once() == fd.ReplayOutcome.passed
+    assert api.submitted[0].drift is None
+    assert weather.calls == 0
+
+
+async def test_drift_in_a_later_kept_step_names_that_step(
+    api: FakeApi, client: FirstDominoClient
+) -> None:
+    model, weather = FakeModel(rounds=2), LiveWeather("sunny")
+    await record_once(agent_on("chat", model, weather))
+    assert [s.index for s in api.steps] == [1, 2, 3]
+    model.requests.clear()
+    weather.change("sunny", "cloudy")
+    api.jobs.append(replay_of_the_run(api, from_step=2))
+
+    assert await fd.worker(AGENT, client=client).run_once() == fd.ReplayOutcome.errored
+    assert model.requests == []
+    assert api.submitted[0].drift == fd.ReplayDrift(step=2, tool_name=ToolName("get_weather"))
+
+
+@pytest.mark.parametrize(
+    ("sent_ids", "drift"),
+    [
+        (["call_1"], fd.ReplayDrift(step=1, tool_name=ToolName("get_time"))),
+        ([], None),
+    ],
+    ids=["some_sent_back", "none_sent_back"],
+)
+def test_a_missing_kept_result_drifts_only_beside_the_rest_of_its_step(
+    client: FirstDominoClient, sent_ids: list[str], drift: fd.ReplayDrift | None
+) -> None:
+    kept = {
+        "call_1": capture.KeptToolResult(1, "call_1", "get_weather", "sunny"),
+        "call_2": capture.KeptToolResult(1, "call_2", "get_time", "noon"),
+    }
+    plan = capture.ReplayPlan(from_step=1, outputs={}, tool_results={}, kept_results=kept)
+    session = capture.Session(RecordedRun(client, None), replay=plan)
+    sent = [
+        fd.Message(role=fd.MessageRole.tool, content=kept[i].content, tool_call_id=i)
+        for i in sent_ids
+    ]
+
+    session.check_replay(2, [fd.Message(role=fd.MessageRole.user, content=QUESTION), *sent])
+
+    assert session.drift == drift
+    assert session.stopping is (drift is not None)

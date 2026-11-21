@@ -3,7 +3,7 @@
 import { PlugZapIcon } from "lucide-react";
 import Link from "next/link";
 
-import type { Diagnosis } from "@/api/generated";
+import type { Check, Diagnosis } from "@/api/generated";
 import { StatusBadge } from "@/components/status/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { DIAGNOSIS_STATUS, VERDICT_KIND } from "@/components/status/status-tones";
@@ -13,16 +13,24 @@ import { cn } from "@/lib/utils";
 
 import { useNow } from "@/hooks/use-now";
 
+import { driftSummary, isCalibrating, type DriftSummary } from "../replay-drift";
 import { verdictCopy } from "../verdict-copy";
 import { isWaitingForWorker, waitedText, workerWaitMs } from "../worker-wait";
 
 const CLOCK_MS = 1_000;
 
-type VerdictHeroProps = { diagnosis: Diagnosis; children: React.ReactNode };
+type VerdictHeroProps = {
+  diagnosis: Diagnosis;
+  checks: readonly Check[];
+  children: React.ReactNode;
+};
 
-function liveText(diagnosis: Diagnosis): string {
+function liveText(diagnosis: Diagnosis, checks: readonly Check[]): string {
   const { search_low: low, search_high: high, status } = diagnosis;
   if (status === "queued") return "Waiting for your replay worker to pick up the first check.";
+  if (isCalibrating(checks)) {
+    return "Confirming your success check fails the recorded run. These replays answer every model call from the recording, so they cost nothing.";
+  }
   if (status === "verifying") return "Rewriting the found step and replaying to prove it.";
   if (status === "explaining") return "Writing up what went wrong.";
   if (low === null || high === null) return "Checking whether a fresh run can succeed at all.";
@@ -41,8 +49,28 @@ function Stat({ label, value, isDomino }: { label: string; value: string; isDomi
   );
 }
 
+type DriftNoteProps = { drift: DriftSummary };
+
+function DriftNote({ drift }: DriftNoteProps) {
+  const replays = drift.replays === 1 ? "1 replay" : `${formatInteger(drift.replays)} replays`;
+  return (
+    <p className="max-w-3xl text-xs text-pretty text-muted-foreground">
+      {replays} drifted from the recording
+      {drift.toolName !== null && (
+        <>
+          {" "}
+          at <code className="font-mono">{drift.toolName}</code>
+        </>
+      )}{" "}
+      and {drift.replays === 1 ? "was" : "were"} not counted. Mark{" "}
+      {drift.toolName === null ? "the tool that returned different data" : "it"} with{" "}
+      <code className="font-mono">@fd.tool</code> for a sharper result.
+    </p>
+  );
+}
+
 // The answer first: where the run fell, how sure we are, and what it cost. The step strip sits below.
-export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
+export function VerdictHero({ diagnosis, checks, children }: VerdictHeroProps) {
   const isActive = isDiagnosisActive(diagnosis.status);
   const now = useNow(isActive ? CLOCK_MS : false);
   const isWaiting = isWaitingForWorker(diagnosis, now);
@@ -53,6 +81,7 @@ export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
       ? `${diagnosis.verify_passes}/${diagnosis.verify_samples}`
       : "–";
   const verdict = diagnosis.verdict_kind;
+  const drift = diagnosis.status === "done" ? driftSummary(checks) : null;
   return (
     <section aria-labelledby="verdict-title" className="rounded-lg border">
       <div className="flex flex-col gap-4 p-5">
@@ -97,8 +126,9 @@ export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
           <p className="max-w-3xl text-sm text-pretty text-muted-foreground" aria-live="polite">
             {isWaiting
               ? `${diagnosis.replays_waiting ?? 0} replays have waited ${waitedText(waited)} and no worker has picked them up. Replays run on your side, so start the replay worker next to your agent. The search carries on as soon as it connects.`
-              : (copy?.body ?? (isActive ? liveText(diagnosis) : ""))}
+              : (copy?.body ?? (isActive ? liveText(diagnosis, checks) : ""))}
           </p>
+          {drift && <DriftNote drift={drift} />}
         </div>
         {isWaiting && (
           <Link

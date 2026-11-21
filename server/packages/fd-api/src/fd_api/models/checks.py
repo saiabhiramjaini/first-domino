@@ -23,6 +23,16 @@ class Check(BaseModel):
     samples: int = Field(ge=0, description="Number of replays run.")
     passes: int = Field(ge=0, description="Number of replays that passed the success check.")
     result: CheckResult
+    drifted: int = Field(
+        ge=0,
+        description=(
+            "Replays that did not reproduce the kept steps. They count toward neither `samples` "
+            "nor `passes`."
+        ),
+    )
+    drift_tool_name: str | None = Field(
+        description="The tool whose result differed in the first drifted replay, if any."
+    )
     created_at: datetime = Field(description="Time the check started, in UTC RFC 3339 format.")
     finished_at: datetime | None = Field(
         description="Time the check finished, in UTC RFC 3339 format. Null while pending."
@@ -40,6 +50,8 @@ class Check(BaseModel):
             samples=row.samples,
             passes=row.passes,
             result=row.result,
+            drifted=row.drifted,
+            drift_tool_name=row.drift_tool_name,
             created_at=row.created_at,
             finished_at=row.finished_at,
         )

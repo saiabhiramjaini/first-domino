@@ -13,7 +13,7 @@ Each entry states what was decided and why. Change an entry when a decision chan
 | Replays | Customer-side worker from the SDK polls jobs over HTTP | Customer code and secrets stay with the customer; no inbound endpoint |
 | Success check | Customer-defined code, run by the worker | Plain code is free, fast and exact when the right answer is known |
 | Backend | Python 3.12, FastAPI, async SQLAlchemy 2, Postgres, `uv` workspace | Async throughout; Postgres handles parallel replay writes |
-| Schema changes | Tables created at startup; no migration tool | Little deployed data to migrate yet |
+| Schema changes | Alembic migrations inside `fd-database`, applied by the API at startup. A database created before Alembic is stamped at the baseline revision first | Contract 5 adds columns and an enum value to tables that already hold production data, which startup creation cannot do |
 | Auth | People: Google sign-in through NextAuth (Auth.js v5, JWT sessions); the web server mints a short HS256 token for the API with a shared secret. SDK: hashed project API keys | No third-party auth service; the API stays stateless; keys never stored in plain text |
 | Models | The agent's own model for search replays; the strongest available model for fixes and explanations. Ids only in settings | A stronger model in search replays recovers from mistakes the agent never would, so the search lands late |
 | Contract | API owns it; SDK models generated from `server/api/openapi.json` | No hand-copied types |
@@ -30,6 +30,8 @@ Each entry states what was decided and why. Change an entry when a decision chan
 | SDK recording | Patch `send` on `httpx` and `httpx2` and read the model API's wire format (OpenAI Chat Completions, OpenAI Responses, Anthropic Messages), inside a run marked by `@fd.entrypoint` | Works with any framework built on those SDKs, with no adapter per framework |
 | SDK replay | `fd.serve()` calls the customer's function again and answers model calls from the recording up to the save point; `@fd.tool` keeps side effects from repeating | Customers write no replay code |
 | SDK release | A `sdk-v*` tag runs `sdk-release.yml`, which publishes with PyPI trusted publishing | No PyPI token stored anywhere |
+| Check calibration | Before the search, replay keeping every step; the success check must fail it, or the diagnosis stops as `check_inconsistent` | The search assumes the run is doomed with all steps kept. A flaky check or a changed world would otherwise blame an innocent step. Kept steps are served from the recording, so it costs no model tokens |
+| Replay drift | The SDK compares kept steps' tool results with the recording; a drifted replay stops early and is not evidence. All-drifted checks stop the diagnosis as `replay_not_faithful`, naming the tool | A replay whose kept steps differ from the recording tests a different run. Naming the tool turns a silent wrong verdict into a one-line fix (`@fd.tool`) |
 | Search confidence | A save point with no passing replay gets a second round before it counts as doomed | One round of 3 wrongly blames a step 1 time in 8 when it passes half the time |
 | Alerts | A new root cause emails the project owner. fd-api asks the web app (`/api/alerts/new-cause`), which sends with nodemailer through Gmail; Slack stays optional | One email per new problem, not per failed run, like a new issue in Sentry; the mail account lives with the web app |
 | Restarts | Diagnoses hand themselves back on shutdown; recent ones restart from the beginning, older ones fail as interrupted | Deploys no longer lose diagnoses, and a crashing one cannot loop |
@@ -40,5 +42,4 @@ Each entry states what was decided and why. Change an entry when a decision chan
 
 | Question | Options | Default if nobody decides |
 | --- | --- | --- |
-| Schema migrations | Add Alembic, or keep creating tables at startup | Keep startup creation until a change needs to alter an existing table |
 | Hosted replays | Run customer containers in a sandbox, or keep the customer-side worker only | Customer-side worker only |

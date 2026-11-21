@@ -34,6 +34,10 @@ class CheckView(BaseModel):
     samples: int = Field(ge=0)
     passes: int = Field(ge=0)
     result: CheckResult
+    drifted: int = Field(default=0, ge=0)
+    """Replays that did not reproduce the kept steps; in neither `passes` nor `samples`."""
+    drift_tool_name: str | None = None
+    """The tool whose result differed in the first drifted replay."""
 
 
 class DiagnosisResult(BaseModel):

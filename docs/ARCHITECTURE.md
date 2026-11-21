@@ -40,7 +40,7 @@ The agent needs its own code, secrets, tools and data. Running it on our side wo
 - A model call becomes a step once the next request carries its tool results (or the run ends).
 - Steps are sent from a background thread in order, so recording never blocks or breaks the agent. Without an API key nothing is recorded.
 
-During a replay, `fd.serve()` calls the same function again. Model calls up to the save point are answered from the recording, the next one with the fixed step when the job has one, and the rest by the live model. Tools marked `@fd.tool` return their recorded results inside the recorded part, so side effects are not repeated. The lower-level `fd.record`, `fd.wrap` and `fd.Worker` remain for full control.
+During a replay, `fd.serve()` calls the same function again. Model calls up to the save point are answered from the recording, the next one with the fixed step when the job has one, and the rest by the live model. Tools marked `@fd.tool` return their recorded results inside the recorded part, so side effects are not repeated and results that change over time stay as recorded. Unmarked tools run live; if one returns something different from the recording, the replay reports drift (see below). The lower-level `fd.record`, `fd.wrap` and `fd.Worker` remain for full control.
 
 ## Flows
 
@@ -80,10 +80,12 @@ queued | leased ──► expired   the check was decided without it
 
 ## The search and the proof
 
+- Calibrate first: keep every step (m = n) and replay a couple of times. Every model call is answered from the recording, so it costs no model tokens. The success check must fail these replays; if it passes one, the check (or the world it reads) does not reliably fail this run, and the diagnosis stops as `check_inconsistent` instead of blaming a step.
 - `can_succeed(m)`: keep steps 1..m and replay the rest k times. True if any replay passes.
 - A check with no pass is run once more before the save point counts as doomed, since a few unlucky replays look the same as a doomed one.
 - If a fresh run (m = 0) never passes, the verdict is a task or tool issue, not an agent step.
-- Invariant: the run can succeed from `lo - 1` and is doomed at `hi`. Halve until `lo == hi`.
+- Invariant: the run can succeed from `lo - 1` and is doomed at `hi` (calibration checked it at `n`). Halve until `lo == hi`.
+- Only faithful replays are evidence. While a replay is inside the kept steps, the SDK compares each tool result with the recorded one; on a difference the replay has drifted (a tool read live data, the clock or randomness), stops at its next model call and is reported with the step and tool. Drifted replays count toward neither samples nor passes. A check left with no evidence because its replays drifted stops the diagnosis as `replay_not_faithful`, naming the tool to mark with `@fd.tool`.
 - Verify: rewrite step `lo` and replay. It is proven when enough replays pass.
 - If verify fails, the nearby steps are tried in turn. If none flips the outcome, the verdict is "multiple causes".
 
@@ -102,9 +104,9 @@ Diagnoses run inside the API process and heartbeat while they run. When the API 
 | `api_keys` | SHA-256 hash, prefix, last use, revoked time |
 | `runs` | One agent run: source (recorded or replay), parent run, status, task input, tool names |
 | `steps` | One row per step: model output, tool results, message snapshot, tokens, latency |
-| `replay_jobs` | The queue: run, save point, fixed step, model override, lease, attempt, outcome |
+| `replay_jobs` | The queue: run, save point, fixed step, model override, lease, attempt, outcome, drift |
 | `diagnoses` | One per diagnosis: status, verdict, first domino, proof, explanation, cost, owner heartbeat |
-| `checks` | One per check: phase, save point, samples, passes, result |
+| `checks` | One per check: phase, save point, samples, passes, result, drifted replays and the drifting tool |
 | `causes` | Root causes: title, category, step name, suggested fix, run counts |
 
 ## Auth

@@ -14,6 +14,8 @@ function check(index: number, changes: Partial<Check>): Check {
     samples: 3,
     passes: 0,
     result: "doomed",
+    drifted: 0,
+    drift_tool_name: null,
     created_at: "2026-11-21T00:00:00Z",
     finished_at: "2026-11-21T00:00:01Z",
     ...changes,

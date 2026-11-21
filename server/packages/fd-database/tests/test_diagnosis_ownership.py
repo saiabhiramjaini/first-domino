@@ -129,6 +129,8 @@ async def test_take_over_restarts_recent_abandoned_diagnoses_only(
         save_point=1,
         samples=3,
         passes=0,
+        drifted=0,
+        drift_tool_name=None,
         result=CheckResult.DOOMED,
         finished_at=now,
     )

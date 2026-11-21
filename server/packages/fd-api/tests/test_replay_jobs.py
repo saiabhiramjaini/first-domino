@@ -150,3 +150,28 @@ async def test_worker_sees_a_job_ended_while_it_runs(
     assert late.json()["replay_job"]["status"] == "expired"
     assert unknown.json()["code"] == ApiErrorCode.NOT_FOUND
     assert by_person.status_code == 401
+
+
+async def test_a_drifted_result_keeps_its_drift_and_a_repeat_changes_nothing(
+    client: AsyncClient, database: Database, person: Headers, api_key: Headers
+) -> None:
+    run = await _finished_run(client, api_key, "passed")
+    project = (await client.get("/v1/projects.self", headers=person)).json()["project"]
+    job_id = await _enqueue(database, run, project["id"])
+    await client.post(
+        "/v1/replay-jobs.lease", json={"agent_names": [AGENT], "wait_seconds": 0}, headers=api_key
+    )
+    drift = {"step": 1, "tool_name": "get_caller_details"}
+    result = {"replay_job_id": str(job_id), "outcome": "failed", "drift": drift}
+
+    submitted = await client.post("/v1/replay-jobs.submit", json=result, headers=api_key)
+    repeat = await client.post(
+        "/v1/replay-jobs.submit", json={**result, "drift": None}, headers=api_key
+    )
+    stored = await client.get(
+        "/v1/replay-jobs.get", params={"replay_job_id": str(job_id)}, headers=api_key
+    )
+
+    assert submitted.json()["replay_job"]["drift"] == drift
+    assert repeat.json()["replay_job"]["drift"] == drift
+    assert stored.json()["replay_job"]["drift"] == drift

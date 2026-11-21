@@ -59,6 +59,7 @@ def make_job(**changes: object) -> ReplayJob:
         status=ReplayJobStatus.leased,
         lease_expires_at=NOW,
         attempt=1,
+        drift=None,
     )
     return job.model_copy(update=changes)
 

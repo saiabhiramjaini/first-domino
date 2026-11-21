@@ -61,6 +61,8 @@ function check(phase: Check["phase"]): Check {
     samples: 2,
     passes: 1,
     result: "can_succeed",
+    drifted: 0,
+    drift_tool_name: null,
     created_at: "2026-11-21T00:00:00Z",
     finished_at: null,
   };

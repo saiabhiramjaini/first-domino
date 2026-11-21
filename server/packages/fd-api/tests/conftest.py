@@ -2,7 +2,7 @@
 
 `client` runs the real app against a throwaway `<database>_test_<random>` on the
 `FD_DATABASE_URL` server (start one with `make db-up`), never the database itself, and skips
-when the server is unreachable.
+when the server is unreachable. `database` is that throwaway database, already migrated.
 `bare_client` needs no database and serves only what runs before auth.
 """
 

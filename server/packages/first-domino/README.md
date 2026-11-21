@@ -10,6 +10,8 @@ Works with any agent that calls a model through the OpenAI or Anthropic SDK, or 
 
 ```bash
 pip install first-domino
+# or, in a uv project
+uv add first-domino
 ```
 
 Python 3.12+. Set the key from your project's Settings page:

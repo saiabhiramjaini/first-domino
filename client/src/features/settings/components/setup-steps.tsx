@@ -31,7 +31,7 @@ const REFRESH_MS = 5_000;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-const INSTALL_SNIPPET = `pip install first-domino
+const INSTALL_SNIPPET = `pip install first-domino   # or: uv add first-domino
 
 export FIRST_DOMINO_API_KEY=fd_live_...
 export FIRST_DOMINO_BASE_URL=${API_URL}`;

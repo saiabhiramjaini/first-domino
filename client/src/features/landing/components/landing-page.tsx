@@ -177,9 +177,15 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
                 live. A failed run is diagnosed on its own, and the worker replays it next to your
                 agent when First Domino asks.
               </p>
-              <code className="w-fit rounded-md border bg-card px-3 py-1.5 font-mono text-sm">
-                pip install first-domino
-              </code>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <code className="rounded-md border bg-card px-3 py-1.5 font-mono text-foreground">
+                  pip install first-domino
+                </code>
+                or
+                <code className="rounded-md border bg-card px-3 py-1.5 font-mono text-foreground">
+                  uv add first-domino
+                </code>
+              </div>
               <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
                 <li>Works with OpenAI, Anthropic, LangChain and the OpenAI Agents SDK</li>
                 <li>Recording never raises into your agent</li>

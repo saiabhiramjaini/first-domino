@@ -5,7 +5,7 @@ Find the step where a failed AI agent run went wrong, and prove it.
 First Domino records every run of your agent, live. When a run fails, it replays the run from its own save points, finds the first step after which the run always fails (the first domino), then rewrites that one step and replays again to prove the fix. Failures with the same first domino are grouped into root causes, which you can export as eval cases.
 
 - Web app: https://first-domino.abhiramtech.in
-- SDK: [`first-domino` on PyPI](https://pypi.org/project/first-domino/) (`pip install first-domino`)
+- SDK: [`first-domino` on PyPI](https://pypi.org/project/first-domino/) (`pip install first-domino` or `uv add first-domino`)
 
 ## Use it
 

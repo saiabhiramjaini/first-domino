@@ -1,9 +1,10 @@
 """Record and replay agents built with the OpenAI Agents SDK.
 
-Install with `pip install "first-domino[agents]"`. Every model call of a run goes through a
-`RecordingModel`, so each turn is recorded as a step once its tool outputs appear in the
-next model input. A replay resumes `Runner.run` from the saved items, returns the
-replacement output in place of the first model call, and can switch the model.
+Install with `pip install "first-domino[agents]"` (or `uv add "first-domino[agents]"`).
+Every model call of a run goes through a `RecordingModel`, so each turn is recorded as a
+step once its tool outputs appear in the next model input. A replay resumes `Runner.run`
+from the saved items, returns the replacement output in place of the first model call, and
+can switch the model.
 
 Example:
     >>> from first_domino import openai_agents as fd_agents

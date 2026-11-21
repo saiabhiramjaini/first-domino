@@ -20,9 +20,11 @@ Only the platform backend workstream (S0) edits this file. Anyone else who needs
 
 | Caller | How | Used by |
 | --- | --- | --- |
-| Person | `Authorization: Bearer <Clerk session token>` | Web app |
+| Person | `Authorization: Bearer <web session token>` | Web app |
 | SDK or worker | `Authorization: Bearer <project API key>` (`fd_live_` prefix) | `first-domino` SDK, demo agent |
 
+- People sign in to the web app with Google through NextAuth (Auth.js v5, JWT sessions, no database adapter). The web app's server mints the **web session token**: an HS256 JWT signed with the secret both halves share (`API_JWT_SECRET` in the frontend, `FD_API_WEB_JWT_SECRET` in the backend), with claims `sub` (the Google account id), `email`, `name`, `iss` = `first-domino-web`, `aud` = `first-domino-api`, `iat` and `exp` (1 hour). It is re-minted before it expires.
+- The API verifies the signature, issuer, audience and expiry, then finds or creates the person by `sub`. It never trusts other claims for access.
 - A person's first authenticated call creates their project. A person has exactly one project during the hackathon.
 - Each operation below lists which caller it accepts: **P** (person), **K** (API key) or **P/K**.
 
@@ -207,22 +209,22 @@ import first_domino as fd
 
 # Recording: a no-op without FIRST_DOMINO_API_KEY, and never raises into the agent.
 task = fd.TaskInput(prompt=..., metadata={"task_id": "t1"})
-with fd.record(agent_name="clinic-booker", task_input=task) as run:
+with fd.record(agent_name="call-assistant", task_input=task) as run:
     # Each chat completion through the wrapped client becomes a step (or call run.step).
     client = fd.wrap(OpenAI(), run)
     ...
     run.finish(status="failed", final_output=...)
 
 # Replays, on the customer side.
-worker = fd.Worker(agent_names=["clinic-booker"])
+worker = fd.Worker(agent_names=["call-assistant"])
 
 
 # ctx carries messages, replacement_output, model_override and the replay run.
-@worker.agent("clinic-booker")
+@worker.agent("call-assistant")
 def replay(ctx: fd.ReplayContext) -> AgentResult: ...
 
 
-@worker.success_check("clinic-booker")
+@worker.success_check("call-assistant")
 def check(task_input: fd.TaskInput, result: AgentResult) -> bool: ...
 
 

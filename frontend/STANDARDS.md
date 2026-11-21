@@ -7,7 +7,7 @@ The full rules for `frontend/`. Code templates for the scaffold live in [`docs/s
 Run once, from the repo root. `frontend/` already holds the rule files, so scaffold beside it and merge without overwriting them.
 
 1. `bun create next-app frontend-tmp --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --no-git --use-bun --yes`, then `rsync -a --ignore-existing frontend-tmp/ frontend/ && rm -rf frontend-tmp`.
-2. Runtime dependencies: `next@16`, `react@19`, `react-dom@19`, `zod@4`, `pino`, `clsx`, `tailwind-merge`, `react-hook-form`, `@hookform/resolvers`, `@tanstack/react-query`, `@tanstack/react-query-devtools`, `@clerk/nextjs`. Add `zustand` only when the state rules below call for it.
+2. Runtime dependencies: `next@16`, `react@19`, `react-dom@19`, `zod@4`, `pino`, `clsx`, `tailwind-merge`, `react-hook-form`, `@hookform/resolvers`, `@tanstack/react-query`, `@tanstack/react-query-devtools`, `next-auth@beta` (Auth.js v5), `jose`. Add `zustand` only when the state rules below call for it.
 3. Dev dependencies: `@hey-api/openapi-ts`, `vitest`, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`, `pino-pretty`, `prettier`, `babel-plugin-react-compiler`.
 4. shadcn, non-interactive: `bunx shadcn@latest init -d`, then `bunx shadcn@latest add button input label textarea dialog dropdown-menu badge sonner card separator skeleton tabs select checkbox switch tooltip popover sheet command avatar form table scroll-area`.
 5. From the reference, every section it keeps (4, 6 to 9, 12, 13 to 17, 23 to 26): Prettier config, `src/lib/` files (`log.ts`, `app-environment.ts`, `get-ip.ts`, `process-handlers.ts`, `report-client-error.ts`, `utils.ts`), `/api/log/client-error`, `/api/health`, providers, Vitest, `.env.example`, `tsconfig` strict with `noUncheckedIndexedAccess`, `next.config.ts`, `instrumentation.ts`, and the error, not-found and loading pages. Replace `{{APP_NAME}}` with `first-domino-web`.
@@ -25,13 +25,14 @@ Not used from the reference: Husky (the repo-root pre-commit config runs Prettie
 src/
   app/
     (marketing)/page.tsx        landing, public
-    (auth)/sign-in/[[...sign-in]]/page.tsx, sign-up/...
+    (auth)/sign-in/page.tsx       "Continue with Google"
     (app)/layout.tsx            signed-in shell
     (app)/failures/page.tsx
     (app)/runs/[runId]/page.tsx
     (app)/causes/page.tsx, causes/[causeId]/page.tsx
     (app)/benchmark/page.tsx
     (app)/settings/page.tsx
+    api/auth/[...nextauth]/route.ts
     api/health/route.ts, api/log/client-error/route.ts
     error.tsx, global-error.tsx, not-found.tsx, loading.tsx, layout.tsx
   api/generated/                generated client and Zod schemas (never edit)
@@ -40,13 +41,23 @@ src/
   components/ui/                shadcn primitives
   components/<domain>/          shared pieces used by more than one feature
   lib/                          log, api client setup, errors, formatting, utils
-  proxy.ts                      Clerk route protection
+  auth.ts                       NextAuth config: Google provider, JWT session, API token
+  proxy.ts                      route protection for the signed-in routes
   instrumentation.ts
 ```
 
 - A feature folder holds its screens and form schemas. Data hooks are shared and live in `src/hooks/api/`, because several features read the same operations.
 - Import another feature only through its `index.ts`. A client component imports a feature sub-path, never its barrel, so server modules do not reach the browser bundle.
 - A piece two features need goes to `src/components/<domain>/`, not into one feature. A missing primitive is added with `bunx shadcn@latest add`, never hand-written inline.
+
+## Auth
+
+- NextAuth (Auth.js v5) in `src/auth.ts` with the Google provider only and `session: { strategy: "jwt" }`. No database adapter.
+- The `jwt` callback mints the **web session token** for the API with `jose`: HS256 signed with `API_JWT_SECRET`, claims `sub` (Google account id), `email`, `name`, `iss` `first-domino-web`, `aud` `first-domino-api`, 1 hour expiry. It re-mints when fewer than 5 minutes remain. The `session` callback exposes it as `session.apiToken`. The contract is `docs/CONTRACT.md`, "Auth".
+- `src/proxy.ts` protects every route under `(app)`; signed-out visitors go to `/sign-in`. The landing page and `/api/health` stay public.
+- The sign-in page has one button, "Continue with Google". `SessionProvider` wraps `Providers` in the root layout.
+- Access is decided by the API. The browser only hides what the API would refuse anyway.
+- Google OAuth redirect URI: `<NEXT_PUBLIC_APP_URL>/api/auth/callback/google`.
 
 ## Server and client components
 
@@ -57,7 +68,7 @@ src/
 
 ## Data
 
-- The typed client comes from `src/api/generated/`. Configure its base URL from `NEXT_PUBLIC_API_URL` and attach the Clerk session token in one place, `src/lib/api-client.ts`.
+- The typed client comes from `src/api/generated/`. Configure its base URL from `NEXT_PUBLIC_API_URL` and attach the web session token in one place, `src/lib/api-client.ts` (from `auth()` on the server, `useSession()` in the browser).
 - Client reads use a hook per operation in `src/hooks/api/`: `use-list-runs.ts`, `use-get-diagnosis.ts`. Writes use mutation hooks there: `use-create-diagnosis.ts`. A hook calls the generated function, checks the response with its generated Zod schema, and throws `ApiError` on failure.
 - `ApiError` carries `status`, `code`, `title` and `detail` from the API's error body. Branch on `code`, never on text.
 - Query keys are arrays that start with the resource: `["runs", "list", filters]`. Each hook exports its key so mutations can invalidate it.
@@ -69,15 +80,15 @@ src/
 
 ## State
 
-| The value is | Put it in |
-| --- | --- |
-| Used by one component | `useState` there |
-| Used by a parent and a few children | State in the nearest common parent |
-| Rarely changing, read across the tree (signed-in user, project) | A React context with a throwing `useX()` accessor |
-| Often changing and read across distant branches | One small Zustand store per concern in `src/lib/store/` |
-| From the server | React Query through `src/hooks/api/` |
-| A filter, tab or range a link should restore | URL search params, normalized on read |
-| A form draft | `react-hook-form` |
+| The value is                                                    | Put it in                                               |
+| --------------------------------------------------------------- | ------------------------------------------------------- |
+| Used by one component                                           | `useState` there                                        |
+| Used by a parent and a few children                             | State in the nearest common parent                      |
+| Rarely changing, read across the tree (signed-in user, project) | A React context with a throwing `useX()` accessor       |
+| Often changing and read across distant branches                 | One small Zustand store per concern in `src/lib/store/` |
+| From the server                                                 | React Query through `src/hooks/api/`                    |
+| A filter, tab or range a link should restore                    | URL search params, normalized on read                   |
+| A form draft                                                    | `react-hook-form`                                       |
 
 Debounce search input before it reaches a query key.
 
@@ -148,7 +159,7 @@ Debounce search input before it reaches a query key.
 ## Environment
 
 - `.env.example` lists every variable. `NEXT_PUBLIC_*` is public: it never holds a secret.
-- Variables: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `APP_ENV` (build argument: `local`, `dev`, `prod`), `LOG_LEVEL`, `DD_SERVICE`.
+- Variables: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_API_URL`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_URL`, `API_JWT_SECRET` (same value as the backend's `FD_API_WEB_JWT_SECRET`), `APP_ENV` (build argument: `local`, `dev`, `prod`), `LOG_LEVEL`, `DD_SERVICE`.
 - Read a server variable through a lazy getter. Never `throw` at module scope.
 
 ## Comments

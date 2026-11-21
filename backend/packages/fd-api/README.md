@@ -12,10 +12,10 @@ FastAPI control plane: auth, run ingest, the replay job queue, diagnoses, causes
 | Module | Job |
 | --- | --- |
 | `main` | Application factory: routers, error handlers, startup and shutdown. |
-| `settings` | ApiSettings: Clerk issuer, allowed origins, job lease time and list limits. |
+| `settings` | ApiSettings: web token secret, allowed origins, job lease time and list limits. |
 | `errors` | Maps typed errors to stable HTTP error responses. |
 | `auth/` | Authentication dependencies. |
-| `auth/users` | Clerk session verification for people using the web app. |
+| `auth/users` | Web session token verification for people using the web app. |
 | `auth/api_keys` | Project API key verification for the SDK and the worker. |
 | `routers/` | One router per resource. |
 | `routers/projects` | Projects routes. |

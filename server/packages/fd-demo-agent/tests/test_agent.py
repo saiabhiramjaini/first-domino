@@ -13,15 +13,15 @@ from openai.types.chat import (
 import first_domino as fd
 from fd_demo_agent.agent import AgentStep, CallAgent, StopReason
 from fd_demo_agent.bugs import get_bug
-from fd_demo_agent.demo_live import demo_call, run_url
+from fd_demo_agent.demo_live import DemoCall, demo_call, describe, run_url
 from fd_demo_agent.llm import ModelTurn
 from fd_demo_agent.prompts import opening_messages
-from fd_demo_agent.recording import run_recorded, task_input_for
-from fd_demo_agent.runner import BugNotReachedError, run_task
+from fd_demo_agent.recording import RecordedCall, run_recorded, task_input_for
+from fd_demo_agent.runner import BugNotReachedError, TaskRun, run_task
 from fd_demo_agent.settings import DemoAgentSettings
-from fd_demo_agent.success import FailureReason, check_call
+from fd_demo_agent.success import FailureReason, SuccessReport, check_call
 from fd_demo_agent.tasks import get_task
-from fd_demo_agent.toolbox import ToolName
+from fd_demo_agent.toolbox import ToolBox, ToolName
 from fd_demo_agent.worker import build_worker
 from fd_demo_agent.world import load_world
 from first_domino.testing import FakeApi, fake_client, make_job
@@ -297,3 +297,45 @@ def test_the_live_demo_records_a_bug_on_its_own_call_or_the_clean_call() -> None
 def test_the_live_demo_links_to_the_run_page() -> None:
     run_id = UUID(int=1)
     assert run_url("http://localhost:3000/", run_id) == f"http://localhost:3000/runs/{run_id}"
+
+
+def recorded_call(
+    call: DemoCall, failure: FailureReason | None, run_id: UUID | None
+) -> RecordedCall:
+    outcome = ToolBox(load_world(), call.task.caller_lines).outcome()
+    run = TaskRun(
+        task=call.task,
+        bug=call.bug,
+        steps=[],
+        final_output=None,
+        outcome=outcome,
+        report=SuccessReport(failure=failure),
+    )
+    return RecordedCall(run_id=run_id, run=run)
+
+
+@pytest.mark.parametrize(
+    ("bug_id", "failure", "exit_code", "phrase"),
+    [
+        ("b02", FailureReason.WRONG_EVENT, 0, "First Domino is diagnosing it"),
+        ("b02", None, 2, "recovered from b02"),
+        (None, None, 0, "Clean call passed"),
+    ],
+)
+def test_the_live_demo_tells_the_presenter_one_line(
+    bug_id: str | None, failure: FailureReason | None, exit_code: int, phrase: str
+) -> None:
+    call = demo_call(bug_id)
+    run_id = UUID(int=9)
+
+    outcome = describe(call, recorded_call(call, failure, run_id), "http://localhost:3000")
+
+    assert outcome.exit_code == exit_code
+    assert phrase in outcome.message
+    assert outcome.message.endswith(f"/runs/{run_id}") or outcome.message.endswith(f"{run_id})")
+
+
+def test_the_live_demo_says_when_nothing_was_recorded() -> None:
+    call = demo_call("b02")
+    outcome = describe(call, recorded_call(call, FailureReason.WRONG_EVENT, None), "x")
+    assert outcome.exit_code == 1

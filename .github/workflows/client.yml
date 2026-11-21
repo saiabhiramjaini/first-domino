@@ -1,0 +1,28 @@
+name: client
+
+on:
+  push:
+    branches: [main]
+    paths: ["client/**", "server/api/openapi.json", ".github/workflows/client.yml"]
+  pull_request:
+    paths: ["client/**", "server/api/openapi.json", ".github/workflows/client.yml"]
+
+defaults:
+  run:
+    working-directory: client
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: client/package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run build
+        env:
+          APP_ENV: dev
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:8000

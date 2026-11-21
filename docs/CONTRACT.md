@@ -2,9 +2,9 @@
 
 **Contract version: 3** (2 added `tool_names` to runs; 3 made the diagnosis `error_code` a `DiagnosisErrorCode`)
 
-This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `backend/api/openapi.json` is generated from the API and must match this file.
+This is the one agreement every workstream builds against: the HTTP API, the worker protocol, the engine ports and the SDK's public surface. The API code is the source of truth once it exists; until then, this file is. `server/api/openapi.json` is generated from the API and must match this file.
 
-Only the platform backend workstream (S0) edits this file. Anyone else who needs a change writes it under "Contract requests" in their `docs/status/<stream>.md`. S0 applies it, bumps the version above, regenerates `backend/api/openapi.json` and the SDK models, and merges. Everyone else pulls and regenerates their client.
+Only the platform backend workstream (S0) edits this file. Anyone else who needs a change writes it under "Contract requests" in their `docs/status/<stream>.md`. S0 applies it, bumps the version above, regenerates `server/api/openapi.json` and the SDK models, and merges. Everyone else pulls and regenerates their client.
 
 ## Conventions
 
@@ -16,7 +16,7 @@ Only the platform backend workstream (S0) edits this file. Anyone else who needs
 - Every list is a page. Request: `limit` (1 to 100, default 50) and `cursor` (opaque string or null). Response: `items` and `next_cursor` (null on the last page).
 - Field names are snake_case on the wire.
 - `GET` operations take their request fields as query parameters (`GET /v1/runs.get?run_id=...`).
-- A bearer token starting `fd_live_` is checked as a project API key; anything else as a web session token. For local work without the web app, `make dev-key` in `backend/` prints an API key for a local developer's project.
+- A bearer token starting `fd_live_` is checked as a project API key; anything else as a web session token. For local work without the web app, `make dev-key` in `server/` prints an API key for a local developer's project.
 
 ## Auth
 
@@ -133,7 +133,7 @@ Every error body is `{"code": ..., "title": ..., "detail": ...}`. `code` is stab
 | `countDiagnoses` | `POST /v1/diagnoses.count` | P | same filters as `listDiagnoses` | `count` |
 
 - Only failed recorded runs can be diagnosed. One diagnosis may run per run at a time (`409` otherwise).
-- `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API restarted mid-diagnosis), `internal_error` (see the API logs).
+- `error_code` on a `failed` diagnosis: `replay_unavailable` (every replay of a check errored or timed out; is a worker running?), `check_budget_exceeded`, `llm_not_configured`, `llm_call_failed`, `interrupted` (the API process running it stopped heartbeating, for example it restarted), `internal_error` (see the API logs).
 - A new cause posts one message to the project's Slack webhook, when one is set.
 - The web app polls `getDiagnosis` and `listChecks` every second while `status` is not `done` or `failed`.
 

@@ -1,0 +1,8 @@
+# The first line must be "type: subject". Git's own merge messages are allowed.
+first_line=$(head -n 1 "$1")
+if printf '%s' "$first_line" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf): .+|^Merge '; then
+  exit 0
+fi
+echo "Commit message must be \"type: subject\"."
+echo "Types: feat, fix, docs, style, refactor, test, chore, perf."
+exit 1

@@ -1,0 +1,4473 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "First Domino API",
+    "summary": "Finds the step where a failed AI agent run became doomed, and proves it.",
+    "version": "3"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Check the API is up",
+        "description": "Answers without auth while the process serves requests.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/projects.self": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get the caller's project",
+        "description": "Returns the project the token or API key belongs to.",
+        "operationId": "getProjectSelf",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetProjectSelfResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/projects.setSlackWebhook": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Set or clear the Slack webhook",
+        "description": "Sets the Slack incoming webhook that hears about each new cause, or clears it.",
+        "operationId": "setProjectSlackWebhook",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectSlackWebhookRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetProjectSlackWebhookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/api-keys.create": {
+      "post": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "Create an API key",
+        "description": "Creates a project API key. The full key is in `secret` and is never shown again.",
+        "operationId": "createApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/api-keys.list": {
+      "post": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "List API keys",
+        "description": "Lists the project's API keys, newest first, revoked ones included.",
+        "operationId": "listApiKeys",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListApiKeysRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListApiKeysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/api-keys.revoke": {
+      "post": {
+        "tags": [
+          "api-keys"
+        ],
+        "summary": "Revoke an API key",
+        "description": "Revokes an API key at once. Revoking a revoked key returns it unchanged.",
+        "operationId": "revokeApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/runs.start": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Start a run",
+        "description": "Starts recording a run.\n\nWith `replay_job_id`, the run is a replay linked to the job's original run. The job must\nbe leased (`404` when the project has no such job, `409` when it is not leased).",
+        "operationId": "startRun",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartRunResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/runs.finish": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Finish a run",
+        "description": "Finishes a running run (`409` when already finished).\n\nA recorded run that finishes `failed` is diagnosed automatically.",
+        "operationId": "finishRun",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinishRunResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/runs.get": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get a run",
+        "description": "Returns one run of the caller's project.",
+        "operationId": "getRun",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRunResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/runs.list": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "List runs",
+        "description": "Lists runs, newest first. Recorded runs only unless `sources` says otherwise.",
+        "operationId": "listRuns",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListRunsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListRunsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/runs.count": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Count runs",
+        "description": "Counts the runs that match the same filters as `listRuns`.",
+        "operationId": "countRuns",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CountRunsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountRunsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/steps.record": {
+      "post": {
+        "tags": [
+          "steps"
+        ],
+        "summary": "Record a step",
+        "description": "Records one step of a running run (`409` when the run is finished).\n\nIdempotent on (`run_id`, `index`): a repeat returns the stored step and changes nothing,\neven after the run finished.",
+        "operationId": "recordStep",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordStepRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordStepResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/steps.list": {
+      "post": {
+        "tags": [
+          "steps"
+        ],
+        "summary": "List the steps of a run",
+        "description": "Lists the steps of a run in index order.",
+        "operationId": "listSteps",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListStepsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListStepsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/steps.getSnapshot": {
+      "get": {
+        "tags": [
+          "steps"
+        ],
+        "summary": "Get the save point after a step",
+        "description": "Returns the full message list saved after a step.",
+        "operationId": "getStepSnapshot",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "step_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Step Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetStepSnapshotResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/diagnoses.create": {
+      "post": {
+        "tags": [
+          "diagnoses"
+        ],
+        "summary": "Diagnose a failed run",
+        "description": "Starts diagnosing a failed recorded run.\n\nAnswers `409` when the run is not a failed recorded run or a diagnosis of it is running.",
+        "operationId": "createDiagnosis",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDiagnosisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDiagnosisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/diagnoses.get": {
+      "get": {
+        "tags": [
+          "diagnoses"
+        ],
+        "summary": "Get a diagnosis",
+        "description": "Returns one diagnosis. Poll it while `status` is not `done` or `failed`.",
+        "operationId": "getDiagnosis",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "diagnosis_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Diagnosis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDiagnosisResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/diagnoses.list": {
+      "post": {
+        "tags": [
+          "diagnoses"
+        ],
+        "summary": "List diagnoses",
+        "description": "Lists diagnoses, newest first. The runs of a cause come from `cause_ids`.",
+        "operationId": "listDiagnoses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListDiagnosesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDiagnosesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/diagnoses.count": {
+      "post": {
+        "tags": [
+          "diagnoses"
+        ],
+        "summary": "Count diagnoses",
+        "description": "Counts the diagnoses that match the same filters as `listDiagnoses`.",
+        "operationId": "countDiagnoses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CountDiagnosesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountDiagnosesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/checks.list": {
+      "post": {
+        "tags": [
+          "checks"
+        ],
+        "summary": "List the checks of a diagnosis",
+        "description": "Lists the checks of a diagnosis in `index` order.",
+        "operationId": "listChecks",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListChecksRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListChecksResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/causes.list": {
+      "post": {
+        "tags": [
+          "causes"
+        ],
+        "summary": "List causes",
+        "description": "Lists root causes, most runs first.",
+        "operationId": "listCauses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListCausesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCausesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/causes.get": {
+      "get": {
+        "tags": [
+          "causes"
+        ],
+        "summary": "Get a cause",
+        "description": "Returns one root cause. Its runs come from `listDiagnoses` with `cause_ids`.",
+        "operationId": "getCause",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cause_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cause Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCauseResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/causes.count": {
+      "post": {
+        "tags": [
+          "causes"
+        ],
+        "summary": "Count causes",
+        "description": "Counts the causes that match the same filters as `listCauses`.",
+        "operationId": "countCauses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CountCausesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountCausesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/benchmarks.latest": {
+      "get": {
+        "tags": [
+          "benchmarks"
+        ],
+        "summary": "Get the latest benchmark",
+        "description": "Returns the newest benchmark scores, or null when none has run.",
+        "operationId": "getLatestBenchmark",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetLatestBenchmarkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/replay-jobs.lease": {
+      "post": {
+        "tags": [
+          "replay-jobs"
+        ],
+        "summary": "Lease a replay job",
+        "description": "Waits up to `wait_seconds` for a queued job for one of `agent_names` and leases it.\n\nAnswers with a null job when none arrived in time; lease again.",
+        "operationId": "leaseReplayJob",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaseReplayJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaseReplayJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/replay-jobs.submit": {
+      "post": {
+        "tags": [
+          "replay-jobs"
+        ],
+        "summary": "Submit a replay result",
+        "description": "Reports how a replay ended.\n\nIdempotent by `replay_job_id`: the first result for a leased job counts, and any later\none (a repeat, or a late result from an earlier lease) changes nothing.",
+        "operationId": "submitReplayResult",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitReplayResultRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitReplayResultResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiInternalError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiError": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short summary of the error. Do not branch on it."
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "What went wrong and what to do. Do not branch on it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "detail"
+        ],
+        "title": "ApiError",
+        "description": "The body of every error response."
+      },
+      "ApiErrorCode": {
+        "type": "string",
+        "enum": [
+          "bad_request",
+          "unauthenticated",
+          "permission_denied",
+          "not_found",
+          "conflict",
+          "validation_failed",
+          "internal_error"
+        ],
+        "title": "ApiErrorCode",
+        "description": "The stable `code` of every API error body. Branch on this, never on the text."
+      },
+      "ApiInternalError": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short summary of the error. Do not branch on it."
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "What went wrong and what to do. Do not branch on it."
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "Id to quote when reporting the error."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "detail",
+          "request_id"
+        ],
+        "title": "ApiInternalError",
+        "description": "The body of a `500` response."
+      },
+      "ApiKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Name",
+            "description": "Name given at creation, such as `staging`."
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix",
+            "description": "First 12 characters of the key, for telling keys apart."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Time of creation, in UTC RFC 3339 format."
+          },
+          "created_by_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Created By Id",
+            "description": "Id of the person who created the key."
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At",
+            "description": "Time of the last request with this key, in UTC RFC 3339 format."
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At",
+            "description": "Time of revocation, in UTC RFC 3339 format. Null while the key works."
+          },
+          "revoked_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By Id",
+            "description": "Id of the person who revoked the key."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "created_at",
+          "created_by_id",
+          "last_used_at",
+          "revoked_at",
+          "revoked_by_id"
+        ],
+        "title": "ApiKey",
+        "description": "A project API key, used by the SDK and the replay worker. The secret is never returned."
+      },
+      "ApiValidationError": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short summary of the error. Do not branch on it."
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "What went wrong and what to do. Do not branch on it."
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "type": "array",
+            "title": "Errors",
+            "description": "Each invalid field."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "title",
+          "detail",
+          "errors"
+        ],
+        "title": "ApiValidationError",
+        "description": "The body of a `422` response."
+      },
+      "Benchmark": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Time the benchmark finished, in UTC RFC 3339 format."
+          },
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/BenchmarkScore"
+            },
+            "type": "array",
+            "title": "Scores",
+            "description": "One score per method."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "scores"
+        ],
+        "title": "Benchmark",
+        "description": "One benchmark run over the labelled dataset."
+      },
+      "BenchmarkMethod": {
+        "type": "string",
+        "enum": [
+          "first_domino",
+          "read_trace_judge"
+        ],
+        "title": "BenchmarkMethod",
+        "description": "A way of finding the first domino step that the benchmark scores."
+      },
+      "BenchmarkScore": {
+        "properties": {
+          "method": {
+            "$ref": "#/components/schemas/BenchmarkMethod"
+          },
+          "runs_scored": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Runs Scored",
+            "description": "Number of labelled runs the method was scored on."
+          },
+          "exact_accuracy": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Exact Accuracy",
+            "description": "Share of runs where it named the labelled step exactly."
+          },
+          "within_one_accuracy": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Within One Accuracy",
+            "description": "Share of runs where it was at most one step off."
+          },
+          "verified_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Rate",
+            "description": "Share of runs with a fix proven by replay. Null without proof."
+          },
+          "mean_cost_usd": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Mean Cost Usd",
+            "description": "Mean model cost per run, in US dollars."
+          },
+          "mean_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Mean Seconds",
+            "description": "Mean wall time per run, in seconds."
+          }
+        },
+        "type": "object",
+        "required": [
+          "method",
+          "runs_scored",
+          "exact_accuracy",
+          "within_one_accuracy",
+          "verified_rate",
+          "mean_cost_usd",
+          "mean_seconds"
+        ],
+        "title": "BenchmarkScore",
+        "description": "How well one method found the labelled first domino step."
+      },
+      "Cause": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Title",
+            "description": "Short name of the mistake."
+          },
+          "category": {
+            "$ref": "#/components/schemas/CauseCategory"
+          },
+          "step_name": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Step Name",
+            "description": "The tool the first domino step called, or its role label."
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "description": "What goes wrong and why it dooms the run."
+          },
+          "suggested_fix": {
+            "type": "string",
+            "title": "Suggested Fix",
+            "description": "What to change in the agent so it stops happening."
+          },
+          "run_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Run Count",
+            "description": "Number of diagnosed runs with this cause."
+          },
+          "verified_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Verified Count",
+            "description": "Number of those runs where a fix was proven by replay."
+          },
+          "first_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Seen At",
+            "description": "Time of the first diagnosis with this cause, in UTC RFC 3339 format."
+          },
+          "last_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Seen At",
+            "description": "Time of the latest diagnosis with this cause, in UTC RFC 3339 format."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "category",
+          "step_name",
+          "summary",
+          "suggested_fix",
+          "run_count",
+          "verified_count",
+          "first_seen_at",
+          "last_seen_at"
+        ],
+        "title": "Cause",
+        "description": "A root cause shared by one or more diagnosed runs."
+      },
+      "CauseCategory": {
+        "type": "string",
+        "enum": [
+          "wrong_date",
+          "wrong_entity",
+          "wrong_filter",
+          "bad_tool_args",
+          "hallucination",
+          "tool_issue",
+          "other"
+        ],
+        "title": "CauseCategory",
+        "description": "The kind of mistake a root cause is."
+      },
+      "Check": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "diagnosis_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Diagnosis Id"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Index",
+            "description": "Order of the check within its diagnosis."
+          },
+          "phase": {
+            "$ref": "#/components/schemas/CheckPhase"
+          },
+          "save_point": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Save Point",
+            "description": "Steps 1 to `save_point` are kept as recorded; the rest are replayed."
+          },
+          "samples": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Samples",
+            "description": "Number of replays run."
+          },
+          "passes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Passes",
+            "description": "Number of replays that passed the success check."
+          },
+          "result": {
+            "$ref": "#/components/schemas/CheckResult"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Time the check started, in UTC RFC 3339 format."
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At",
+            "description": "Time the check finished, in UTC RFC 3339 format. Null while pending."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "diagnosis_id",
+          "index",
+          "phase",
+          "save_point",
+          "samples",
+          "passes",
+          "result",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "Check",
+        "description": "One test inside a diagnosis: replay from a save point several times and count passes."
+      },
+      "CheckPhase": {
+        "type": "string",
+        "enum": [
+          "precheck",
+          "bisect",
+          "verify",
+          "fallback"
+        ],
+        "title": "CheckPhase",
+        "description": "The part of a diagnosis a check belongs to."
+      },
+      "CheckResult": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "can_succeed",
+          "doomed"
+        ],
+        "title": "CheckResult",
+        "description": "A check's finding: replays from its save point can still succeed, or all fail."
+      },
+      "CountCausesRequest": {
+        "properties": {
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CauseCategory"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories",
+            "description": "Only causes in one of these categories."
+          }
+        },
+        "type": "object",
+        "title": "CountCausesRequest",
+        "description": "Counts causes."
+      },
+      "CountCausesResponse": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count",
+            "description": "Number of matching objects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "CountCausesResponse",
+        "description": "The number of matching causes."
+      },
+      "CountDiagnosesRequest": {
+        "properties": {
+          "run_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Ids",
+            "description": "Only diagnoses of these runs."
+          },
+          "cause_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause Ids",
+            "description": "Only diagnoses in these cause groups."
+          },
+          "statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DiagnosisStatus"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statuses",
+            "description": "Only diagnoses with one of these statuses."
+          },
+          "verdict_kinds": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VerdictKind"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Kinds",
+            "description": "Only diagnoses with one of these verdicts."
+          }
+        },
+        "type": "object",
+        "title": "CountDiagnosesRequest",
+        "description": "Counts diagnoses."
+      },
+      "CountDiagnosesResponse": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count",
+            "description": "Number of matching objects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "CountDiagnosesResponse",
+        "description": "The number of matching diagnoses."
+      },
+      "CountRunsRequest": {
+        "properties": {
+          "statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RunStatus"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statuses",
+            "description": "Only runs with one of these statuses."
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RunSource"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sources",
+            "description": "Only runs from one of these sources. Recorded runs only unless set."
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name",
+            "description": "Only runs of this agent."
+          }
+        },
+        "type": "object",
+        "title": "CountRunsRequest",
+        "description": "Counts runs."
+      },
+      "CountRunsResponse": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Count",
+            "description": "Number of matching objects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "title": "CountRunsResponse",
+        "description": "The number of matching runs."
+      },
+      "CreateApiKeyRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "description": "Name to tell the key apart."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateApiKeyRequest",
+        "description": "Creates a project API key."
+      },
+      "CreateApiKeyResponse": {
+        "properties": {
+          "api_key": {
+            "$ref": "#/components/schemas/ApiKey"
+          },
+          "secret": {
+            "type": "string",
+            "title": "Secret",
+            "description": "The full key. Shown only here; store it now."
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key",
+          "secret"
+        ],
+        "title": "CreateApiKeyResponse",
+        "description": "The new key and its secret."
+      },
+      "CreateDiagnosisRequest": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "CreateDiagnosisRequest",
+        "description": "Starts diagnosing a failed recorded run."
+      },
+      "CreateDiagnosisResponse": {
+        "properties": {
+          "diagnosis": {
+            "$ref": "#/components/schemas/Diagnosis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "diagnosis"
+        ],
+        "title": "CreateDiagnosisResponse",
+        "description": "The new diagnosis, `queued`."
+      },
+      "Diagnosis": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id",
+            "description": "The failed recorded run being diagnosed."
+          },
+          "status": {
+            "$ref": "#/components/schemas/DiagnosisStatus"
+          },
+          "verdict_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerdictKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The conclusion. Null until `done`."
+          },
+          "first_domino_step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Domino Step",
+            "description": "Index of the step that doomed the run, once found."
+          },
+          "search_low": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Low",
+            "description": "Lowest step still suspected. Null before the search starts."
+          },
+          "search_high": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search High",
+            "description": "Highest step still suspected. Null before the search starts."
+          },
+          "verify_passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Passes",
+            "description": "Replays from the fixed step that passed. Null before verifying."
+          },
+          "verify_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verify Samples",
+            "description": "Replays from the fixed step that ran. Null before verifying."
+          },
+          "fixed_output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The rewritten first domino step used to verify the cause."
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Explanation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What went wrong, once explained."
+          },
+          "cause_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause Id",
+            "description": "The cause group this diagnosis joined."
+          },
+          "check_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Check Count",
+            "description": "Number of checks run so far."
+          },
+          "replay_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Replay Count",
+            "description": "Number of replays run so far."
+          },
+          "cost_usd": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "description": "Model cost of the diagnosis so far, in US dollars."
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiagnosisErrorCode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the diagnosis failed. Null unless `failed`."
+          },
+          "created_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Id",
+            "description": "Id of the person or API key that asked for it. Null for auto-diagnosis."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Time of creation, in UTC RFC 3339 format."
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At",
+            "description": "Time it reached `done` or `failed`, in UTC RFC 3339 format."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "status",
+          "verdict_kind",
+          "first_domino_step",
+          "search_low",
+          "search_high",
+          "verify_passes",
+          "verify_samples",
+          "fixed_output",
+          "explanation",
+          "cause_id",
+          "check_count",
+          "replay_count",
+          "cost_usd",
+          "error_code",
+          "created_by_id",
+          "created_at",
+          "finished_at"
+        ],
+        "title": "Diagnosis",
+        "description": "One search for the first domino step of a failed run, and its proof."
+      },
+      "DiagnosisErrorCode": {
+        "type": "string",
+        "enum": [
+          "replay_unavailable",
+          "check_budget_exceeded",
+          "llm_not_configured",
+          "llm_call_failed",
+          "interrupted",
+          "internal_error"
+        ],
+        "title": "DiagnosisErrorCode",
+        "description": "Why a diagnosis ended `failed`.\n\n`replay_unavailable`: every replay of a check errored or timed out (is a worker running?).\n`check_budget_exceeded`: the search needed more checks than allowed.\n`llm_not_configured`: the engine has no model key or model id.\n`llm_call_failed`: a model call failed before returning anything.\n`interrupted`: the API process running it stopped heartbeating (for example, it restarted).\n`internal_error`: anything else; see the API logs."
+      },
+      "DiagnosisStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "bisecting",
+          "verifying",
+          "explaining",
+          "done",
+          "failed"
+        ],
+        "title": "DiagnosisStatus",
+        "description": "The stage a diagnosis is in. `done` and `failed` are final."
+      },
+      "Explanation": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short name of the mistake."
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "description": "What went wrong at the step and why it doomed the run."
+          },
+          "suggested_fix": {
+            "type": "string",
+            "title": "Suggested Fix",
+            "description": "What to change in the agent so it stops happening."
+          },
+          "category": {
+            "$ref": "#/components/schemas/CauseCategory"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "summary",
+          "suggested_fix",
+          "category"
+        ],
+        "title": "Explanation",
+        "description": "A plain-language account of a root cause."
+      },
+      "FieldError": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "Dotted path of the field, such as `task_input.prompt`."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Why the value was rejected."
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "title": "FieldError",
+        "description": "One invalid field in a request."
+      },
+      "FinishRunRequest": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunOutcome"
+          },
+          "final_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Output",
+            "description": "The agent's final answer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status"
+        ],
+        "title": "FinishRunRequest",
+        "description": "Finishes a run with the customer's success check result."
+      },
+      "FinishRunResponse": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "title": "FinishRunResponse",
+        "description": "The finished run."
+      },
+      "GetCauseResponse": {
+        "properties": {
+          "cause": {
+            "$ref": "#/components/schemas/Cause"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cause"
+        ],
+        "title": "GetCauseResponse",
+        "description": "The cause."
+      },
+      "GetDiagnosisResponse": {
+        "properties": {
+          "diagnosis": {
+            "$ref": "#/components/schemas/Diagnosis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "diagnosis"
+        ],
+        "title": "GetDiagnosisResponse",
+        "description": "The diagnosis."
+      },
+      "GetLatestBenchmarkResponse": {
+        "properties": {
+          "benchmark": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Benchmark"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "benchmark"
+        ],
+        "title": "GetLatestBenchmarkResponse",
+        "description": "The newest benchmark, or null when none has run."
+      },
+      "GetProjectSelfResponse": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project"
+        ],
+        "title": "GetProjectSelfResponse",
+        "description": "The caller's project."
+      },
+      "GetRunResponse": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "title": "GetRunResponse",
+        "description": "The run."
+      },
+      "GetStepSnapshotResponse": {
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/StepSnapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshot"
+        ],
+        "title": "GetStepSnapshotResponse",
+        "description": "The snapshot."
+      },
+      "HealthResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "HealthResponse",
+        "description": "The API is up."
+      },
+      "LeaseReplayJobRequest": {
+        "properties": {
+          "agent_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Agent Names",
+            "description": "Agents this worker can run. Only their jobs are leased."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Wait Seconds",
+            "description": "How long to wait for a job before answering with none.",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_names"
+        ],
+        "title": "LeaseReplayJobRequest",
+        "description": "Waits for a replay job for one of these agents and leases it."
+      },
+      "LeaseReplayJobResponse": {
+        "properties": {
+          "replay_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReplayJob"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "replay_job"
+        ],
+        "title": "LeaseReplayJobResponse",
+        "description": "The leased job, or null when none arrived in time."
+      },
+      "ListApiKeysRequest": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Most items to return in this page.",
+            "default": 50
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor",
+            "description": "The previous page's `next_cursor`, or null for the first page."
+          }
+        },
+        "type": "object",
+        "title": "ListApiKeysRequest",
+        "description": "Lists the project's API keys, newest first, revoked ones included."
+      },
+      "ListApiKeysResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ApiKey"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The items in this page."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for the next page, or null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ListApiKeysResponse",
+        "description": "A page of API keys."
+      },
+      "ListCausesRequest": {
+        "properties": {
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CauseCategory"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories",
+            "description": "Only causes in one of these categories."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Most items to return in this page.",
+            "default": 50
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor",
+            "description": "The previous page's `next_cursor`, or null for the first page."
+          }
+        },
+        "type": "object",
+        "title": "ListCausesRequest",
+        "description": "Lists causes, most runs first."
+      },
+      "ListCausesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Cause"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The items in this page."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for the next page, or null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ListCausesResponse",
+        "description": "A page of causes."
+      },
+      "ListChecksRequest": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Most items to return in this page.",
+            "default": 50
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor",
+            "description": "The previous page's `next_cursor`, or null for the first page."
+          },
+          "diagnosis_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Diagnosis Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "diagnosis_id"
+        ],
+        "title": "ListChecksRequest",
+        "description": "Lists the checks of a diagnosis, in order."
+      },
+      "ListChecksResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Check"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The items in this page."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for the next page, or null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ListChecksResponse",
+        "description": "A page of checks."
+      },
+      "ListDiagnosesRequest": {
+        "properties": {
+          "run_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Ids",
+            "description": "Only diagnoses of these runs."
+          },
+          "cause_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause Ids",
+            "description": "Only diagnoses in these cause groups."
+          },
+          "statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DiagnosisStatus"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statuses",
+            "description": "Only diagnoses with one of these statuses."
+          },
+          "verdict_kinds": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VerdictKind"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Kinds",
+            "description": "Only diagnoses with one of these verdicts."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Most items to return in this page.",
+            "default": 50
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor",
+            "description": "The previous page's `next_cursor`, or null for the first page."
+          }
+        },
+        "type": "object",
+        "title": "ListDiagnosesRequest",
+        "description": "Lists diagnoses, newest first."
+      },
+      "ListDiagnosesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Diagnosis"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The items in this page."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for the next page, or null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ListDiagnosesResponse",
+        "description": "A page of diagnoses."
+      },
+      "ListRunsRequest": {
+        "properties": {
+          "statuses": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RunStatus"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statuses",
+            "description": "Only runs with one of these statuses."
+          },
+          "sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RunSource"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sources",
+            "description": "Only runs from one of these sources. Recorded runs only unless set."
+          },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Name",
+            "description": "Only runs of this agent."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Most items to return in this page.",
+            "default": 50
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor",
+            "description": "The previous page's `next_cursor`, or null for the first page."
+          }
+        },
+        "type": "object",
+        "title": "ListRunsRequest",
+        "description": "Lists runs, newest first."
+      },
+      "ListRunsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Run"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The items in this page."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for the next page, or null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ListRunsResponse",
+        "description": "A page of runs."
+      },
+      "ListStepsRequest": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Most items to return in this page.",
+            "default": 50
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor",
+            "description": "The previous page's `next_cursor`, or null for the first page."
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "ListStepsRequest",
+        "description": "Lists the steps of a run in order."
+      },
+      "ListStepsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Step"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The items in this page."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for the next page, or null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ListStepsResponse",
+        "description": "A page of steps."
+      },
+      "Message": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/MessageRole"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "Text of the message, or null when it has none."
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCall"
+            },
+            "type": "array",
+            "title": "Tool Calls",
+            "description": "Tool calls in an assistant message. Empty when none."
+          },
+          "tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Id",
+            "description": "On a `tool` message, the id of the call it answers."
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "Message",
+        "description": "One chat message: a system prompt, a user turn, a model turn or a tool result."
+      },
+      "MessageRole": {
+        "type": "string",
+        "enum": [
+          "system",
+          "user",
+          "assistant",
+          "tool"
+        ],
+        "title": "MessageRole",
+        "description": "The author of a chat message, as in the OpenAI chat format."
+      },
+      "Project": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Name",
+            "description": "Display name of the project."
+          },
+          "slack_webhook_set": {
+            "type": "boolean",
+            "title": "Slack Webhook Set",
+            "description": "Whether a Slack webhook is set. The URL itself is never returned."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Time of creation, in UTC RFC 3339 format."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "Time of the last change, in UTC RFC 3339 format."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slack_webhook_set",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Project",
+        "description": "The tenant. Every run, diagnosis and cause belongs to one project."
+      },
+      "RecordStepRequest": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Index",
+            "description": "Position in the run, starting at 1."
+          },
+          "model": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Model",
+            "description": "Model id the step called."
+          },
+          "output": {
+            "$ref": "#/components/schemas/Message",
+            "description": "The assistant message the model returned."
+          },
+          "tool_results": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array",
+            "title": "Tool Results",
+            "description": "The `tool` messages answering the output's tool calls."
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "Every message in the run after this step."
+          },
+          "tokens_in": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Tokens In",
+            "description": "Prompt tokens of the model call."
+          },
+          "tokens_out": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Tokens Out",
+            "description": "Completion tokens of the model call."
+          },
+          "latency_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "description": "Duration of the model call, in milliseconds."
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "index",
+          "model",
+          "output",
+          "messages",
+          "tokens_in",
+          "tokens_out",
+          "latency_ms"
+        ],
+        "title": "RecordStepRequest",
+        "description": "Records one step. Repeating an index returns the stored step and changes nothing."
+      },
+      "RecordStepResponse": {
+        "properties": {
+          "step": {
+            "$ref": "#/components/schemas/Step"
+          }
+        },
+        "type": "object",
+        "required": [
+          "step"
+        ],
+        "title": "RecordStepResponse",
+        "description": "The stored step."
+      },
+      "ReplayJob": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id",
+            "description": "The recorded run to replay."
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name",
+            "description": "The agent the worker must run."
+          },
+          "task_input": {
+            "$ref": "#/components/schemas/TaskInput"
+          },
+          "from_step": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "From Step",
+            "description": "Keep steps 1 to `from_step` as recorded. 0 means start fresh."
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "Messages to resume from, as saved after step `from_step`."
+          },
+          "replacement_output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When set, use it as the next model output instead of calling the model."
+          },
+          "model_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Override",
+            "description": "When set, run the rest of the replay with this model id."
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReplayJobStatus"
+          },
+          "lease_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lease Expires At",
+            "description": "Time the current lease ends, in UTC RFC 3339 format. Null unless leased."
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Attempt",
+            "description": "Number of times the job has been leased."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "agent_name",
+          "task_input",
+          "from_step",
+          "messages",
+          "replacement_output",
+          "model_override",
+          "status",
+          "lease_expires_at",
+          "attempt"
+        ],
+        "title": "ReplayJob",
+        "description": "A request to replay a run from a save point on the customer's worker."
+      },
+      "ReplayJobStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "leased",
+          "succeeded",
+          "failed",
+          "expired"
+        ],
+        "title": "ReplayJobStatus",
+        "description": "Where a replay job stands in the queue. `succeeded`, `failed` and `expired` are final."
+      },
+      "ReplayOutcome": {
+        "type": "string",
+        "enum": [
+          "passed",
+          "failed",
+          "errored"
+        ],
+        "title": "ReplayOutcome",
+        "description": "The result of one replay, from the customer's success check."
+      },
+      "RevokeApiKeyRequest": {
+        "properties": {
+          "api_key_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Api Key Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key_id"
+        ],
+        "title": "RevokeApiKeyRequest",
+        "description": "Revokes an API key. Revoking a revoked key changes nothing."
+      },
+      "RevokeApiKeyResponse": {
+        "properties": {
+          "api_key": {
+            "$ref": "#/components/schemas/ApiKey"
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key"
+        ],
+        "title": "RevokeApiKeyResponse",
+        "description": "The revoked key."
+      },
+      "Run": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "agent_name": {
+            "type": "string",
+            "title": "Agent Name",
+            "description": "The customer's name for the agent, such as `booker`."
+          },
+          "source": {
+            "$ref": "#/components/schemas/RunSource"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id",
+            "description": "For a replay, the recorded run it replays. Null for a recorded run."
+          },
+          "replay_job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replay Job Id",
+            "description": "For a replay, the job that asked for it."
+          },
+          "replay_from_step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replay From Step",
+            "description": "For a replay, the last step kept from the parent run (0 means none)."
+          },
+          "task_input": {
+            "$ref": "#/components/schemas/TaskInput"
+          },
+          "tool_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Names",
+            "description": "Names of the tools the agent was given."
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "step_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Step Count",
+            "description": "Number of steps recorded so far."
+          },
+          "final_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Output",
+            "description": "The agent's final answer, if it gave one."
+          },
+          "latest_diagnosis_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Diagnosis Id",
+            "description": "The newest diagnosis of this run."
+          },
+          "created_by_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Created By Id",
+            "description": "Id of the API key that recorded the run."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At",
+            "description": "Time the run started, in UTC RFC 3339 format."
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At",
+            "description": "Time the run finished, in UTC RFC 3339 format. Null while running."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "agent_name",
+          "source",
+          "parent_run_id",
+          "replay_job_id",
+          "replay_from_step",
+          "task_input",
+          "tool_names",
+          "status",
+          "step_count",
+          "final_output",
+          "latest_diagnosis_id",
+          "created_by_id",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "Run",
+        "description": "One agent run: recorded from the customer's traffic, or replayed for a diagnosis."
+      },
+      "RunOutcome": {
+        "type": "string",
+        "enum": [
+          "passed",
+          "failed",
+          "errored"
+        ],
+        "title": "RunOutcome",
+        "description": "How a finished run ended: the customer's success check passed or failed, or it crashed."
+      },
+      "RunSource": {
+        "type": "string",
+        "enum": [
+          "recorded",
+          "replay"
+        ],
+        "title": "RunSource",
+        "description": "Whether a run was recorded from real traffic or replayed for a diagnosis."
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "running",
+          "passed",
+          "failed",
+          "errored"
+        ],
+        "title": "RunStatus",
+        "description": "Where a run stands. `running` until the customer finishes it."
+      },
+      "SetProjectSlackWebhookRequest": {
+        "properties": {
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2083,
+                "minLength": 1,
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url",
+            "description": "Slack incoming webhook URL, or null to stop sending messages."
+          }
+        },
+        "type": "object",
+        "required": [
+          "webhook_url"
+        ],
+        "title": "SetProjectSlackWebhookRequest",
+        "description": "Sets or clears the Slack incoming webhook that hears about new causes."
+      },
+      "SetProjectSlackWebhookResponse": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project"
+        ],
+        "title": "SetProjectSlackWebhookResponse",
+        "description": "The updated project."
+      },
+      "StartRunRequest": {
+        "properties": {
+          "agent_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Agent Name",
+            "description": "The customer's name for the agent. Replay jobs are routed by it."
+          },
+          "task_input": {
+            "$ref": "#/components/schemas/TaskInput"
+          },
+          "tool_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Tool Names",
+            "description": "Names of the tools the agent was given, for explaining its mistakes."
+          },
+          "replay_job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replay Job Id",
+            "description": "The leased replay job this run carries out, if any."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_name",
+          "task_input"
+        ],
+        "title": "StartRunRequest",
+        "description": "Starts recording a run, or a replay when `replay_job_id` is set."
+      },
+      "StartRunResponse": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/Run"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "title": "StartRunResponse",
+        "description": "The new run."
+      },
+      "Step": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Index",
+            "description": "Position in the run, starting at 1."
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Model id the step called, as the provider names it."
+          },
+          "output": {
+            "$ref": "#/components/schemas/Message",
+            "description": "The assistant message the model returned."
+          },
+          "tool_results": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array",
+            "title": "Tool Results",
+            "description": "The `tool` messages answering the output's tool calls."
+          },
+          "tokens_in": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Tokens In",
+            "description": "Prompt tokens of the model call."
+          },
+          "tokens_out": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Tokens Out",
+            "description": "Completion tokens of the model call."
+          },
+          "latency_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "description": "Duration of the model call, in milliseconds."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Time the step was recorded, in UTC RFC 3339 format."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "index",
+          "model",
+          "output",
+          "tool_results",
+          "tokens_in",
+          "tokens_out",
+          "latency_ms",
+          "created_at"
+        ],
+        "title": "Step",
+        "description": "One step of a run: a model turn and the results of the tools it called."
+      },
+      "StepSnapshot": {
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Step Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "Every message in the run after this step."
+          }
+        },
+        "type": "object",
+        "required": [
+          "step_id",
+          "messages"
+        ],
+        "title": "StepSnapshot",
+        "description": "The full message list after a step: the save point a replay resumes from."
+      },
+      "SubmitReplayResultRequest": {
+        "properties": {
+          "replay_job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Replay Job Id"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ReplayOutcome"
+          },
+          "replay_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replay Run Id",
+            "description": "The run started for this replay, if one was started."
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code",
+            "description": "The worker's own code for a crash, when `outcome` is `errored`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "replay_job_id",
+          "outcome"
+        ],
+        "title": "SubmitReplayResultRequest",
+        "description": "Reports how a replay ended. A repeat, or a late result for a re-leased job, is ignored."
+      },
+      "SubmitReplayResultResponse": {
+        "properties": {
+          "replay_job": {
+            "$ref": "#/components/schemas/ReplayJob"
+          }
+        },
+        "type": "object",
+        "required": [
+          "replay_job"
+        ],
+        "title": "SubmitReplayResultResponse",
+        "description": "The job after the result."
+      },
+      "TaskInput": {
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "description": "The task given to the agent."
+          },
+          "metadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Metadata",
+            "description": "Customer data the success check needs, such as a `task_id`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "title": "TaskInput",
+        "description": "What the agent was asked to do."
+      },
+      "ToolCall": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Tool call id, minted by the model provider."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the tool the model called."
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments",
+            "description": "Arguments as JSON text, exactly as the provider returned."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "arguments"
+        ],
+        "title": "ToolCall",
+        "description": "One tool call the model asked for in an assistant message."
+      },
+      "VerdictKind": {
+        "type": "string",
+        "enum": [
+          "step_verified",
+          "step_unverified",
+          "multiple_causes",
+          "task_or_tool_issue"
+        ],
+        "title": "VerdictKind",
+        "description": "What a finished diagnosis concluded.\n\n`step_verified`: one step was found and fixing it flipped the outcome.\n`step_unverified`: one step was found but fixing it did not flip the outcome often enough.\n`multiple_causes`: no single step fix flipped the outcome.\n`task_or_tool_issue`: even a fresh run fails, so no agent step is to blame."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "A web session token or a project API key.",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -19,6 +19,8 @@ from fd_api.main import create_app
 from fd_api.settings import ApiSettings
 from fd_database.session import Database
 
+from .fake_engine import FakeEngine
+
 TEST_WEB_SECRET = "test-web-secret-that-is-long-enough-for-hs256"
 
 Headers = dict[str, str]
@@ -26,7 +28,11 @@ Headers = dict[str, str]
 
 @pytest.fixture
 def settings() -> ApiSettings:
-    return ApiSettings(web_jwt_secret=SecretStr(TEST_WEB_SECRET))
+    return ApiSettings(
+        web_jwt_secret=SecretStr(TEST_WEB_SECRET),
+        lease_poll_interval_seconds=0.05,
+        replay_poll_interval_seconds=0.05,
+    )
 
 
 @pytest.fixture
@@ -43,7 +49,7 @@ def database() -> Database:
 
 @pytest.fixture
 async def client(settings: ApiSettings, database: Database) -> AsyncIterator[AsyncClient]:
-    app = create_app(settings, database)
+    app = create_app(settings, database, FakeEngine())
     try:
         lifespan = app.router.lifespan_context(app)
         await lifespan.__aenter__()

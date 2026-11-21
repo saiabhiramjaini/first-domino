@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, exists, func, select, tuple_
+from sqlalchemy import ColumnElement, exists, func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -116,6 +116,25 @@ class DiagnosesRepository:
         diagnosis.finished_at = finished_at
         await self._session.flush()
         return diagnosis
+
+    async def fail_all_active(self, *, error_code: str, finished_at: datetime) -> int:
+        """Fails every unfinished diagnosis in every project. Returns how many.
+
+        The one cross-project write: it runs at startup, when no diagnosis task can be alive,
+        so a diagnosis cut off by a restart never blocks a new one for its run.
+        """
+        failed = await self._session.scalars(
+            update(Diagnosis)
+            .where(Diagnosis.status.in_(ACTIVE_DIAGNOSIS_STATUSES))
+            .values(
+                status=DiagnosisStatus.FAILED,
+                error_code=error_code,
+                finished_at=finished_at,
+                updated_at=finished_at,
+            )
+            .returning(Diagnosis.id)
+        )
+        return len(failed.all())
 
     async def list_filtered(
         self,

@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from fd_database.tables.base import (
@@ -39,6 +40,7 @@ class Run(IdMixin, TimestampMixin, Base):
     replay_job_id: Mapped[UUID | None]
     replay_from_step: Mapped[int | None]
     task_input: Mapped[TaskInput] = mapped_column(PydanticJson(TaskInput))
+    tool_names: Mapped[list[str]] = mapped_column(ARRAY(String(128)))
     status: Mapped[RunStatus] = mapped_column(RUN_STATUS)
     step_count: Mapped[int]
     final_output: Mapped[str | None] = mapped_column(Text)

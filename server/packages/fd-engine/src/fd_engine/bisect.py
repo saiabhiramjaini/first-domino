@@ -67,11 +67,25 @@ class Bisector:
         return lo, hi
 
     async def _can_succeed(self, save_point: int, phase: CheckPhase) -> bool:
+        """Whether any replay from `save_point` passes.
+
+        A check with no pass is checked once more with `doomed_recheck_samples` replays before
+        the save point counts as doomed, since a few unlucky replays look the same as a doomed
+        one. The recheck is skipped when the check budget has no room left for it.
+        """
+        if await self._check(save_point, phase, self._settings.samples_per_check):
+            return True
+        recheck = self._settings.doomed_recheck_samples
+        if recheck == 0 or self._checks.remaining <= 1:
+            return False
+        return await self._check(save_point, phase, recheck)
+
+    async def _check(self, save_point: int, phase: CheckPhase, samples: int) -> bool:
         check = await self._checks.run(
             CheckRequest(
                 phase=phase,
                 save_point=save_point,
-                samples=self._settings.samples_per_check,
+                samples=samples,
                 required_passes=CAN_SUCCEED_PASSES,
                 model_override=(
                     self._settings.strong_model if self._settings.bisect_with_strong_model else None

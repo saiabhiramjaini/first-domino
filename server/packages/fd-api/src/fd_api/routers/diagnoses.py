@@ -22,7 +22,7 @@ from fd_api.pagination import decode_cursor, paginate
 from fd_api.services.diagnoses import create_diagnosis
 from fd_api.services.diagnosis_runner import DiagnosisRunner, get_diagnosis_runner
 from fd_database.pages import TimeKey
-from fd_database.repositories import DiagnosesRepository, RunsRepository
+from fd_database.repositories import DiagnosesRepository, ReplayJobsRepository, RunsRepository
 from fd_shared.enums import ApiErrorCode
 from fd_shared.errors import NotFoundError
 
@@ -81,7 +81,10 @@ async def get_diagnosis(
     )
     if diagnosis is None:
         raise NotFoundError
-    return GetDiagnosisResponse(diagnosis=Diagnosis.from_row(diagnosis))
+    waiting = await ReplayJobsRepository(session).waiting_by_diagnosis(
+        project_id=caller.project_id, diagnosis_ids=[diagnosis.id]
+    )
+    return GetDiagnosisResponse(diagnosis=Diagnosis.from_row(diagnosis, waiting.get(diagnosis.id)))
 
 
 @router.post(
@@ -108,8 +111,12 @@ async def list_diagnoses(
     page, next_cursor = paginate(
         rows, body.limit, lambda row: TimeKey(at=row.created_at, id=row.id)
     )
+    waiting = await ReplayJobsRepository(session).waiting_by_diagnosis(
+        project_id=caller.project_id, diagnosis_ids=[row.id for row in page]
+    )
     return ListDiagnosesResponse(
-        items=[Diagnosis.from_row(row) for row in page], next_cursor=next_cursor
+        items=[Diagnosis.from_row(row, waiting.get(row.id)) for row in page],
+        next_cursor=next_cursor,
     )
 
 

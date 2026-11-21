@@ -32,6 +32,14 @@ class ApiSettings(SettingsBase):
         gt=0,
         description="A running diagnosis with no heartbeat for this long is failed as interrupted.",
     )
+    diagnosis_restart_within_seconds: float = Field(
+        default=3600.0,
+        ge=0,
+        description=(
+            "An interrupted diagnosis younger than this restarts from the start; an older one "
+            "is failed as interrupted, so one that keeps stopping its process cannot loop."
+        ),
+    )
     web_jwt_secret: SecretStr = Field(
         default=SecretStr(""),
         description="HS256 secret shared with the web app for its session tokens.",

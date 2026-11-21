@@ -25,6 +25,13 @@ class EngineSettings(SettingsBase):
     from, so bisect lands late. Measured on planted-bug calls.
     """
     samples_per_check: int = Field(default=3, ge=1)
+    doomed_recheck_samples: int = Field(default=3, ge=0)
+    """Extra replays for a save point whose first check had no pass, before calling it doomed.
+
+    One check of 3 replays wrongly looks doomed 1 time in 8 when a save point passes half the
+    time, which blames a step too early. A second round brings that to 1 in 64. Only doomed
+    checks pay for it: one pass already shows a save point can succeed.
+    """
     verify_samples: int = Field(default=5, ge=1)
     verify_pass_threshold: int = Field(default=3, ge=1)
     fallback_window: int = Field(default=2, ge=0)

@@ -10,12 +10,18 @@ import { useApiAuth } from "./use-api-auth";
 
 export const countRunsKey = (filters: CountRunsRequest) => ["runs", "count", filters] as const;
 
-export function useCountRuns(filters: CountRunsRequest) {
+type CountRunsOptions = { refreshMs?: number | false };
+
+export function useCountRuns(
+  filters: CountRunsRequest,
+  { refreshMs = false }: CountRunsOptions = {}
+) {
   const { auth, isReady } = useApiAuth();
   return useQuery({
     queryKey: countRunsKey(filters),
     queryFn: () => callApi(countRuns({ auth, body: filters }), zCountRunsResponse),
     enabled: isReady,
     select: (data) => data.count,
+    refetchInterval: refreshMs,
   });
 }

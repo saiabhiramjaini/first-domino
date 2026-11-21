@@ -254,3 +254,29 @@ async def test_each_model_call_cost_is_reported_as_it_happens(
 
     assert sink.costs == [0.01] * fixes + [0.02]
     assert sum(sink.costs) == pytest.approx(result.cost_usd)
+
+
+async def test_an_unlucky_check_is_rechecked_before_blaming_a_step() -> None:
+    def unlucky(save_point: int) -> list[ReplayOutcome]:
+        if save_point >= 3:
+            return [F, F, F]
+        return [F, F, F, P, F, F] if save_point >= 1 else [P, P, P]
+
+    runner = FakeRunner(plain=unlucky, fixed={3: [P] * 5})
+
+    result = await run_diagnosis(runner, step_count=4, config=settings(doomed_recheck_samples=3))
+
+    assert result.verdict_kind is VerdictKind.STEP_VERIFIED
+    assert result.first_domino_step == 3
+
+
+async def test_a_doomed_save_point_is_checked_twice() -> None:
+    runner = FakeRunner(plain=break_at(2), fixed={2: [P] * 5})
+
+    result = await run_diagnosis(runner, step_count=4, config=settings(doomed_recheck_samples=3))
+
+    assert result.first_domino_step == 2
+    doomed_checks = [
+        c.from_step for c in runner.calls if c.replacement_output is None and c.from_step >= 2
+    ]
+    assert doomed_checks.count(2) == 6

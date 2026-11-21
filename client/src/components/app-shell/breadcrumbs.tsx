@@ -12,10 +12,12 @@ function crumbsFor(pathname: string): Crumb[] {
   const [section, id] = pathname.split("/").filter(Boolean);
   switch (section) {
     case "runs":
-      return [
-        { label: "Failures", href: "/failures" },
-        { label: shortId(id ?? ""), mono: true },
-      ];
+      return id
+        ? [
+            { label: "Runs", href: "/runs" },
+            { label: shortId(id), mono: true },
+          ]
+        : [{ label: "Runs" }];
     case "causes":
       return id
         ? [

@@ -205,3 +205,68 @@ async def test_saving_a_check_again_updates_it(session: AsyncSession, project: P
         project_id=project.id, diagnosis_id=diagnosis.id, limit=10, after=None
     )
     assert [(check.passes, check.result) for check in checks] == [(2, CheckResult.CAN_SUCCEED)]
+
+
+async def test_waiting_replays_count_only_jobs_no_worker_picked_up(
+    session: AsyncSession, project: Project
+) -> None:
+    jobs = ReplayJobsRepository(session)
+    run = await _run(session, project)
+    diagnosis = await DiagnosesRepository(session).create(
+        project_id=project.id, run_id=run.id, created_by_id=None
+    )
+    await jobs.enqueue(
+        project_id=project.id,
+        run_id=run.id,
+        diagnosis_id=diagnosis.id,
+        check_id=None,
+        agent_name=run.agent_name,
+        task_input=run.task_input,
+        from_step=0,
+        messages=[MESSAGE],
+        replacement_output=None,
+        model_override=None,
+        samples=3,
+    )
+    await jobs.lease_next(
+        project_id=project.id,
+        agent_names=["call-assistant"],
+        leased_by_id=run.created_by_id,
+        now=utc_now(),
+        lease_seconds=10,
+    )
+
+    waiting = await jobs.waiting_by_diagnosis(project_id=project.id, diagnosis_ids=[diagnosis.id])
+
+    assert waiting[diagnosis.id].count == 2
+    assert await jobs.waiting_by_diagnosis(project_id=project.id, diagnosis_ids=[]) == {}
+
+
+async def test_restarted_diagnoses_end_their_unfinished_replays(
+    session: AsyncSession, project: Project
+) -> None:
+    jobs = ReplayJobsRepository(session)
+    run = await _run(session, project)
+    diagnosis = await DiagnosesRepository(session).create(
+        project_id=project.id, run_id=run.id, created_by_id=None
+    )
+    queued = await jobs.enqueue(
+        project_id=project.id,
+        run_id=run.id,
+        diagnosis_id=diagnosis.id,
+        check_id=None,
+        agent_name=run.agent_name,
+        task_input=run.task_input,
+        from_step=0,
+        messages=[MESSAGE],
+        replacement_output=None,
+        model_override=None,
+        samples=2,
+    )
+
+    await jobs.expire_for_diagnoses(diagnosis_ids=[diagnosis.id], now=utc_now())
+
+    for job in queued:
+        stored = await jobs.get(project_id=project.id, replay_job_id=job.id, refresh=True)
+        assert stored is not None
+        assert stored.status is ReplayJobStatus.EXPIRED

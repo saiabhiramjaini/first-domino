@@ -1,11 +1,22 @@
+"use client";
+
+import { PlugZapIcon } from "lucide-react";
+import Link from "next/link";
+
 import type { Diagnosis } from "@/api/generated";
 import { StatusBadge } from "@/components/status/status-badge";
+import { buttonVariants } from "@/components/ui/button";
 import { DIAGNOSIS_STATUS, VERDICT_KIND } from "@/components/status/status-tones";
 import { isDiagnosisActive } from "@/hooks/api/diagnosis-activity";
 import { formatInteger, formatUsd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import { useNow } from "@/hooks/use-now";
+
 import { verdictCopy } from "../verdict-copy";
+import { isWaitingForWorker, waitedText, workerWaitMs } from "../worker-wait";
+
+const CLOCK_MS = 1_000;
 
 type VerdictHeroProps = { diagnosis: Diagnosis; children: React.ReactNode };
 
@@ -16,6 +27,8 @@ function liveText(diagnosis: Diagnosis): string {
   if (status === "explaining") return "Writing up what went wrong.";
   if (low === null || high === null) return "Checking whether a fresh run can succeed at all.";
   if (low === high) return `Narrowed to step ${low}.`;
+  if (low === 0)
+    return `Checking the whole run: the first domino is somewhere in steps 1 to ${high}.`;
   return `The first domino is between step ${low} and step ${high}.`;
 }
 
@@ -31,6 +44,9 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
 // The answer first: where the run fell, how sure we are, and what it cost. The step strip sits below.
 export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
   const isActive = isDiagnosisActive(diagnosis.status);
+  const now = useNow(isActive ? CLOCK_MS : false);
+  const isWaiting = isWaitingForWorker(diagnosis, now);
+  const waited = workerWaitMs(diagnosis, now) ?? 0;
   const copy = diagnosis.status === "done" ? verdictCopy(diagnosis) : null;
   const proof =
     diagnosis.verify_passes !== null && diagnosis.verify_samples !== null
@@ -49,7 +65,7 @@ export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
       <div className="relative flex flex-col gap-6 p-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            {isActive && (
+            {isActive && !isWaiting && (
               <span className="relative flex size-2" aria-hidden="true">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-search-range opacity-75" />
                 <span className="relative inline-flex size-2 rounded-full bg-search-range" />
@@ -57,16 +73,38 @@ export function VerdictHero({ diagnosis, children }: VerdictHeroProps) {
             )}
             {verdict && diagnosis.status === "done" ? (
               <StatusBadge status={VERDICT_KIND[verdict]} />
+            ) : isWaiting ? (
+              <StatusBadge status={{ tone: "warning", label: "Waiting for your worker" }} />
             ) : (
               <StatusBadge status={DIAGNOSIS_STATUS[diagnosis.status]} />
             )}
           </div>
           <h2 id="verdict-title" className="text-xl font-semibold tracking-tight text-balance">
-            {copy?.headline ?? (isActive ? "Searching for the first domino" : "Diagnosis")}
+            {copy?.headline ??
+              (isWaiting
+                ? "Waiting for your replay worker"
+                : isActive
+                  ? "Searching for the first domino"
+                  : "Diagnosis")}
           </h2>
           <p className="max-w-2xl text-sm text-pretty text-muted-foreground" aria-live="polite">
-            {copy?.body ?? (isActive ? liveText(diagnosis) : "")}
+            {isWaiting
+              ? `${diagnosis.replays_waiting ?? 0} replays have been waiting ${waitedText(waited)} and no worker has picked them up. Replays run on your side, so start the replay worker next to your agent. The search carries on by itself as soon as it connects.`
+              : (copy?.body ?? (isActive ? liveText(diagnosis) : ""))}
           </p>
+          {isWaiting && (
+            <Link
+              href="/settings#start_worker"
+              className={buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "self-start",
+              })}
+            >
+              <PlugZapIcon aria-hidden="true" />
+              Set up the replay worker
+            </Link>
+          )}
         </div>
         <dl className="grid shrink-0 grid-cols-4 gap-x-6 gap-y-3 rounded-lg border bg-background/50 px-4 py-3">
           <Stat

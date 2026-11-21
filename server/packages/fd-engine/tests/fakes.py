@@ -26,6 +26,7 @@ def settings(**overrides: object) -> EngineSettings:
     values: dict[str, object] = {
         "strong_model": TEST_MODEL,
         "samples_per_check": 3,
+        "doomed_recheck_samples": 0,
         "verify_samples": 5,
         "verify_pass_threshold": 3,
         "fallback_window": 2,

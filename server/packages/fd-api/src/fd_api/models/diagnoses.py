@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from fd_api.pagination import CountResponse, PageRequest, PageResponse
 from fd_database import tables
+from fd_database.repositories import WaitingReplays
 from fd_shared.enums import DiagnosisErrorCode, DiagnosisStatus, VerdictKind
 from fd_shared.models import Explanation, Message
 
@@ -39,7 +40,16 @@ class Diagnosis(BaseModel):
     explanation: Explanation | None = Field(description="What went wrong, once explained.")
     cause_id: UUID | None = Field(description="The cause group this diagnosis joined.")
     check_count: int = Field(ge=0, description="Number of checks run so far.")
-    replay_count: int = Field(ge=0, description="Number of replays run so far.")
+    replay_count: int = Field(ge=0, description="Number of replays asked for so far.")
+    replays_waiting: int = Field(
+        default=0,
+        ge=0,
+        description="Replays queued for your worker that no worker has picked up yet.",
+    )
+    waiting_since: datetime | None = Field(
+        default=None,
+        description="When the oldest waiting replay was queued, in UTC RFC 3339 format.",
+    )
     cost_usd: float = Field(ge=0, description="Model cost of the diagnosis so far, in US dollars.")
     error_code: DiagnosisErrorCode | None = Field(
         description="Why the diagnosis failed. Null unless `failed`."
@@ -53,8 +63,8 @@ class Diagnosis(BaseModel):
     )
 
     @classmethod
-    def from_row(cls, row: tables.Diagnosis) -> "Diagnosis":
-        """Maps a stored diagnosis to the contract."""
+    def from_row(cls, row: tables.Diagnosis, waiting: WaitingReplays | None = None) -> "Diagnosis":
+        """Maps a stored diagnosis, and its replays still waiting for a worker, to the contract."""
         return cls(
             id=row.id,
             run_id=row.run_id,
@@ -70,6 +80,8 @@ class Diagnosis(BaseModel):
             cause_id=row.cause_id,
             check_count=row.check_count,
             replay_count=row.replay_count,
+            replays_waiting=waiting.count if waiting else 0,
+            waiting_since=waiting.oldest_queued_at if waiting else None,
             cost_usd=float(row.cost_usd),
             error_code=row.error_code,
             created_by_id=row.created_by_id,

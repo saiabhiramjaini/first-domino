@@ -13,7 +13,10 @@ export type RunFilters = Omit<ListRunsRequest, "cursor" | "limit">;
 
 export const listRunsKey = (filters: RunFilters) => ["runs", "list", filters] as const;
 
-export function useListRuns(filters: RunFilters) {
+type ListRunsOptions = { refreshMs?: number | false };
+
+/** Runs, newest first. Pass `refreshMs` to keep the list live (new runs, status changes). */
+export function useListRuns(filters: RunFilters, { refreshMs = false }: ListRunsOptions = {}) {
   const { auth, isReady } = useApiAuth();
   return useInfiniteQuery({
     queryKey: listRunsKey(filters),
@@ -22,5 +25,6 @@ export function useListRuns(filters: RunFilters) {
     initialPageParam: FIRST_PAGE_CURSOR,
     getNextPageParam: nextPageCursor,
     enabled: isReady,
+    refetchInterval: refreshMs,
   });
 }

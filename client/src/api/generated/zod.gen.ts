@@ -851,6 +851,8 @@ export const zDiagnosis = z.object({
     cause_id: z.uuid().nullable(),
     check_count: z.int().gte(0),
     replay_count: z.int().gte(0),
+    replays_waiting: z.int().gte(0).optional().default(0),
+    waiting_since: z.iso.datetime().nullish(),
     cost_usd: z.number().gte(0),
     error_code: zDiagnosisErrorCode.nullable(),
     created_by_id: z.uuid().nullable(),

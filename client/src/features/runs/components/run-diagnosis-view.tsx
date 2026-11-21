@@ -1,8 +1,9 @@
 "use client";
 
-import { SearchIcon } from "lucide-react";
+import { CircleCheckIcon, SearchIcon, TriangleAlertIcon } from "lucide-react";
 import { notFound } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 
 import type { Diagnosis } from "@/api/generated";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -15,7 +16,7 @@ import { isDiagnosisActive } from "@/hooks/api/diagnosis-activity";
 import { useGetDiagnosis } from "@/hooks/api/use-get-diagnosis";
 import { useGetRun } from "@/hooks/api/use-get-run";
 import { useListChecks } from "@/hooks/api/use-list-checks";
-import { useListSteps } from "@/hooks/api/use-list-steps";
+import { listStepsKey, useListSteps } from "@/hooks/api/use-list-steps";
 import { isApiError } from "@/lib/api-error";
 
 import { CheckReplays } from "../replays/check-replays";
@@ -24,8 +25,7 @@ import { DiagnoseRunButton } from "./diagnose-run-button";
 import { DiagnosisFailed } from "./diagnosis-failed";
 import { RunHeader } from "./run-header";
 import { RunInputPanel } from "./run-input-panel";
-import { StepDetail } from "./step-detail";
-import { StepPager } from "./step-pager";
+import { RunTrace } from "./run-trace";
 import { VerdictCard } from "./verdict-card";
 import { VerdictHero } from "./verdict-hero";
 
@@ -33,9 +33,22 @@ type RunDiagnosisViewProps = { runId: string };
 
 export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
   const run = useGetRun(runId);
-  const steps = useListSteps(runId);
+  const isRecording = run.data?.status === "running";
+  const steps = useListSteps(runId, { isLive: isRecording });
+  const queryClient = useQueryClient();
+  const wasRecording = useRef(isRecording);
+
+  // Steps and the run are polled apart: when the run finishes, fetch the steps once more so
+  // a last step recorded just before the finish is not missed.
+  useEffect(() => {
+    if (wasRecording.current && !isRecording) {
+      void queryClient.invalidateQueries({ queryKey: listStepsKey(runId) });
+    }
+    wasRecording.current = isRecording;
+  }, [isRecording, queryClient, runId]);
   const [createdDiagnosisId, setCreatedDiagnosisId] = useState<string | null>(null);
-  const [pickedStep, setPickedStep] = useState<number | null>(null);
+  // undefined: open the default step (the first domino); null: every step closed.
+  const [pickedStep, setPickedStep] = useState<number | null | undefined>(undefined);
   const [replayCheckId, setReplayCheckId] = useState<string | null>(null);
 
   const diagnosisId = createdDiagnosisId ?? run.data?.latest_diagnosis_id ?? null;
@@ -61,16 +74,25 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
   if (!run.data) return <RunDiagnosisSkeleton />;
 
   const stepCount = steps.data?.length ?? run.data.step_count;
-  const selectedStep = pickedStep ?? defaultSelectedStep(stepCount, diagnosis);
-  const selected = steps.data?.find((step) => step.index === selectedStep);
+  const selectedStep =
+    pickedStep === undefined
+      ? isRecording
+        ? null
+        : defaultSelectedStep(stepCount, diagnosis)
+      : pickedStep;
   const dominoStep = steps.data?.find((step) => step.index === diagnosis?.first_domino_step);
   const replayCheck = checks.data?.find((check) => check.id === replayCheckId);
   const canDiagnose = run.data.status === "failed" && run.data.source === "recorded" && !isLive;
 
   function handleCreated(created: Diagnosis) {
     setCreatedDiagnosisId(created.id);
-    setPickedStep(null);
+    setPickedStep(undefined);
     setReplayCheckId(null);
+  }
+
+  function selectStep(step: number) {
+    setPickedStep(step);
+    document.getElementById(`step-${step}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const stepStrip = steps.isError ? (
@@ -94,7 +116,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         stepCount={stepCount}
         diagnosis={diagnosis}
         selectedStep={selectedStep}
-        onSelectStep={setPickedStep}
+        onSelectStep={selectStep}
       />
     </div>
   );
@@ -115,7 +137,12 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         }
       />
 
-      {diagnosisId === null ? (
+      {diagnosisId === null && run.data.status !== "failed" ? (
+        <Panel>
+          <RunStatusNote status={run.data.status} stepCount={stepCount} />
+          <div className="border-t px-5 py-5">{stepStrip}</div>
+        </Panel>
+      ) : diagnosisId === null ? (
         <Panel>
           <EmptyState
             icon={SearchIcon}
@@ -151,45 +178,54 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
         <VerdictCard diagnosis={diagnosis} originalStep={dominoStep} />
       )}
 
-      <div className="grid items-start gap-6 xl:grid-cols-2">
-        <Panel
-          id="selected-step"
-          title={selectedStep === null ? "Step" : `Step ${selectedStep}`}
-          description={
-            selectedStep !== null && selectedStep === diagnosis?.first_domino_step
-              ? "The first domino, as recorded."
-              : "As recorded in the original run."
-          }
-          actions={
-            selectedStep !== null && (
-              <StepPager
-                selectedStep={selectedStep}
-                stepCount={stepCount}
-                onSelectStep={setPickedStep}
-              />
-            )
-          }
-        >
-          {selected ? (
-            <StepDetail step={selected} />
-          ) : steps.isPending ? (
-            <div className="p-4">
-              <Skeleton className="h-40 w-full" />
-            </div>
-          ) : (
-            <p className="p-4 text-sm text-muted-foreground">Pick a step above to read it.</p>
-          )}
-        </Panel>
+      <Panel
+        id="trace"
+        title="Trace"
+        description={
+          isRecording
+            ? "Live: every step the agent takes, as it takes it."
+            : "Every step of this run, as recorded. Open one to read it in full."
+        }
+        actions={
+          isRecording && (
+            <span className="inline-flex items-center gap-1.5 text-xs text-search-range">
+              <span className="size-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
+              Live
+            </span>
+          )
+        }
+      >
+        {steps.isError ? (
+          <div className="p-4">
+            <QueryError
+              error={steps.error}
+              what="the steps"
+              source="runs.load_trace"
+              onRetry={steps.refetch}
+            />
+          </div>
+        ) : steps.data ? (
+          <RunTrace
+            steps={steps.data}
+            selectedStep={selectedStep}
+            dominoStep={diagnosis?.first_domino_step ?? null}
+            isLive={isRecording}
+            onSelectStep={setPickedStep}
+          />
+        ) : (
+          <div className="p-4">
+            <Skeleton className="h-40 w-full" />
+          </div>
+        )}
+      </Panel>
+
+      {diagnosisId !== null && (
         <Panel
           id="checks"
           title="Checks"
           description="Each check keeps the first steps as recorded and replays the rest."
         >
-          {diagnosisId === null ? (
-            <p className="p-4 text-sm text-muted-foreground">
-              Checks appear here once you diagnose the run.
-            </p>
-          ) : checks.isError ? (
+          {checks.isError ? (
             <div className="p-4">
               <QueryError
                 error={checks.error}
@@ -210,7 +246,7 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
             </div>
           )}
         </Panel>
-      </div>
+      )}
       {replayCheck && (
         <CheckReplays
           key={replayCheck.id}
@@ -235,6 +271,58 @@ function RunDiagnosisSkeleton() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Skeleton className="h-56 w-full rounded-xl" />
         <Skeleton className="h-56 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+const STATUS_NOTE = {
+  running: {
+    icon: null,
+    title: "Recording this run",
+    body: "Your agent is taking steps right now. They appear in the trace below as they happen.",
+  },
+  passed: {
+    icon: CircleCheckIcon,
+    title: "This run passed",
+    body: "Your success check passed it, so there is nothing to diagnose. Its full trace is below.",
+  },
+  errored: {
+    icon: TriangleAlertIcon,
+    title: "This run errored",
+    body: "Your agent raised an error before the run could finish. The steps it took are below.",
+  },
+} as const;
+
+function RunStatusNote({
+  status,
+  stepCount,
+}: {
+  status: "running" | "passed" | "errored";
+  stepCount: number;
+}) {
+  const note = STATUS_NOTE[status];
+  const Icon = note.icon;
+  return (
+    <div className="flex items-start gap-3 p-5">
+      {Icon ? (
+        <Icon
+          className={
+            status === "passed" ? "mt-0.5 size-5 text-verified" : "mt-0.5 size-5 text-warning"
+          }
+          aria-hidden="true"
+        />
+      ) : (
+        <span className="relative mt-1.5 flex size-2.5" aria-hidden="true">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-search-range opacity-75 motion-reduce:animate-none" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-search-range" />
+        </span>
+      )}
+      <div className="flex flex-col gap-1">
+        <h2 className="font-semibold">{note.title}</h2>
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          {note.body} {status === "running" && `${stepCount} so far.`}
+        </p>
       </div>
     </div>
   );

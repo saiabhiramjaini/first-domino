@@ -12,8 +12,9 @@ describe("isNavItemActive", () => {
     expect(activeLabels("/causes/123")).toEqual(["Root causes"]);
   });
 
-  it("keeps Failures active on a run page", () => {
-    expect(activeLabels("/runs/abc")).toEqual(["Failures"]);
+  it("keeps Runs active on a run page", () => {
+    expect(activeLabels("/runs")).toEqual(["Runs"]);
+    expect(activeLabels("/runs/abc")).toEqual(["Runs"]);
   });
 
   it("does not match a path that only shares a prefix", () => {

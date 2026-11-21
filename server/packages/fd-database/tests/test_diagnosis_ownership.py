@@ -9,7 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fd_database.repositories import DiagnosesRepository
 from fd_database.tables import Project
 from fd_database.tables.base import utc_now
-from fd_shared.enums import DiagnosisErrorCode, DiagnosisStatus, VerdictKind
+from fd_shared.enums import (
+    CheckPhase,
+    CheckResult,
+    DiagnosisErrorCode,
+    DiagnosisStatus,
+    VerdictKind,
+)
 
 from .test_repositories import _run
 
@@ -93,3 +99,82 @@ async def test_finishing_clears_an_earlier_error_code(
     )
 
     assert (finished.status, finished.error_code) == (DiagnosisStatus.DONE, None)
+
+
+async def test_take_over_restarts_recent_abandoned_diagnoses_only(
+    session: AsyncSession, project: Project
+) -> None:
+    diagnoses = DiagnosesRepository(session)
+    live, abandoned, too_old = [
+        await diagnoses.create(
+            project_id=project.id, run_id=(await _run(session, project)).id, created_by_id=None
+        )
+        for _ in range(3)
+    ]
+    now = utc_now()
+    too_old.created_at = now - timedelta(hours=2)
+    for diagnosis, last_heartbeat in (
+        (live, now),
+        (abandoned, now - 2 * ABANDONED_AFTER),
+        (too_old, now - 2 * ABANDONED_AFTER),
+    ):
+        await diagnoses.claim(
+            project_id=project.id, diagnosis_id=diagnosis.id, runner_id=uuid4(), now=last_heartbeat
+        )
+    check = await diagnoses.save_check(
+        project_id=project.id,
+        diagnosis_id=abandoned.id,
+        index=0,
+        phase=CheckPhase.BISECT,
+        save_point=1,
+        samples=3,
+        passes=0,
+        result=CheckResult.DOOMED,
+        finished_at=now,
+    )
+    replay_run = await _run(session, project)
+    replay_run.check_id = check.id
+    await session.flush()
+    new_owner = uuid4()
+
+    taken = await diagnoses.take_over_abandoned(
+        stale_before=now - ABANDONED_AFTER,
+        created_after=now - timedelta(hours=1),
+        runner_id=new_owner,
+        now=now,
+    )
+
+    assert [d.id for d in taken] == [abandoned.id]
+    assert (taken[0].status, taken[0].runner_id, taken[0].check_count) == (
+        DiagnosisStatus.QUEUED,
+        new_owner,
+        0,
+    )
+    checks = await diagnoses.list_checks(
+        project_id=project.id, diagnosis_id=abandoned.id, limit=10, after=None
+    )
+    assert checks == []
+    await session.refresh(replay_run)
+    assert replay_run.check_id is None
+
+
+async def test_a_released_diagnosis_is_taken_over_at_once(
+    session: AsyncSession, project: Project
+) -> None:
+    diagnoses = DiagnosesRepository(session)
+    run = await _run(session, project)
+    diagnosis = await diagnoses.create(project_id=project.id, run_id=run.id, created_by_id=None)
+    old_owner, now = uuid4(), utc_now()
+    await diagnoses.claim(
+        project_id=project.id, diagnosis_id=diagnosis.id, runner_id=old_owner, now=now
+    )
+
+    await diagnoses.release(runner_id=old_owner)
+    taken = await diagnoses.take_over_abandoned(
+        stale_before=now - ABANDONED_AFTER,
+        created_after=now - timedelta(hours=1),
+        runner_id=uuid4(),
+        now=now,
+    )
+
+    assert [d.id for d in taken] == [diagnosis.id]

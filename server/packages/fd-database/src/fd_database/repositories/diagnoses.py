@@ -1,17 +1,17 @@
 """Diagnoses and checks repository."""
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import ColumnElement, exists, func, select, tuple_, update
+from sqlalchemy import ColumnElement, delete, exists, func, select, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fd_database.pages import IndexKey, TimeKey
-from fd_database.tables import Check, Diagnosis
+from fd_database.tables import Check, Diagnosis, ReplayJob, Run
 from fd_database.tables.base import utc_now
 from fd_database.tables.diagnoses import ACTIVE_DIAGNOSIS_STATUSES
 from fd_shared.enums import (
@@ -22,6 +22,9 @@ from fd_shared.enums import (
     VerdictKind,
 )
 from fd_shared.models import Explanation, Message
+
+RELEASED_AT = datetime(2000, 1, 1, tzinfo=UTC)
+"""The heartbeat of a diagnosis whose process stopped on purpose: abandoned at once."""
 
 
 class DetachedCause(BaseModel):
@@ -205,6 +208,58 @@ class DiagnosesRepository:
             )
             .values(heartbeat_at=now)
         )
+
+    async def release(self, *, runner_id: UUID) -> None:
+        """Gives up this process's unfinished diagnoses so the next process restarts them now."""
+        await self._session.execute(
+            update(Diagnosis)
+            .where(
+                Diagnosis.runner_id == runner_id,
+                Diagnosis.status.in_(ACTIVE_DIAGNOSIS_STATUSES),
+            )
+            .values(heartbeat_at=RELEASED_AT)
+        )
+
+    async def take_over_abandoned(
+        self, *, stale_before: datetime, created_after: datetime, runner_id: UUID, now: datetime
+    ) -> list[Diagnosis]:
+        """Claims unfinished diagnoses nobody runs any more, to restart them from the start.
+
+        Only diagnoses created after `created_after` are taken, so one that keeps stopping
+        its process is eventually failed by `fail_abandoned` instead of restarted forever.
+        Their checks are deleted; the money already spent stays in `cost_usd`.
+        """
+        last_sign_of_life = func.coalesce(Diagnosis.heartbeat_at, Diagnosis.created_at)
+        taken = list(
+            await self._session.scalars(
+                update(Diagnosis)
+                .where(
+                    Diagnosis.status.in_(ACTIVE_DIAGNOSIS_STATUSES),
+                    last_sign_of_life < stale_before,
+                    Diagnosis.created_at > created_after,
+                )
+                .values(
+                    status=DiagnosisStatus.QUEUED,
+                    runner_id=runner_id,
+                    heartbeat_at=now,
+                    search_low=None,
+                    search_high=None,
+                    check_count=0,
+                    replay_count=0,
+                    updated_at=now,
+                )
+                .returning(Diagnosis)
+                .execution_options(populate_existing=True)
+            )
+        )
+        if taken:
+            old_checks = select(Check.id).where(Check.diagnosis_id.in_([d.id for d in taken]))
+            for linked in (ReplayJob, Run):  # every table that points at a check
+                await self._session.execute(
+                    update(linked).where(linked.check_id.in_(old_checks)).values(check_id=None)
+                )
+            await self._session.execute(delete(Check).where(Check.id.in_(old_checks)))
+        return taken
 
     async def fail_abandoned(
         self, *, stale_before: datetime, error_code: DiagnosisErrorCode, finished_at: datetime

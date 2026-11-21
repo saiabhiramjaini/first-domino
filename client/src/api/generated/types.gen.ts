@@ -544,9 +544,21 @@ export type Diagnosis = {
     /**
      * Replay Count
      *
-     * Number of replays run so far.
+     * Number of replays asked for so far.
      */
     replay_count: number;
+    /**
+     * Replays Waiting
+     *
+     * Replays queued for your worker that no worker has picked up yet.
+     */
+    replays_waiting?: number;
+    /**
+     * Waiting Since
+     *
+     * When the oldest waiting replay was queued, in UTC RFC 3339 format.
+     */
+    waiting_since?: string | null;
     /**
      * Cost Usd
      *

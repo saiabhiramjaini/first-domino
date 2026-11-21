@@ -1,15 +1,24 @@
 """Replay jobs repository: enqueue, lease, expire leases, record results."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fd_database.tables import ReplayJob
 from fd_shared.enums import ReplayJobStatus, ReplayOutcome
 from fd_shared.models import Message, TaskInput
+
+
+@dataclass(frozen=True, slots=True)
+class WaitingReplays:
+    """Replays of one diagnosis still queued: no worker has picked them up yet."""
+
+    count: int
+    oldest_queued_at: datetime
 
 
 class ReplayJobsRepository:
@@ -87,6 +96,19 @@ class ReplayJobsRepository:
         await self._session.flush()
         return job
 
+    async def expire_for_diagnoses(self, *, diagnosis_ids: Sequence[UUID], now: datetime) -> None:
+        """Ends the unfinished replay jobs of diagnoses that restarted; nobody waits for them."""
+        if not diagnosis_ids:
+            return
+        await self._session.execute(
+            update(ReplayJob)
+            .where(
+                ReplayJob.diagnosis_id.in_(diagnosis_ids),
+                ReplayJob.status.in_([ReplayJobStatus.QUEUED, ReplayJobStatus.LEASED]),
+            )
+            .values(status=ReplayJobStatus.EXPIRED, lease_expires_at=None, finished_at=now)
+        )
+
     async def expire_leases(self, *, project_id: UUID, now: datetime, max_attempts: int) -> None:
         """Returns jobs whose lease ended to the queue, or ends them after `max_attempts`."""
         expired = (
@@ -154,6 +176,28 @@ class ReplayJobsRepository:
         if refresh:
             statement = statement.execution_options(populate_existing=True)
         return await self._session.scalar(statement)
+
+    async def waiting_by_diagnosis(
+        self, *, project_id: UUID, diagnosis_ids: Sequence[UUID]
+    ) -> dict[UUID, WaitingReplays]:
+        """For each diagnosis, its replays no worker has leased yet, and the oldest one's age."""
+        if not diagnosis_ids:
+            return {}
+        statement = (
+            select(ReplayJob.diagnosis_id, func.count(), func.min(ReplayJob.created_at))
+            .where(
+                ReplayJob.project_id == project_id,
+                ReplayJob.diagnosis_id.in_(diagnosis_ids),
+                ReplayJob.status == ReplayJobStatus.QUEUED,
+            )
+            .group_by(ReplayJob.diagnosis_id)
+        )
+        rows = (await self._session.execute(statement)).all()
+        return {
+            diagnosis_id: WaitingReplays(count=count, oldest_queued_at=oldest)
+            for diagnosis_id, count, oldest in rows
+            if diagnosis_id is not None
+        }
 
     async def get_many(
         self, *, project_id: UUID, replay_job_ids: Sequence[UUID]

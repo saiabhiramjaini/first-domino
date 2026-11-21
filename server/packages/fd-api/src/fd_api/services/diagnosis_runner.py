@@ -16,7 +16,11 @@ from fd_api.services.slack import new_cause_message, send_slack_message
 from fd_api.services.verdicts import store_verdict
 from fd_api.settings import ApiSettings
 from fd_database import tables
-from fd_database.repositories import DiagnosesRepository, ProjectsRepository
+from fd_database.repositories import (
+    DiagnosesRepository,
+    ProjectsRepository,
+    ReplayJobsRepository,
+)
 from fd_database.session import Database
 from fd_database.tables.base import utc_now
 from fd_shared.enums import DiagnosisErrorCode
@@ -57,6 +61,11 @@ class DiagnosisRunner:
         self._keep_alive: asyncio.Task[None] | None = None
         self.runner_id = uuid4()
 
+    @property
+    def busy(self) -> bool:
+        """True while a diagnosis is running in this process."""
+        return bool(self._tasks)
+
     async def start(self, *, project_id: UUID, run_id: UUID, diagnosis_id: UUID) -> None:
         """Starts a committed, `queued` diagnosis in the background and returns at once.
 
@@ -70,11 +79,40 @@ class DiagnosisRunner:
         task.add_done_callback(self._tasks.discard)
 
     async def open(self) -> None:
-        """Fails abandoned diagnoses, then keeps this runner's heartbeat going. Call at startup."""
-        await self.fail_abandoned()
+        """Restarts or fails abandoned diagnoses, then starts the heartbeat. Call at startup."""
+        try:
+            await self.recover()
+        except Exception:
+            log.exception("diagnoses.recover_failed")
         self._keep_alive = asyncio.create_task(
             self._heartbeat_forever(), name="diagnosis-heartbeat"
         )
+
+    async def recover(self) -> None:
+        """Takes over diagnoses whose process stopped: recent ones restart, old ones fail."""
+        await self.restart_abandoned()
+        await self.fail_abandoned()
+
+    async def restart_abandoned(self) -> None:
+        """Restarts, in this process, recent diagnoses whose owning process stopped."""
+        now = utc_now()
+        stale_before = now - timedelta(seconds=self._settings.diagnosis_abandoned_after_seconds)
+        created_after = now - timedelta(seconds=self._settings.diagnosis_restart_within_seconds)
+        async with self._database.transaction() as session:
+            taken = await DiagnosesRepository(session).take_over_abandoned(
+                stale_before=stale_before,
+                created_after=created_after,
+                runner_id=self.runner_id,
+                now=now,
+            )
+            await ReplayJobsRepository(session).expire_for_diagnoses(
+                diagnosis_ids=[d.id for d in taken], now=now
+            )
+        for diagnosis in taken:
+            log.warning("diagnoses.restarted", diagnosis_id=str(diagnosis.id))
+            await self.start(
+                project_id=diagnosis.project_id, run_id=diagnosis.run_id, diagnosis_id=diagnosis.id
+            )
 
     async def fail_abandoned(self) -> None:
         """Fails unfinished diagnoses whose owning process stopped heartbeating."""
@@ -95,11 +133,19 @@ class DiagnosisRunner:
             await DiagnosesRepository(session).heartbeat(runner_id=self.runner_id, now=utc_now())
 
     async def shutdown(self) -> None:
-        """Stops the heartbeat, cancels running diagnoses and waits for them to stop."""
+        """Stops the heartbeat and running diagnoses, and hands them to the next process.
+
+        The next process to start (or a live one, at its next heartbeat) restarts them.
+        """
         tasks = [*self._tasks, *([self._keep_alive] if self._keep_alive else [])]
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            async with self._database.transaction() as session:
+                await DiagnosesRepository(session).release(runner_id=self.runner_id)
+        except Exception:
+            log.exception("diagnoses.release_failed")
 
     async def wait_idle(self) -> None:
         """Waits until no diagnosis is running."""
@@ -111,7 +157,7 @@ class DiagnosisRunner:
             await asyncio.sleep(self._settings.diagnosis_heartbeat_seconds)
             try:
                 await self.heartbeat()
-                await self.fail_abandoned()
+                await self.recover()
             except Exception:
                 log.exception("diagnoses.heartbeat_failed")
 
@@ -136,6 +182,14 @@ class DiagnosisRunner:
             log.exception("diagnoses.crashed", diagnosis_id=str(diagnosis_id))
             await self._fail(project_id, diagnosis_id, DiagnosisErrorCode.INTERNAL_ERROR)
 
+    async def _owns(self, project_id: UUID, diagnosis_id: UUID) -> bool:
+        """False once another process took the diagnosis over after this one stalled."""
+        async with self._database.transaction() as session:
+            diagnosis = await DiagnosesRepository(session).get(
+                project_id=project_id, diagnosis_id=diagnosis_id
+            )
+        return diagnosis is not None and diagnosis.runner_id == self.runner_id
+
     async def _diagnose(self, *, project_id: UUID, run_id: UUID, diagnosis_id: UUID) -> None:
         tracker = CheckTracker()
         diagnoser = self._engine.diagnoser(
@@ -150,6 +204,9 @@ class DiagnosisRunner:
             sink=DatabaseCheckSink(self._database, project_id, tracker),
         )
         result = await diagnoser.diagnose(run_id, diagnosis_id)
+        if not await self._owns(project_id, diagnosis_id):
+            log.warning("diagnoses.taken_over", diagnosis_id=str(diagnosis_id))
+            return
         stored = await store_verdict(
             self._database,
             self._engine.matcher(),
@@ -178,7 +235,7 @@ class DiagnosisRunner:
         async with self._database.transaction() as session:
             diagnoses = DiagnosesRepository(session)
             diagnosis = await diagnoses.get(project_id=project_id, diagnosis_id=diagnosis_id)
-            if diagnosis is not None:
+            if diagnosis is not None and diagnosis.runner_id in (None, self.runner_id):
                 await diagnoses.fail(
                     diagnosis=diagnosis, error_code=error_code, finished_at=utc_now()
                 )

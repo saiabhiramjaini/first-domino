@@ -72,7 +72,7 @@ export function RunStepStrip({
           return (
             <li key={step}>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon-lg"
                 onClick={() => onSelectStep(step)}
                 aria-pressed={isSelected}

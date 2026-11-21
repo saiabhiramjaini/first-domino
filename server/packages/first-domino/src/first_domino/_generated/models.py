@@ -1204,8 +1204,27 @@ class Diagnosis(BaseModel):
     ]
     replay_count: Annotated[
         int,
-        Field(description="Number of replays run so far.", ge=0, title="Replay Count"),
+        Field(
+            description="Number of replays asked for so far.",
+            ge=0,
+            title="Replay Count",
+        ),
     ]
+    replays_waiting: Annotated[
+        int | None,
+        Field(
+            description="Replays queued for your worker that no worker has picked up yet.",
+            ge=0,
+            title="Replays Waiting",
+        ),
+    ] = 0
+    waiting_since: Annotated[
+        AwareDatetime | None,
+        Field(
+            description="When the oldest waiting replay was queued, in UTC RFC 3339 format.",
+            title="Waiting Since",
+        ),
+    ] = None
     cost_usd: Annotated[
         float,
         Field(

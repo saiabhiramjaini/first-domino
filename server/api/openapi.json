@@ -2790,7 +2790,27 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Replay Count",
-            "description": "Number of replays run so far."
+            "description": "Number of replays asked for so far."
+          },
+          "replays_waiting": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Replays Waiting",
+            "description": "Replays queued for your worker that no worker has picked up yet.",
+            "default": 0
+          },
+          "waiting_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting Since",
+            "description": "When the oldest waiting replay was queued, in UTC RFC 3339 format."
           },
           "cost_usd": {
             "type": "number",

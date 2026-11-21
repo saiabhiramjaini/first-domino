@@ -6,6 +6,7 @@ import { listSteps } from "@/api/generated";
 import { zListStepsResponse } from "@/api/generated/zod.gen";
 import { callApi } from "@/lib/api-client";
 
+import { LIVE_REFRESH_MS } from "./diagnosis-activity";
 import { useApiAuth } from "./use-api-auth";
 
 const MAX_STEPS = 100;
@@ -19,13 +20,17 @@ function fetchSteps(auth: string | undefined, runId: string) {
   );
 }
 
-export function useListSteps(runId: string) {
+type ListStepsOptions = { isLive?: boolean };
+
+/** One run's steps. With `isLive`, new steps appear as the agent records them. */
+export function useListSteps(runId: string, { isLive = false }: ListStepsOptions = {}) {
   const { auth, isReady } = useApiAuth();
   return useQuery({
     queryKey: listStepsKey(runId),
     queryFn: () => fetchSteps(auth, runId),
     enabled: isReady,
     select: (data) => data.items,
+    refetchInterval: isLive ? LIVE_REFRESH_MS : false,
   });
 }
 

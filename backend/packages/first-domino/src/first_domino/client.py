@@ -132,7 +132,7 @@ class FirstDominoClient:
         request = self._http.build_request(
             "POST",
             self._url(action),
-            content=body.model_dump_json(),
+            content=body.model_dump_json(exclude_unset=True),
             headers={**self._headers(), "Content-Type": "application/json"},
             timeout=(server_wait or 0) + self._settings.timeout_seconds,
         )

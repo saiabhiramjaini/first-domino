@@ -50,6 +50,7 @@ async def test_a_job_is_replayed_recorded_checked_and_submitted(
 
     (run,) = api.runs.values()
     assert run.replay_job_id == job.id
+    assert "tool_names" not in api.start_bodies[0]
     assert [(s.index, s.model) for s in api.steps] == [(3, "strong")]
     assert [(f.status.value, f.final_output) for f in api.finished] == [(outcome.value, "Handled.")]
     (submitted,) = api.submitted

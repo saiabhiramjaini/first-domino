@@ -5,7 +5,7 @@
 | Web app | Vercel (deploys itself from GitHub) | `https://first-domino.abhiramtech.in` |
 | API + demo worker | One EC2 server, Docker Compose, Caddy for HTTPS | `https://api.first-domino.abhiramtech.in` |
 | Database | Neon Postgres | private |
-| Server image | Docker Hub `<user>/first-domino-server` | public |
+| Server image | Docker Hub `saiabhiramjaini/api-first-domino` | public |
 
 ## Settings: code vs secrets
 

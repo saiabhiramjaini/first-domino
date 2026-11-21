@@ -17,7 +17,7 @@ defaults:
     working-directory: server
 
 env:
-  IMAGE: docker.io/${{ vars.DOCKERHUB_USERNAME }}/first-domino-server
+  IMAGE: docker.io/${{ vars.DOCKERHUB_USERNAME }}/api-first-domino
 
 jobs:
   check:

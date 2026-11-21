@@ -13,7 +13,6 @@ first-domino/
   backend/                           Python: API, engine, database, SDK, demo agent, scripts
   frontend/                          Next.js web app
   .github/workflows/                 backend.yml and frontend.yml, one per half (GitHub needs them at the root)
-  .pre-commit-config.yaml            git hooks for both halves (git needs them at the root)
 ```
 
 ## Backend and frontend are separate

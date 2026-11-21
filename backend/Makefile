@@ -53,5 +53,5 @@ sdk-models: ## Generate SDK wire models from api/openapi.json
 		--use-annotated --use-standard-collections --use-union-operator \
 		--target-python-version 3.12 --disable-timestamp --formatters builtin \
 		--custom-file-header '"""Wire models generated from api/openapi.json by make sdk-models. Do not edit."""'
-	# The root pre-commit hook formats every staged file, generated ones included.
+	# Keep the generated models ruff-formatted so regenerating gives a stable diff.
 	uv run ruff format $(SDK_GENERATED)

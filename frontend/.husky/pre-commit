@@ -1,0 +1,20 @@
+# Formats and lints the staged files of each half, then re-stages what was fixed.
+# Git runs hooks from the repository root.
+set -e
+export PATH="$HOME/.bun/bin:$HOME/.local/bin:/opt/homebrew/bin:$PATH"
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+
+backend_files=$(printf '%s\n' "$staged" | grep -E '^backend/.*\.py$' | sed 's#^backend/##' || true)
+if [ -n "$backend_files" ]; then
+  echo "ruff (backend)"
+  (cd backend && uv run --quiet ruff format --force-exclude $backend_files && uv run --quiet ruff check --fix --force-exclude $backend_files)
+  printf '%s\n' "$backend_files" | sed 's#^#backend/#' | xargs git add
+fi
+
+frontend_files=$(printf '%s\n' "$staged" | grep -E '^frontend/.*\.(ts|tsx|js|jsx|mjs|cjs|json|css|md)$' | grep -v '^frontend/src/api/generated/' | sed 's#^frontend/##' || true)
+if [ -n "$frontend_files" ]; then
+  echo "prettier (frontend)"
+  (cd frontend && bunx prettier --write --log-level warn $frontend_files)
+  printf '%s\n' "$frontend_files" | sed 's#^#frontend/#' | xargs git add
+fi

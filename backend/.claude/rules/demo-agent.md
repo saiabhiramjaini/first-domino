@@ -14,6 +14,6 @@ The demo agent plays a real customer. It uses only what a customer would have.
 - World data (contacts, the user's memory, the calendar, spam numbers) lives in `fd_demo_agent/world/data/` as JSON, is read with `importlib.resources`, and is loaded into Pydantic models.
 - The caller is scripted: `reply_to_caller` returns the next fixed line by turn number, never by what the assistant said.
 - The success check is plain code that compares the final sandbox (events, reminders, callbacks, blocked numbers, summary facts, nothing sensitive said) with the task's expected end state. No model call.
-- Never use a real company's name, brand or people. Callers and businesses are fictional.
+- The agent replicates Equal AI's call assistant, our first customer. Only the demo workspace label "Equal AI (demo)" uses their name: no logos, no claim of endorsement, no real people. Callers and businesses are fictional.
 - Planted bugs for the benchmark are defined as data (task id, step to overwrite, replacement output), never as branches in the agent loop.
 - The agent model id comes from `DemoAgentSettings`. Never hardcode it.

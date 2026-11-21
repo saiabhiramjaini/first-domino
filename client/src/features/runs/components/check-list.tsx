@@ -1,4 +1,4 @@
-import type { Check } from "@/api/generated";
+import type { Check, CheckPhase } from "@/api/generated";
 import { StatusBadge } from "@/components/status/status-badge";
 import { CHECK_PHASE, CHECK_RESULT } from "@/components/status/status-tones";
 import {
@@ -12,10 +12,17 @@ import {
 
 type CheckListProps = { checks: Check[] };
 
-function savePointText(savePoint: number): string {
-  if (savePoint === 0) return "Fresh run";
-  if (savePoint === 1) return "Keep step 1";
-  return `Keep steps 1 to ${savePoint}`;
+export function savePointText(phase: CheckPhase, savePoint: number): string {
+  const kept =
+    savePoint === 0
+      ? "Fresh run"
+      : savePoint === 1
+        ? "Keep step 1"
+        : `Keep steps 1 to ${savePoint}`;
+  if (phase === "verify" || phase === "fallback") {
+    return savePoint === 0 ? "Fixed step 1" : `${kept}, then fixed step ${savePoint + 1}`;
+  }
+  return kept;
 }
 
 export function CheckList({ checks }: CheckListProps) {
@@ -45,7 +52,7 @@ export function CheckList({ checks }: CheckListProps) {
               <TableCell>
                 <StatusBadge status={CHECK_PHASE[check.phase]} />
               </TableCell>
-              <TableCell>{savePointText(check.save_point)}</TableCell>
+              <TableCell>{savePointText(check.phase, check.save_point)}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {check.passes} of {check.samples}
               </TableCell>

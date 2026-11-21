@@ -1,7 +1,9 @@
 """Record the call assistant's runs through the public First Domino SDK, like any customer."""
 
 import logging
+from dataclasses import dataclass
 from typing import cast
+from uuid import UUID
 
 from openai.types.chat import ChatCompletionAssistantMessageParam
 
@@ -73,6 +75,14 @@ def assistant_output(message: fd.Message) -> ChatCompletionAssistantMessageParam
     return cast(ChatCompletionAssistantMessageParam, fd.message_to_openai(message))
 
 
+@dataclass(frozen=True, slots=True)
+class RecordedCall:
+    """A call run and the id First Domino gave it, or None when recording was off."""
+
+    run_id: UUID | None
+    run: TaskRun
+
+
 async def run_recorded(
     agent: CallAgent,
     task: CallTask,
@@ -80,7 +90,7 @@ async def run_recorded(
     bug: PlantedBug | None = None,
     on_step: StepCallback | None = None,
     client: fd.FirstDominoClient | None = None,
-) -> TaskRun:
+) -> RecordedCall:
     """Run a call, record it through the SDK and finish it as passed or failed.
 
     Recording is dark without `FIRST_DOMINO_API_KEY`; the run itself is the same.
@@ -99,4 +109,4 @@ async def run_recorded(
         status = fd.RunOutcome.passed if result.report.passed else fd.RunOutcome.failed
         await run.finish(status, final_output=result.final_output)
     log.info("agent.run_recorded task=%s run_id=%s", task.task_id, run.run_id)
-    return result
+    return RecordedCall(run_id=run.run_id, run=result)

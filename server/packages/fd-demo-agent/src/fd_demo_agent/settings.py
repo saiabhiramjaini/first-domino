@@ -1,4 +1,4 @@
-"""DemoAgentSettings: agent model, step limit and the OpenAI key."""
+"""DemoAgentSettings: agent model, step limit, the OpenAI key and the web app URL."""
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,3 +18,6 @@ class DemoAgentSettings(BaseSettings):
     model: str = Field(min_length=1, description="Model id the agent runs with.")
     max_steps: int = Field(default=20, ge=1, description="A run stops after this many steps.")
     openai_api_key: SecretStr | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    web_url: str = Field(
+        default="http://localhost:3000", description="First Domino web app, for run links."
+    )

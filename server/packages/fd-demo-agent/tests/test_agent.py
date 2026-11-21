@@ -1,6 +1,7 @@
 import json
 from collections.abc import Sequence
 from typing import Any
+from uuid import UUID
 
 import pytest
 from openai.types.chat import (
@@ -12,6 +13,7 @@ from openai.types.chat import (
 import first_domino as fd
 from fd_demo_agent.agent import AgentStep, CallAgent, StopReason
 from fd_demo_agent.bugs import get_bug
+from fd_demo_agent.demo_live import demo_call, run_url
 from fd_demo_agent.llm import ModelTurn
 from fd_demo_agent.prompts import opening_messages
 from fd_demo_agent.recording import run_recorded, task_input_for
@@ -222,7 +224,7 @@ async def test_a_bug_after_the_run_ends_is_reported() -> None:
 async def test_a_recorded_run_sends_every_step_and_its_verdict() -> None:
     api = FakeApi()
 
-    result = await run_recorded(agent_for(ScriptedModel(GOLDEN)), CLINIC, client=fake_client(api))
+    recorded = await run_recorded(agent_for(ScriptedModel(GOLDEN)), CLINIC, client=fake_client(api))
 
     (run,) = api.runs.values()
     assert run.agent_name == "call-assistant"
@@ -233,7 +235,8 @@ async def test_a_recorded_run_sends_every_step_and_its_verdict() -> None:
     assert (api.steps[2].tool_results or [])[0].role == fd.MessageRole.tool
     assert len(api.steps[-1].messages) == 21
     assert [f.status for f in api.finished] == [fd.RunOutcome.passed]
-    assert result.report.passed
+    assert recorded.run.report.passed
+    assert recorded.run_id == run.id
 
 
 async def test_a_recorded_bug_run_carries_its_label_and_fails() -> None:
@@ -282,3 +285,15 @@ async def test_the_worker_replays_a_fresh_run_with_a_model_override() -> None:
     assert await worker.run_once() == fd.ReplayOutcome.passed
     assert set(model.models) == {"strong-model"}
     assert api.finished[0].final_output == "Handled the clinic call."
+
+
+def test_the_live_demo_records_a_bug_on_its_own_call_or_the_clean_call() -> None:
+    bugged = demo_call("b02")
+    assert (bugged.task.task_id, bugged.bug) == ("t01", get_bug("b02"))
+    clean = demo_call(None)
+    assert (clean.task.task_id, clean.bug) == ("t07", None)
+
+
+def test_the_live_demo_links_to_the_run_page() -> None:
+    run_id = UUID(int=1)
+    assert run_url("http://localhost:3000/", run_id) == f"http://localhost:3000/runs/{run_id}"

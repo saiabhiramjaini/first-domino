@@ -30,6 +30,7 @@ It is our own replica of the kind of AI call assistant Equal AI describes public
 | `recording` | Record runs through the public SDK: task input with ids, steps, verdict. |
 | `local` | Command line to run calls against OpenAI, log every step and record them. |
 | `worker` | The demo customer's replay worker: replays the agent and runs the success check. |
+| `demo_live` | Record one fresh call for the live demo and print its web link. |
 
 ## Run locally
 
@@ -42,5 +43,14 @@ uv run python -m fd_demo_agent.local --all
 ```
 
 With `FIRST_DOMINO_API_KEY` and `FIRST_DOMINO_BASE_URL` also set, each run is recorded to First Domino as `call-assistant`, with `task_id` (and for a planted bug, `bug_id` and `planted_step`) in its metadata. `make worker` starts the replay worker.
+
+For the live demo, with the API and `make worker` running:
+
+```bash
+uv run python -m fd_demo_agent.demo_live --bug b02
+uv run python -m fd_demo_agent.demo_live --clean
+```
+
+It records one call on the demo key in about 10 seconds, prints `http://localhost:3000/runs/<id>` and exits, so the diagnosis can be watched live. Exit code 2 means the model recovered from the planted bug (nothing to diagnose); run it again. `FD_DEMO_AGENT_WEB_URL` changes the link base.
 
 The user is Arjun Rao in Hyderabad, and now is fixed at Saturday 21 Nov 2026, 11:00 AM IST. The caller is scripted: `reply_to_caller` returns the call's next line by turn number, so replays hear the same caller. Every person, caller and business is fictional.

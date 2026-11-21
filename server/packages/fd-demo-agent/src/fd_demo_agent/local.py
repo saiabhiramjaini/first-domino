@@ -66,7 +66,7 @@ async def _main(args: argparse.Namespace) -> None:
     for task, bug in _plan(args):
         log.info("agent.run_started task=%s bug=%s", task.task_id, bug.bug_id if bug else None)
         try:
-            _log_run(await run_recorded(agent, task, bug=bug, on_step=_log_step))
+            _log_run((await run_recorded(agent, task, bug=bug, on_step=_log_step)).run)
         except BugNotReachedError:
             log.warning("agent.bug_not_reached task=%s bug=%s", task.task_id, bug)
 

@@ -44,6 +44,7 @@ async def _run(session: AsyncSession, project: Project) -> Run:
         project_id=project.id,
         agent_name="call-assistant",
         task_input=TaskInput(prompt="Call the clinic and add tomorrow at 10 to the calendar"),
+        tool_names=["add_calendar_event"],
         created_by_id=api_key.id,
         started_at=utc_now(),
     )

@@ -8,7 +8,7 @@ export type StripDiagnosis = Pick<
 >;
 
 export function stepState(step: number, diagnosis: StripDiagnosis | undefined): StepState {
-  if (!diagnosis) return "idle";
+  if (!diagnosis || diagnosis.status === "failed") return "idle";
   const { first_domino_step: domino, search_low: low, search_high: high } = diagnosis;
   if (domino !== null) {
     if (step !== domino) return "ruled_out";

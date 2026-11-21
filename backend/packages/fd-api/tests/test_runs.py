@@ -9,6 +9,7 @@ from fd_shared.enums import ApiErrorCode
 
 from .conftest import Headers, bearer, web_token
 
+TOOLS = ["get_caller_details", "add_calendar_event"]
 TASK = {
     "prompt": "Call the clinic and add tomorrow at 10 to the calendar",
     "metadata": {"task_id": "t1"},
@@ -32,7 +33,9 @@ def _step(run_id: str, index: int) -> dict[str, Any]:
 
 async def _start(client: AsyncClient, api_key: Headers) -> str:
     response = await client.post(
-        "/v1/runs.start", json={"agent_name": "call-assistant", "task_input": TASK}, headers=api_key
+        "/v1/runs.start",
+        json={"agent_name": "call-assistant", "task_input": TASK, "tool_names": TOOLS},
+        headers=api_key,
     )
     assert response.status_code == 200, response.text
     return response.json()["run"]["id"]
@@ -57,6 +60,7 @@ async def test_record_and_read_a_failed_run(
     run = finished.json()["run"]
     assert (run["status"], run["step_count"], run["finished_at"] is not None) == ("failed", 2, True)
     assert repeat.json()["step"]["output"]["content"] == "step 1"
+    assert run["tool_names"] == TOOLS
     assert again.json()["code"] == ApiErrorCode.CONFLICT
 
     first_page = await client.post(

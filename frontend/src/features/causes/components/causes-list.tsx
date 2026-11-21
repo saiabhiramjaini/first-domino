@@ -7,6 +7,7 @@ import { LoadMoreButton } from "@/components/feedback/load-more-button";
 import { QueryError } from "@/components/feedback/query-error";
 import { StatusBadge } from "@/components/status/status-badge";
 import { CAUSE_CATEGORY } from "@/components/status/status-tones";
+import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListCauses } from "@/hooks/api/use-list-causes";
 import { formatCount, formatRelative } from "@/lib/format";
@@ -46,7 +47,12 @@ export function CausesList() {
     return (
       <EmptyState
         title="No root causes yet"
-        description="Diagnose a failed run to group its cause here."
+        description="Each finished diagnosis groups its root cause here, so repeated failures show up as one cause with many runs."
+        action={
+          <Link href="/failures" className={buttonVariants({ variant: "outline" })}>
+            See failed runs
+          </Link>
+        }
       />
     );
   }

@@ -27,33 +27,35 @@ export function CheckList({ checks }: CheckListProps) {
     );
   }
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-12">#</TableHead>
-          <TableHead>Phase</TableHead>
-          <TableHead>Save point</TableHead>
-          <TableHead className="text-right">Passed</TableHead>
-          <TableHead className="text-right">Result</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {checks.map((check) => (
-          <TableRow key={check.id}>
-            <TableCell className="text-muted-foreground tabular-nums">{check.index}</TableCell>
-            <TableCell>
-              <StatusBadge status={CHECK_PHASE[check.phase]} />
-            </TableCell>
-            <TableCell>{savePointText(check.save_point)}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {check.passes} of {check.samples}
-            </TableCell>
-            <TableCell className="text-right">
-              <StatusBadge status={CHECK_RESULT[check.result]} />
-            </TableCell>
+    <div className="max-h-96 overflow-y-auto rounded-xl border">
+      <Table>
+        <TableHeader className="sticky top-0 bg-card">
+          <TableRow>
+            <TableHead className="w-12">#</TableHead>
+            <TableHead>Phase</TableHead>
+            <TableHead>Save point</TableHead>
+            <TableHead className="text-right">Passed</TableHead>
+            <TableHead className="text-right">Result</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {checks.map((check) => (
+            <TableRow key={check.id}>
+              <TableCell className="text-muted-foreground tabular-nums">{check.index}</TableCell>
+              <TableCell>
+                <StatusBadge status={CHECK_PHASE[check.phase]} />
+              </TableCell>
+              <TableCell>{savePointText(check.save_point)}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {check.passes} of {check.samples}
+              </TableCell>
+              <TableCell className="text-right">
+                <StatusBadge status={CHECK_RESULT[check.result]} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

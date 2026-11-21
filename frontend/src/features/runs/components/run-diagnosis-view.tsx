@@ -6,6 +6,8 @@ import { useState } from "react";
 import type { Diagnosis } from "@/api/generated";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { QueryError } from "@/components/feedback/query-error";
+import { RunStepStrip } from "@/components/runs/run-step-strip";
+import { defaultSelectedStep } from "@/components/runs/step-strip-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isDiagnosisActive } from "@/hooks/api/diagnosis-activity";
@@ -15,13 +17,13 @@ import { useListChecks } from "@/hooks/api/use-list-checks";
 import { useListSteps } from "@/hooks/api/use-list-steps";
 import { isApiError } from "@/lib/api-error";
 
-import { defaultSelectedStep } from "../step-strip-state";
 import { CheckList } from "./check-list";
 import { DiagnoseRunButton } from "./diagnose-run-button";
+import { DiagnosisFailed } from "./diagnosis-failed";
 import { DiagnosisProgress } from "./diagnosis-progress";
 import { RunHeader } from "./run-header";
-import { RunStepStrip } from "./run-step-strip";
 import { StepDetail } from "./step-detail";
+import { StepPager } from "./step-pager";
 import { VerdictCard } from "./verdict-card";
 
 type RunDiagnosisViewProps = { runId: string };
@@ -125,18 +127,22 @@ export function RunDiagnosisView({ runId }: RunDiagnosisViewProps) {
       {diagnosis?.status === "done" && (
         <VerdictCard diagnosis={diagnosis} originalStep={dominoStep} />
       )}
-      {diagnosis?.status === "failed" && (
-        <EmptyState
-          title="The diagnosis stopped before it found a step"
-          description="Check that a replay worker is running for this agent, then diagnose the run again."
-        />
-      )}
+      {diagnosis?.status === "failed" && <DiagnosisFailed diagnosis={diagnosis} />}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section className="flex flex-col gap-3" aria-labelledby="step-title">
-          <h2 id="step-title" className="font-medium">
-            Selected step
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="step-title" className="font-medium">
+              Selected step
+            </h2>
+            {selectedStep !== null && (
+              <StepPager
+                selectedStep={selectedStep}
+                stepCount={stepCount}
+                onSelectStep={setPickedStep}
+              />
+            )}
+          </div>
           {selected ? (
             <StepDetail step={selected} />
           ) : steps.isPending ? (

@@ -2,6 +2,8 @@
 
 The demo customer: an AI call assistant with mock tools, scripted callers, a success check and a replay worker, using only the public SDK. Its SDK agent name is `call-assistant`.
 
+It is our own replica of the kind of AI call assistant Equal AI describes publicly: it answers calls for the user, does the work, then sends a summary and adds callbacks, calendar events and reminders, using the user's personal context. Equal AI is not involved and does not use or endorse First Domino.
+
 - **Layer:** Demo customer
 - **May import:** `first-domino` and third-party libraries
 - **Must never import:** any `fd-*` package
@@ -25,8 +27,9 @@ The demo customer: an AI call assistant with mock tools, scripted callers, a suc
 | `success` | Success check: compare the final sandbox with the expected end state. Plain code. |
 | `bugs` | Eight planted bugs as data: call, step to overwrite, replacement output. |
 | `runner` | Run one call, optionally with a planted bug, and check the result. |
-| `local` | Command line to run calls against OpenAI and log every step. |
-| `worker` | Entry point for the demo customer's replay worker (after the SDK lands). |
+| `recording` | Record runs through the public SDK: task input with ids, steps, verdict. |
+| `local` | Command line to run calls against OpenAI, log every step and record them. |
+| `worker` | The demo customer's replay worker: replays the agent and runs the success check. |
 
 ## Run locally
 
@@ -37,5 +40,7 @@ uv run python -m fd_demo_agent.local --task t01
 uv run python -m fd_demo_agent.local --bug b01
 uv run python -m fd_demo_agent.local --all
 ```
+
+With `FIRST_DOMINO_API_KEY` and `FIRST_DOMINO_BASE_URL` also set, each run is recorded to First Domino as `call-assistant`, with `task_id` (and for a planted bug, `bug_id` and `planted_step`) in its metadata. `make worker` starts the replay worker.
 
 The user is Arjun Rao in Hyderabad, and now is fixed at Saturday 21 Nov 2026, 11:00 AM IST. The caller is scripted: `reply_to_caller` returns the call's next line by turn number, so replays hear the same caller. Every person, caller and business is fictional.

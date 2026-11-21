@@ -1,4 +1,6 @@
-"""Run demo calls locally against OpenAI and log each step and verdict.
+"""Run demo calls locally against OpenAI, log each step and verdict, and record them.
+
+Runs are recorded to First Domino when `FIRST_DOMINO_API_KEY` is set.
 
 Usage, from `backend/`:
     uv run python -m fd_demo_agent.local --task t01
@@ -14,7 +16,8 @@ from fd_demo_agent.agent import AgentStep, CallAgent
 from fd_demo_agent.bugs import PLANTED_BUGS, PlantedBug, get_bug
 from fd_demo_agent.llm import OpenAIChatModel, openai_client
 from fd_demo_agent.messages import function_calls, text_of
-from fd_demo_agent.runner import TaskRun, run_task
+from fd_demo_agent.recording import run_recorded
+from fd_demo_agent.runner import BugNotReachedError, TaskRun
 from fd_demo_agent.settings import DemoAgentSettings
 from fd_demo_agent.tasks import TASKS, CallTask, get_task
 
@@ -62,7 +65,10 @@ async def _main(args: argparse.Namespace) -> None:
     agent = CallAgent(OpenAIChatModel(openai_client(settings)), settings)
     for task, bug in _plan(args):
         log.info("agent.run_started task=%s bug=%s", task.task_id, bug.bug_id if bug else None)
-        _log_run(await run_task(agent, task, bug=bug, on_step=_log_step))
+        try:
+            _log_run(await run_recorded(agent, task, bug=bug, on_step=_log_step))
+        except BugNotReachedError:
+            log.warning("agent.bug_not_reached task=%s bug=%s", task.task_id, bug)
 
 
 def main() -> None:

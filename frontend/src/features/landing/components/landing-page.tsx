@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BrandName } from "@/components/brand/brand-name";
 import { buttonVariants } from "@/components/ui/button";
 
+import { BisectDemo } from "./bisect-demo";
 import { DominoRow } from "./domino-row";
 
 const STEPS = [
@@ -63,14 +64,28 @@ export function LandingPage({ isSignedIn }: LandingPageProps) {
           <DominoRow />
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-3">
-          {STEPS.map((step, position) => (
-            <article key={step.title} className="flex flex-col gap-2 rounded-xl border bg-card p-5">
-              <span className="text-sm font-medium text-domino">{position + 1}</span>
-              <h3 className="font-medium">{step.title}</h3>
-              <p className="text-sm text-muted-foreground">{step.body}</p>
-            </article>
-          ))}
+        <section aria-labelledby="how-title" className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2 text-center">
+            <h2 id="how-title" className="text-2xl font-semibold tracking-tight">
+              How it works
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              A 12-step call, narrowed to one step in four checks and proven with one fix.
+            </p>
+          </div>
+          <BisectDemo />
+          <div className="grid gap-4 sm:grid-cols-3">
+            {STEPS.map((step, position) => (
+              <article
+                key={step.title}
+                className="flex flex-col gap-2 rounded-xl border bg-card p-5"
+              >
+                <span className="text-sm font-medium text-domino">{position + 1}</span>
+                <h3 className="font-medium">{step.title}</h3>
+                <p className="text-sm text-muted-foreground">{step.body}</p>
+              </article>
+            ))}
+          </div>
         </section>
       </main>
 

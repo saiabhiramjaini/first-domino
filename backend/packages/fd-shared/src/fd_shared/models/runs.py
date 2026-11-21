@@ -27,6 +27,7 @@ class RunView(BaseModel):
     id: UUID
     agent_name: str
     task_input: TaskInput
+    tool_names: list[str] = Field(default_factory=list)
     status: RunStatus
     step_count: int = Field(ge=0)
     final_output: str | None

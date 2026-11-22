@@ -1,25 +1,33 @@
-import { ArrowRightIcon, KeyRoundIcon, ListChecksIcon, ShieldCheckIcon } from "lucide-react";
+import { CheckIcon, KeyRoundIcon, ListChecksIcon, ShieldCheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 
 import { BrandName } from "@/components/brand/brand-name";
 import { buttonVariants } from "@/components/ui/button";
 
-import { BisectDemo } from "./bisect-demo";
-import { ProductPreview } from "./product-preview";
+import { BisectStory } from "./bisect-story";
+import { Closing } from "./closing";
+import { Film } from "./film";
+import { Hero } from "./hero";
+import { Reveal } from "./reveal";
+import { SmoothScroll } from "./smooth-scroll";
+import { SpotlightCard } from "./spotlight-card";
 
-const STEPS = [
-  {
-    title: "Replay from save points",
-    body: "Every step of a recorded run is a save point. We keep steps 1 to m exactly as recorded and let your own agent run the rest, on your side.",
-  },
-  {
-    title: "Bisect to the first doomed step",
-    body: "A binary search finds the first save point from which every replay fails. That step is the first domino, found in about log₂(n) checks.",
-  },
-  {
-    title: "Prove it with a fix",
-    body: "We rewrite that one step and replay. When the run flips from failed to passed, the cause is proven, not guessed.",
-  },
+// Fair to the tools named in the hero: they record and score runs well. What they do not do is
+// replay a run to find the step that broke it, and prove the fix.
+const TRACING = [
+  { ok: true, text: "Records every model call and tool result" },
+  { ok: true, text: "Scores the run with a judge model" },
+  { ok: false, text: "Names a likely cause: an AI guess" },
+  { ok: false, text: "Never replays the run to check it" },
+  { ok: false, text: "Leaves you to find out if the fix works" },
+] as const;
+
+const FIRST_DOMINO = [
+  "Records every step with two lines of Python",
+  "Scores the run with your own check",
+  "Finds the exact step by replaying from save points",
+  "Proves it: fixes that step, replays, 3 of 3 pass",
+  "Groups failures by proven cause and emails you the fix",
 ] as const;
 
 const PRINCIPLES = [
@@ -36,193 +44,318 @@ const PRINCIPLES = [
   {
     icon: ListChecksIcon,
     title: "From incident to test",
-    body: "Failures are grouped into root causes. Export a cause's runs as test cases and keep the bug from coming back.",
+    body: "Failures are grouped into root causes, and the first time a new one appears you get an email with the fix. Export a cause's runs as tests.",
   },
 ] as const;
 
-const SDK_SNIPPET = `import first_domino as fd
+type Tone = "kw" | "deco" | "str" | "fn" | "comment";
+const TONE: Record<Tone, string> = {
+  kw: "#d38cf0",
+  deco: "#e5c07b",
+  str: "#9ad186",
+  fn: "#6ea8fe",
+  comment: "#6a6a75",
+};
+const SDK_LINES: { hot?: boolean; spans: { text: string; tone?: Tone }[] }[] = [
+  {
+    hot: true,
+    spans: [
+      { text: "import ", tone: "kw" },
+      { text: "first_domino " },
+      { text: "as ", tone: "kw" },
+      { text: "fd" },
+    ],
+  },
+  { spans: [] },
+  {
+    hot: true,
+    spans: [
+      { text: "@fd.entrypoint", tone: "deco" },
+      { text: "(" },
+      { text: '"support-bot"', tone: "str" },
+      { text: ", check=is_good_answer)" },
+    ],
+  },
+  {
+    spans: [
+      { text: "def ", tone: "kw" },
+      { text: "answer", tone: "fn" },
+      { text: "(question: str) -> str:" },
+    ],
+  },
+  { spans: [{ text: "    ...  " }, { text: "# your agent, unchanged", tone: "comment" }] },
+  { spans: [] },
+  { spans: [{ text: "# worker.py, next to your agent", tone: "comment" }] },
+  {
+    spans: [
+      { text: "fd.serve()  " },
+      { text: "# replays on your side, on request", tone: "comment" },
+    ],
+  },
+];
 
-@fd.entrypoint("support-bot", check=is_good_answer)
-def answer(question: str) -> str:
-    ...  # your agent, unchanged
-
-# worker.py, next to your agent
-fd.serve()  # replays on your side, on request`;
+function SectionHeading({
+  id,
+  eyebrow,
+  title,
+  body,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  body?: string;
+}) {
+  return (
+    <Reveal className="flex max-w-3xl flex-col gap-4">
+      <span className="font-mono text-xs text-muted-foreground">{eyebrow}</span>
+      <h2
+        id={id}
+        className="text-4xl font-bold text-balance sm:text-5xl"
+        style={{ letterSpacing: "-0.04em", lineHeight: 1.02 }}
+      >
+        {title}
+      </h2>
+      {body && <p className="max-w-2xl text-lg text-pretty text-muted-foreground">{body}</p>}
+    </Reveal>
+  );
+}
 
 type LandingPageProps = { isSignedIn: boolean };
 
 export function LandingPage({ isSignedIn }: LandingPageProps) {
   const appHref = isSignedIn ? "/runs" : "/sign-in";
+  const startLabel = isSignedIn ? "Open the app" : "Get started free";
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-clip">
-      <header className="sticky top-0 z-30 bg-background/70 backdrop-blur-md">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link
-            href="/"
-            aria-label="First Domino home"
-            className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            <BrandName />
-          </Link>
-          <nav
-            aria-label="Sections"
-            className="hidden items-center gap-6 text-sm text-muted-foreground md:flex"
-          >
-            <a href="#how" className="hover:text-foreground">
-              How it works
-            </a>
-            <a href="#why" className="hover:text-foreground">
-              Why First Domino
-            </a>
-            <a href="#sdk" className="hover:text-foreground">
-              SDK
-            </a>
-          </nav>
-          <Link
-            href={appHref}
-            className={buttonVariants({ variant: isSignedIn ? "brand" : "outline", size: "sm" })}
-          >
-            {isSignedIn ? "Open the app" : "Sign in"}
-          </Link>
-        </div>
-      </header>
-
-      <main className="relative flex flex-1 flex-col">
-        <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8 px-4 pt-20 pb-16 text-center sm:px-6 sm:pt-28">
-          <span className="inline-flex items-center gap-2 rounded-full border bg-card/60 px-3 py-1 text-xs text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-domino" aria-hidden="true" />
-            Root causes for failed AI agent runs
-          </span>
-          <h1 className="max-w-4xl text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            Find the step where your agent&apos;s run was lost.
-          </h1>
-          <p className="max-w-2xl text-lg text-pretty text-muted-foreground">
-            First Domino replays a failed run from its own save points, finds the first step that
-            doomed it, then proves it by fixing that one step and replaying.
-          </p>
-          <div className="flex flex-col items-center gap-3 sm:flex-row">
-            <Link href={appHref} className={buttonVariants({ variant: "brand", size: "lg" })}>
-              {isSignedIn ? "Open the app" : "Get started free"}
-              <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
+    <SmoothScroll>
+      <div className="relative flex min-h-screen flex-col overflow-x-clip">
+        <header className="sticky top-0 z-30 border-b border-white/5 bg-background/60 backdrop-blur-xl">
+          <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+            <Link
+              href="/"
+              aria-label="First Domino home"
+              className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <BrandName />
             </Link>
-            <a href="#how" className={buttonVariants({ variant: "outline", size: "lg" })}>
-              See how it works
-            </a>
+            <nav
+              aria-label="Sections"
+              className="hidden items-center gap-7 text-sm text-muted-foreground md:flex"
+            >
+              <a href="#film" className="transition-colors hover:text-foreground">
+                Film
+              </a>
+              <a href="#gap" className="transition-colors hover:text-foreground">
+                Why not tracing
+              </a>
+              <a href="#how" className="transition-colors hover:text-foreground">
+                How it works
+              </a>
+              <a href="#sdk" className="transition-colors hover:text-foreground">
+                SDK
+              </a>
+            </nav>
+            <Link
+              href={appHref}
+              className={buttonVariants({ variant: isSignedIn ? "brand" : "outline", size: "sm" })}
+            >
+              {isSignedIn ? "Open the app" : "Sign in"}
+            </Link>
           </div>
-          <div className="mt-8 w-full max-w-4xl">
-            <ProductPreview />
-          </div>
-        </section>
+        </header>
 
-        <section id="how" aria-labelledby="how-title" className="scroll-mt-20 border-t">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-20 sm:px-6">
-            <div className="flex max-w-2xl flex-col gap-3">
-              <span className="font-mono text-xs text-muted-foreground">How it works</span>
-              <h2 id="how-title" className="text-3xl font-semibold tracking-tight text-balance">
-                A 12-step call, narrowed to one step in four checks.
-              </h2>
-              <p className="text-pretty text-muted-foreground">
-                Step through a real search. Outlined steps are still in range, filled grey ones are
-                ruled out, and violet is the first domino.
-              </p>
+        <main className="relative flex flex-1 flex-col">
+          <Hero appHref={appHref} startLabel={startLabel} />
+
+          <section id="film" aria-labelledby="film-title" className="scroll-mt-20">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 py-28 sm:px-6">
+              <SectionHeading
+                id="film-title"
+                eyebrow="The film · 1:43"
+                title="Every step recorded. None of it explained."
+                body="Why tracing alone cannot tell you which step broke your agent, and how replaying from save points can."
+              />
+              <Film />
             </div>
-            <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-              <BisectDemo />
-              <ol className="flex flex-col gap-6">
-                {STEPS.map((step, position) => (
-                  <li key={step.title} className="flex gap-4">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-xs text-muted-foreground">
-                      {position + 1}
+          </section>
+
+          <section id="gap" aria-labelledby="gap-title" className="scroll-mt-20">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 py-28 sm:px-6">
+              <SectionHeading
+                id="gap-title"
+                eyebrow="Why not tracing"
+                title="A trace shows what happened. Not why."
+                body="Observability platforms are great at recording. When a run fails, an engineer still reads every step, guesses, and often fixes the wrong one."
+              />
+              <div className="grid gap-5 md:grid-cols-2">
+                <Reveal>
+                  <div className="flex h-full flex-col gap-6 rounded-2xl border bg-card/60 p-8">
+                    <span className="font-mono text-sm text-muted-foreground">
+                      Braintrust, LangSmith and other tracing
                     </span>
-                    <div className="flex flex-col gap-1">
-                      <h3 className="font-medium">{step.title}</h3>
-                      <p className="text-sm text-pretty text-muted-foreground">{step.body}</p>
-                    </div>
-                  </li>
+                    <ul className="flex flex-col gap-4">
+                      {TRACING.map((item) => (
+                        <li
+                          key={item.text}
+                          className={item.ok ? "flex gap-3" : "flex gap-3 text-muted-foreground"}
+                        >
+                          {item.ok ? (
+                            <CheckIcon
+                              className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <XIcon
+                              className="mt-0.5 size-5 shrink-0 text-destructive"
+                              aria-hidden="true"
+                            />
+                          )}
+                          {item.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Reveal>
+                <Reveal delay={0.12}>
+                  <div
+                    className="relative flex h-full flex-col gap-6 overflow-hidden rounded-2xl border border-domino/40 bg-card p-8"
+                    style={{
+                      boxShadow:
+                        "0 0 80px -20px color-mix(in srgb, var(--domino) 45%, transparent)",
+                    }}
+                  >
+                    <span className="font-mono text-sm text-domino">First Domino</span>
+                    <ul className="flex flex-col gap-4">
+                      {FIRST_DOMINO.map((text) => (
+                        <li key={text} className="flex gap-3 font-medium">
+                          <CheckIcon
+                            className="mt-0.5 size-5 shrink-0 text-domino"
+                            aria-hidden="true"
+                          />
+                          {text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Reveal>
+              </div>
+            </div>
+          </section>
+
+          <section
+            id="how"
+            aria-label="How it works"
+            className="scroll-mt-20 border-t border-white/5"
+          >
+            <BisectStory />
+          </section>
+
+          <section
+            id="why"
+            aria-labelledby="why-title"
+            className="scroll-mt-20 border-t border-white/5"
+          >
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 py-28 sm:px-6">
+              <SectionHeading
+                id="why-title"
+                eyebrow="Why First Domino"
+                title="Other tools tell you a run failed. This one tells you why, with proof."
+              />
+              <div className="grid gap-5 md:grid-cols-3">
+                {PRINCIPLES.map((item, i) => (
+                  <Reveal key={item.title} delay={i * 0.1}>
+                    <SpotlightCard className="h-full">
+                      <item.icon className="size-6 text-domino" aria-hidden="true" />
+                      <h3 className="mt-5 text-lg font-semibold">{item.title}</h3>
+                      <p className="mt-2 text-pretty text-muted-foreground">{item.body}</p>
+                    </SpotlightCard>
+                  </Reveal>
                 ))}
-              </ol>
-            </div>
-          </div>
-        </section>
-
-        <section id="why" aria-labelledby="why-title" className="scroll-mt-20 border-t">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-20 sm:px-6">
-            <div className="flex max-w-2xl flex-col gap-3">
-              <span className="font-mono text-xs text-muted-foreground">Why First Domino</span>
-              <h2 id="why-title" className="text-3xl font-semibold tracking-tight text-balance">
-                Other tools tell you a run failed. This one tells you why, with proof.
-              </h2>
-            </div>
-            <div className="grid gap-px overflow-hidden rounded-lg border bg-border md:grid-cols-3">
-              {PRINCIPLES.map((item) => (
-                <article key={item.title} className="flex flex-col gap-3 bg-card p-6">
-                  <item.icon className="size-5 text-muted-foreground" aria-hidden="true" />
-                  <h3 className="font-medium">{item.title}</h3>
-                  <p className="text-sm text-pretty text-muted-foreground">{item.body}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="sdk" aria-labelledby="sdk-title" className="scroll-mt-20 border-t">
-          <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-20 sm:px-6 lg:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              <span className="font-mono text-xs text-muted-foreground">Python SDK</span>
-              <h2 id="sdk-title" className="text-3xl font-semibold tracking-tight text-balance">
-                Add two lines. Run one worker. Done.
-              </h2>
-              <p className="text-pretty text-muted-foreground">
-                Mark the function that runs your agent, and every model call inside it is recorded
-                live. A failed run is diagnosed on its own, and the worker replays it next to your
-                agent when First Domino asks.
-              </p>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <code className="rounded-md border bg-card px-3 py-1.5 font-mono text-foreground">
-                  pip install first-domino
-                </code>
-                or
-                <code className="rounded-md border bg-card px-3 py-1.5 font-mono text-foreground">
-                  uv add first-domino
-                </code>
               </div>
-              <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
-                <li>Works with OpenAI, Anthropic, LangChain and the OpenAI Agents SDK</li>
-                <li>Recording never raises into your agent</li>
-                <li>Your own check decides what passing means</li>
-              </ul>
             </div>
-            <div className="min-w-0 overflow-hidden rounded-lg border bg-card">
-              <div className="flex items-center justify-between border-b px-4 py-2.5">
-                <span className="font-mono text-xs text-muted-foreground">agent.py</span>
-                <span className="font-mono text-xs text-muted-foreground">python</span>
+          </section>
+
+          <section
+            id="sdk"
+            aria-labelledby="sdk-title"
+            className="scroll-mt-20 border-t border-white/5"
+          >
+            <div className="mx-auto grid w-full max-w-6xl items-center gap-14 px-4 py-28 sm:px-6 lg:grid-cols-2">
+              <div className="flex flex-col gap-6">
+                <SectionHeading
+                  id="sdk-title"
+                  eyebrow="Python SDK · MIT"
+                  title="Add two lines. Run one worker. Done."
+                  body="Mark the function that runs your agent, and every model call inside it is recorded live. A failed run is diagnosed on its own, and the worker replays it next to your agent."
+                />
+                <Reveal
+                  delay={0.1}
+                  className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <code className="rounded-md border bg-card px-3 py-1.5 font-mono text-foreground">
+                    pip install first-domino
+                  </code>
+                  or
+                  <code className="rounded-md border bg-card px-3 py-1.5 font-mono text-foreground">
+                    uv add first-domino
+                  </code>
+                </Reveal>
               </div>
-              <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed sm:text-sm">
-                <code>{SDK_SNIPPET}</code>
-              </pre>
+              <Reveal delay={0.15}>
+                <div className="overflow-hidden rounded-xl border border-white/10 shadow-2xl shadow-black/50">
+                  <div
+                    className="flex h-9 items-center justify-between border-b border-black/40 px-4"
+                    style={{ background: "linear-gradient(#2c2c31, #242428)" }}
+                  >
+                    <span className="font-mono text-xs text-white/50">agent.py</span>
+                    <span className="font-mono text-xs text-white/40">python</span>
+                  </div>
+                  <pre
+                    className="overflow-x-auto py-4 font-mono text-sm leading-7"
+                    style={{ background: "rgba(15,15,18,0.97)" }}
+                  >
+                    {SDK_LINES.map((line, i) => (
+                      <div
+                        key={i}
+                        className="px-5"
+                        style={
+                          line.hot
+                            ? {
+                                background: "color-mix(in srgb, var(--domino) 12%, transparent)",
+                                boxShadow: "inset 3px 0 0 var(--domino)",
+                              }
+                            : undefined
+                        }
+                      >
+                        <span className="mr-5 inline-block w-4 text-right text-white/25 select-none">
+                          {i + 1}
+                        </span>
+                        {line.spans.map((span, j) => (
+                          <span key={j} style={{ color: span.tone ? TONE[span.tone] : "#e4e4e7" }}>
+                            {span.text}
+                          </span>
+                        ))}
+                      </div>
+                    ))}
+                  </pre>
+                </div>
+              </Reveal>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="border-t">
-          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-4 py-24 text-center sm:px-6">
-            <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-              Stop guessing which step broke your agent.
-            </h2>
-            <Link href={appHref} className={buttonVariants({ variant: "brand", size: "lg" })}>
-              {isSignedIn ? "Open the app" : "Get started free"}
-              <ArrowRightIcon data-icon="inline-end" aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
-      </main>
+          <section className="border-t border-white/5">
+            <div className="mx-auto w-full max-w-6xl px-4 py-36 sm:px-6">
+              <Closing appHref={appHref} startLabel={startLabel} />
+            </div>
+          </section>
+        </main>
 
-      <footer className="border-t">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <BrandName />
-          <span>Proven root causes for failed AI agent runs.</span>
-        </div>
-      </footer>
-    </div>
+        <footer className="border-t border-white/5">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <BrandName />
+            <span>Proven root causes for failed AI agent runs.</span>
+          </div>
+        </footer>
+      </div>
+    </SmoothScroll>
   );
 }

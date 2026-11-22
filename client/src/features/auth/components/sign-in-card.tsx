@@ -2,11 +2,12 @@ import Link from "next/link";
 
 import { BrandName } from "@/components/brand/brand-name";
 
+import { DemoSignInForm } from "./demo-sign-in-form";
 import { GoogleSignInButton } from "./google-sign-in-button";
 
-type SignInCardProps = { callbackUrl: string };
+type SignInCardProps = { callbackUrl: string; hasDemoLogin?: boolean };
 
-export function SignInCard({ callbackUrl }: SignInCardProps) {
+export function SignInCard({ callbackUrl, hasDemoLogin = false }: SignInCardProps) {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
       <div className="relative flex w-full max-w-sm flex-col items-center gap-8">
@@ -28,6 +29,16 @@ export function SignInCard({ callbackUrl }: SignInCardProps) {
           <p className="text-center text-xs text-muted-foreground">
             We only read your name, email and picture from Google.
           </p>
+          {hasDemoLogin && (
+            <>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or use the test login
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <DemoSignInForm callbackUrl={callbackUrl} />
+            </>
+          )}
         </div>
         <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
           Back to the home page

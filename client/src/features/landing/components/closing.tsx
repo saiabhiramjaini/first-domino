@@ -17,7 +17,16 @@ export function Closing({ appHref, startLabel }: { appHref: string; startLabel: 
   return (
     <div ref={ref} className="flex flex-col items-center gap-8 text-center">
       <motion.h2
-        style={{ scale, opacity, letterSpacing: spacing, lineHeight: 0.9 }}
+        // The gradient is clipped to the text's box, and this tight line height would cut the
+        // tails of the g's: padding gives the glyphs room, the margins take it back from layout.
+        style={{
+          scale,
+          opacity,
+          letterSpacing: spacing,
+          lineHeight: 0.9,
+          padding: "0.08em 0.08em 0.22em",
+          margin: "-0.08em -0.08em -0.22em",
+        }}
         className="bg-gradient-to-b from-foreground to-muted-foreground bg-clip-text text-7xl font-extrabold text-transparent sm:text-8xl lg:text-9xl"
       >
         Stop guessing.

@@ -81,6 +81,8 @@ queued | leased ──► expired   the check was decided without it
 
 ## The search and the proof
 
+![How First Domino finds the step that broke a failed run: a 7-step b07 call, a binary search over save points that finds step 3, and a replay with step 3 fixed that passes](./images/how-first-domino-works.png)
+
 - Calibrate first: keep every step (m = n) and replay a couple of times. Every model call is answered from the recording, so it costs no model tokens. The success check must fail these replays; if it passes one, the check (or the world it reads) does not reliably fail this run, and the diagnosis stops as `check_inconsistent` instead of blaming a step.
 - `can_succeed(m)`: keep steps 1..m and replay the rest k times. True if any replay passes.
 - A check with no pass is run once more before the save point counts as doomed, since a few unlucky replays look the same as a doomed one.

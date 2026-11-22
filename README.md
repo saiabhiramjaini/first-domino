@@ -31,6 +31,8 @@ Set `FIRST_DOMINO_API_KEY` from the web app's Settings page. Every model call ma
 
 ## How it works
 
+![How First Domino finds the step that broke a failed run: a 7-step b07 call, a binary search over save points that finds step 3, and a replay with step 3 fixed that passes](./docs/images/how-first-domino-works.png)
+
 1. **Record.** Each model call is a step, and every step is a save point.
 2. **Search.** For a failed run, the engine first confirms your check fails a replay that keeps every step (free: every model call comes from the recording). Then it asks whether the run can still pass when steps 1 to m are kept and the rest replayed, and binary-searches m for the first step after which no replay passes. A replay whose kept steps no longer match the recording (a tool returned different data) is not counted, and the tool is named so you can mark it with `@fd.tool`.
 3. **Prove.** It rewrites that step and replays. If the run now passes, the step is proven to be the cause.
